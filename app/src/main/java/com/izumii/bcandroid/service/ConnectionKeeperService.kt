@@ -92,7 +92,7 @@ class ConnectionKeeperService : Service() {
         val isDiscreet = packageName.contains("discreet")
         val title = if (isDiscreet) "\u3164" else "Bondage Club"
         val text = if (isDiscreet) "\u3164" else "Active room session running in background"
-        val icon = if (isDiscreet) R.drawable.ic_transparent else R.drawable.ic_launcher_foreground
+        val icon = if (isDiscreet) R.drawable.ic_transparent else R.drawable.ic_rope_logo
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
