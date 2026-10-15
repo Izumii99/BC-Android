@@ -1,29 +1,53 @@
-*.iml
-.gradle
+## Android build artifacts
+.gradle/
+build/
+app/build/
 /local.properties
-/.idea/
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
 local.properties
-
-# Android Studio Navigation editor temp files
+/captures/
+.externalNativeBuild/
+.cxx/
 .navigation/
 
-# Output APKs / Bundles
-app/build/
+## Output APKs / Bundles / Releases
 publish/
 release/
+tester/
 *.apk
 *.aab
-
-# Keystore files
 *.jks
 *.keystore
 
-# Temporary files
+## IDE & editor files
+.idea/
+*.iml
+.vs/
+.vscode/
+
+## OS junk
+Thumbs.db
+.DS_Store
+desktop.ini
+agent.md
 *.log
 *.tmp
 *.bak
+
+## Script dev & tester overrides
+Scripts/neko-devtools*.js
+Scripts/*debug*.js
+*.html
+jsdelivr_response.json
+Scripts/fusam-liko-loader.js
+*fusam-liko*
+addons_og/
+game_og/
+scripts_beta/
+
+## Rules agent
+.agents/
+unused-script/
+
+## Local build scripts
+build-local.ps1
+build-local*.ps1
