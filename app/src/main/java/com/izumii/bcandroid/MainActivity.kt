@@ -78,12 +78,6 @@ class MainActivity : AppCompatActivity() {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
-
-        window.decorView.setOnSystemUiVisibilityChangeListener { visibility ->
-            if ((visibility and View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
-                controller.hide(WindowInsetsCompat.Type.systemBars())
-            }
-        }
     }
 
     private fun setupDoubleTapBackToExit() {
@@ -225,6 +219,11 @@ class MainActivity : AppCompatActivity() {
         if (hasFocus) {
             setupImmersiveFullscreen()
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        setupImmersiveFullscreen()
     }
 
     override fun onDestroy() {

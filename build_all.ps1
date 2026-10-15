@@ -9,6 +9,33 @@ Write-Host "========================================" -ForegroundColor Magenta
 Write-Host "   BC Android - Automated Build Pipeline" -ForegroundColor Magenta
 Write-Host "========================================" -ForegroundColor Magenta
 
+# Auto-configure environment if not already set
+if (-not $env:JAVA_HOME -or -not (Test-Path "$env:JAVA_HOME\bin\java.exe")) {
+    $candidates = @(
+        "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot",
+        "C:\Program Files\Eclipse Adoptium\jdk-17*",
+        "C:\Program Files\Java\jdk-17*"
+    )
+    foreach ($c in $candidates) {
+        $found = Get-Item $c -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found -and (Test-Path "$($found.FullName)\bin\java.exe")) {
+            $env:JAVA_HOME = $found.FullName
+            break
+        }
+    }
+}
+if ($env:JAVA_HOME) {
+    $env:PATH = "$env:JAVA_HOME\bin;" + $env:PATH
+}
+
+if (-not $env:ANDROID_HOME -or -not (Test-Path $env:ANDROID_HOME)) {
+    $defaultSdk = "$env:LOCALAPPDATA\Android\Sdk"
+    if (Test-Path $defaultSdk) {
+        $env:ANDROID_HOME = $defaultSdk
+        $env:ANDROID_SDK_ROOT = $defaultSdk
+    }
+}
+
 # 1. Run unit tests
 if (-not $SkipTests) {
     Write-Host "`n[1/4] Running automated unit tests..." -ForegroundColor Cyan
