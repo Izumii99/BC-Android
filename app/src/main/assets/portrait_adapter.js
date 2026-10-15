@@ -32,20 +32,6 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Flexible Canvas Centering (Matches standard mobile browsers) */
-        #MainCanvas {
-            position: absolute !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            margin: auto !important;
-            max-width: 100vw !important;
-            max-height: 100vh !important;
-            display: block !important;
-            object-fit: contain !important;
-        }
-
         /* Prevent chat input from hiding under Android IME virtual keyboard */
         #chat-room-div, #chat-room-main {
             box-sizing: border-box !important;
@@ -100,29 +86,63 @@
         document.head.appendChild(style);
     }
 
+    /**
+     * Checks if BC-LCE, MPL, or any external portrait layout manager is active.
+     */
+    function isExternalPortraitActive() {
+        return !!(
+            window.BCPortraitMode ||
+            window.bcPortraitActive ||
+            window.BCMPL ||
+            window.MPL ||
+            window.Liko?.LCE ||
+            window.LCE ||
+            window.Vertical ||
+            document.getElementById('lce-v-cr') ||
+            document.getElementById('mpl-style') ||
+            document.querySelector('.portrait-mode') ||
+            document.querySelector('#portrait-wrapper') ||
+            (document.documentElement.style && document.documentElement.style.getPropertyValue('--lce-cr-top'))
+        );
+    }
+
     // 3. Dynamic layout observer and canvas scaler (centers in portrait and landscape)
     function adjustCanvasLayout() {
         const canvas = document.getElementById('MainCanvas');
         if (!canvas) return;
 
-        // Check if an external portrait addon is active
-        const hasPortraitAddon = window.BCPortraitMode || 
-            window.bcPortraitActive || 
-            document.querySelector('.portrait-mode') || 
-            document.querySelector('#portrait-wrapper');
-
-        if (hasPortraitAddon) {
-            // Respect user installed portrait addon layout
+        // If an external portrait addon is active (e.g. BC-LCE vertical mode), yield completely
+        if (isExternalPortraitActive()) {
+            if (canvas.dataset.bcAdapterActive) {
+                delete canvas.dataset.bcAdapterActive;
+                canvas.style.removeProperty('position');
+                canvas.style.removeProperty('top');
+                canvas.style.removeProperty('bottom');
+                canvas.style.removeProperty('left');
+                canvas.style.removeProperty('right');
+                canvas.style.removeProperty('margin');
+                canvas.style.removeProperty('width');
+                canvas.style.removeProperty('height');
+                canvas.style.removeProperty('max-width');
+                canvas.style.removeProperty('max-height');
+                canvas.style.removeProperty('display');
+                canvas.style.removeProperty('object-fit');
+            }
             return;
         }
 
-        // Maintain browser-standard auto centering
-        canvas.style.position = 'absolute';
-        canvas.style.top = '0';
-        canvas.style.bottom = '0';
-        canvas.style.left = '0';
-        canvas.style.right = '0';
-        canvas.style.margin = 'auto';
+        // Apply browser-standard auto centering for vanilla BC
+        canvas.dataset.bcAdapterActive = 'true';
+        canvas.style.setProperty('position', 'absolute', 'important');
+        canvas.style.setProperty('top', '0', 'important');
+        canvas.style.setProperty('bottom', '0', 'important');
+        canvas.style.setProperty('left', '0', 'important');
+        canvas.style.setProperty('right', '0', 'important');
+        canvas.style.setProperty('margin', 'auto', 'important');
+        canvas.style.setProperty('max-width', '100vw', 'important');
+        canvas.style.setProperty('max-height', '100vh', 'important');
+        canvas.style.setProperty('display', 'block', 'important');
+        canvas.style.setProperty('object-fit', 'contain', 'important');
 
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
@@ -131,13 +151,13 @@
         if (screenWidth / screenHeight < nativeAspect) {
             // Screen is portrait or narrower than 2:1 -> width bound, centered vertically
             const targetHeight = screenWidth / nativeAspect;
-            canvas.style.width = screenWidth + 'px';
-            canvas.style.height = targetHeight + 'px';
+            canvas.style.setProperty('width', screenWidth + 'px', 'important');
+            canvas.style.setProperty('height', targetHeight + 'px', 'important');
         } else {
             // Screen is landscape or wider than 2:1 -> height bound, centered horizontally
             const targetWidth = screenHeight * nativeAspect;
-            canvas.style.width = targetWidth + 'px';
-            canvas.style.height = screenHeight + 'px';
+            canvas.style.setProperty('width', targetWidth + 'px', 'important');
+            canvas.style.setProperty('height', screenHeight + 'px', 'important');
         }
     }
 

@@ -15,31 +15,22 @@ object MemoryOptimizer {
     private const val RESTORE_UNFOCUSED_FPS_SCRIPT =
         "(()=>{const g=window.bcFpsCap;if(g){if(g.MaxUnfocusedFPS===15)g.MaxUnfocusedFPS=0;window.bcFpsCap=null;}})();"
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var backgroundPauseRunnable: Runnable? = null
-
     /**
-     * Called when Activity is paused or sent to background.
+     * Called when Activity is sent to background or loses focus.
+     * Throttles graphics engine to 15 FPS and trims volatile caches without pausing
+     * background JS timers or dropping Socket.IO WebSocket room connections.
      */
     fun onPause(webView: WebView?) {
         webView ?: return
 
-        // Immediately throttle in-game graphics engine to 15 FPS
+        // 1. Immediately throttle in-game graphics engine to 15 FPS to cut CPU heat and battery
         webView.evaluateJavascript(CAP_UNFOCUSED_FPS_SCRIPT, null)
-        webView.onPause()
 
-        // If backgrounded for more than 5 seconds, pause WebView JS timers to conserve battery and RAM
-        backgroundPauseRunnable?.let { handler.removeCallbacks(it) }
-        val r = Runnable {
-            try {
-                webView.pauseTimers()
-                // Clear in-memory resource caches (keeps persistent localStorage and cookies intact)
-                webView.clearCache(false)
-            } catch (ignored: Exception) {
-            }
+        // 2. Prune volatile image/texture caches to release RAM (keeps persistent storage intact)
+        try {
+            webView.clearCache(false)
+        } catch (ignored: Exception) {
         }
-        backgroundPauseRunnable = r
-        handler.postDelayed(r, 5000)
     }
 
     /**
@@ -47,14 +38,6 @@ object MemoryOptimizer {
      */
     fun onResume(webView: WebView?) {
         webView ?: return
-
-        backgroundPauseRunnable?.let {
-            handler.removeCallbacks(it)
-            backgroundPauseRunnable = null
-        }
-
-        webView.resumeTimers()
-        webView.onResume()
 
         // Restore normal game FPS
         webView.evaluateJavascript(RESTORE_UNFOCUSED_FPS_SCRIPT, null)
