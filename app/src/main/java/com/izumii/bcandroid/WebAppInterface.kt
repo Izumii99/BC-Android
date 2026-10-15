@@ -8,7 +8,10 @@ import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.widget.Toast
 
-class WebAppInterface(private val context: Context) {
+class WebAppInterface(
+    private val context: Context,
+    private val onOfflineAddonsRequested: (() -> Unit)? = null
+) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -22,6 +25,13 @@ class WebAppInterface(private val context: Context) {
                 Toast.makeText(context, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
             } catch (ignored: Exception) {
             }
+        }
+    }
+
+    @JavascriptInterface
+    fun loadOfflineAddons() {
+        mainHandler.post {
+            onOfflineAddonsRequested?.invoke()
         }
     }
 

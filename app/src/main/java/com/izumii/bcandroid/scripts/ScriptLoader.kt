@@ -7,6 +7,9 @@ import java.io.InputStreamReader
 
 object ScriptLoader {
 
+    // Remote loader pointing to Izumii99/BC-Desktop
+    const REMOTE_MANAGER_URL = "https://cdn.jsdelivr.net/gh/Izumii99/BC-Desktop@main/Scripts/addon-manager.js"
+
     private fun readAsset(context: Context, assetPath: String): String? {
         return try {
             context.assets.open(assetPath).use { stream ->
@@ -18,7 +21,7 @@ object ScriptLoader {
     }
 
     /**
-     * Injects the portrait adapter and desktop bridge scripts into the game DOM.
+     * Injects the portrait adapter, desktop bridge, and the remote addon loader from BC-Desktop into the game DOM.
      */
     fun injectCoreScripts(context: Context, webView: WebView?) {
         webView ?: return
@@ -33,12 +36,32 @@ object ScriptLoader {
             webView.evaluateJavascript(script, null)
         }
 
-        // 3. Inject any bundled addons in assets/addons/
+        // 3. Remote Addon Loader (pulls directly from Izumii99/BC-Desktop repo)
+        readAsset(context, "scripts/inject-all.js")?.let { remoteLoaderScript ->
+            webView.evaluateJavascript(remoteLoaderScript, null)
+        }
+    }
+
+    /**
+     * Fallback offline injector: loads embedded assets/addons if the remote CDN cannot be reached.
+     */
+    fun injectLocalAddons(context: Context, webView: WebView?) {
+        webView ?: return
+
+        val orderedScripts = listOf(
+            "fusam-liko-loader.js",
+            "chat-qol.js",
+            "translate.js",
+            "cheat-menu.js",
+            "neko-dark.js",
+            "wardrobe-pagination.js"
+        )
+
         try {
-            val addonFiles = context.assets.list("addons") ?: emptyArray()
-            for (file in addonFiles) {
-                if (file.endsWith(".js")) {
-                    readAsset(context, "addons/$file")?.let { addonScript ->
+            val available = context.assets.list("addons")?.toSet() ?: emptySet()
+            for (scriptName in orderedScripts) {
+                if (available.contains(scriptName)) {
+                    readAsset(context, "addons/$scriptName")?.let { addonScript ->
                         webView.evaluateJavascript(addonScript, null)
                     }
                 }

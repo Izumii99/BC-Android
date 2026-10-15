@@ -5,6 +5,7 @@
 - **Virtual Keyboard (IME) & Soft Focus:** Tapping chat boxes activates the keyboard cleanly with dynamic viewport resizing so inputs are never obstructed by the keyboard. Native Android clipboard bridge enables seamless 1-tap copying and pasting of chat text, appearance codes, and wardrobe exports.
 - **Crash Auto-Recovery:** Built-in safeguard recovers and reloads frozen or memory-exhausted WebKit render processes with rapid crash-loop protection (up to 3 recoveries within 30 seconds).
 - **Auto Game Version & Release Detection:** Automatically probes server endpoints concurrently on startup to load the latest live game version (R132+) without manual client updates. Silently checks GitHub for newer APK releases.
+- **In-App Remote Addon Loader (Synced with BC-Desktop):** Automatically fetches and injects the latest Addon Manager and mods directly from your `Izumii99/BC-Desktop` repository on startup. Any updates pushed to desktop scripts become available on Android immediately without needing to recompile or download a new APK. Includes seamless offline fallback to the embedded bundle if offline.
 - **Double-Tap Back Guard:** Prevents accidental navigation gestures from closing your game session while in the middle of active gameplay or roleplay.
 
 ### Downloads:

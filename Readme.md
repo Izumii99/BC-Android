@@ -29,6 +29,7 @@ A minimal, native Android wrapper for BC, built with **Kotlin** and **Android We
 - **Auto-Detects Latest Game Version:** Probes server endpoints concurrently on startup to launch the newest live game release (R132+).
 - **Crash Auto-Recovery:** Automatically recovers and restarts frozen or memory-exhausted WebKit render processes with rapid crash-loop guards.
 - **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
+- **In-App Remote Addon Loader (OTA):** Pulls the latest scripts and Addons Manager directly from the [BC-Desktop repository](https://github.com/Izumii99/BC-Desktop) on startup. Any script updates pushed to `BC-Desktop` apply immediately on Android without needing a new APK! Includes automatic offline fallback bundle.
 - **Discreet / Stealth Flavor:** Includes an optional build with an invisible app name and transparent launcher icon for complete privacy.
 - **Double-Tap Back Protection:** Prevents accidentally quitting your active game room session via gestures.
 

@@ -50,6 +50,21 @@
             #InputChat {
                 font-size: 16px !important; /* Prevents auto-zoom on iOS/Android WebViews */
             }
+
+            /* Addon Manager Mobile UI Fit */
+            div[style*="zIndex: 1000000"], div[style*="z-index: 1000000"] {
+                padding: 10px !important;
+                box-sizing: border-box !important;
+            }
+            div[style*="zIndex: 1000000"] > div, div[style*="z-index: 1000000"] > div {
+                max-width: 92vw !important;
+                max-height: 80vh !important;
+                width: 92vw !important;
+            }
+            div[style*="zIndex: 1000005"] > div, div[style*="z-index: 1000005"] > div {
+                max-width: 90vw !important;
+                max-height: 80vh !important;
+            }
         }
     `;
     if (!document.getElementById('bc-android-portrait-style')) {

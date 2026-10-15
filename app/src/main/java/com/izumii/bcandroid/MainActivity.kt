@@ -130,7 +130,9 @@ class MainActivity : AppCompatActivity() {
         settings.displayZoomControls = false
         settings.allowFileAccess = true
 
-        v.addJavascriptInterface(WebAppInterface(this), "AndroidBridge")
+        v.addJavascriptInterface(WebAppInterface(this) {
+            ScriptLoader.injectLocalAddons(this@MainActivity, webView)
+        }, "AndroidBridge")
 
         v.webChromeClient = WebChromeClient()
 
