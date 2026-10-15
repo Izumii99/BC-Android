@@ -10,7 +10,7 @@
   <p>
     <img src="https://img.shields.io/badge/Android-8.0+_(API_26+)-brightgreen?logo=android" alt="Android 8.0+" />
     <img src="https://img.shields.io/badge/Kotlin-1.9-purple?logo=kotlin" alt="Kotlin 1.9" />
-    <img src="https://img.shields.io/badge/Footprint-~4MB_APK-blue" alt="Lightweight" />
+    <img src="https://img.shields.io/badge/Footprint-~0.86MB_APK-blue" alt="Lightweight" />
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
   </p>
 </div>
@@ -22,7 +22,8 @@ A minimal, native Android wrapper for BC, built with **Kotlin** and **Android We
 ## Features
 
 - **Zero-Bar Immersive Fullscreen:** Pure edge-to-edge experience without address bars, navigation buttons, tab switchers, or settings panels.
-- **Portrait-First Scaling Engine:** Intelligently fits the native 2:1 game canvas to portrait phone displays with zero horizontal overflow, while automatically yielding to portrait addons if active.
+- **Portrait-First Scaling Engine:** Intelligently fits the native 2:1 game canvas to portrait phone displays with zero horizontal overflow, while automatically yielding to portrait addons (such as BC-LCE or MPL) if active.
+- **Background Session Persistence:** Integrated background keep-alive service (`ConnectionKeeperService`) maintaining active WebSocket room connections and game timers even when the app is minimized or the screen is locked, preventing aggressive OEM battery killer disconnects.
 - **Aggressive Memory & Battery Optimization:**
   - Redraws automatically throttle down to **15 FPS** when the app is paused or screen is locked.
   - Active memory pruning via Android `onTrimMemory` hooks clears non-essential cache buffers during long sessions without disconnecting WebSocket connections.
@@ -30,7 +31,7 @@ A minimal, native Android wrapper for BC, built with **Kotlin** and **Android We
 - **Crash Auto-Recovery:** Automatically recovers and restarts frozen or memory-exhausted WebKit render processes with rapid crash-loop guards.
 - **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
 - **In-App Remote Addon Loader (OTA):** Pulls the latest scripts and Addons Manager directly from the [BC-Desktop repository](https://github.com/Izumii99/BC-Desktop) on startup. Any script updates pushed to `BC-Desktop` apply immediately on Android without needing a new APK! Includes automatic offline fallback bundle.
-- **Discreet / Stealth Flavor:** Includes an optional build with an invisible app name and transparent launcher icon for complete privacy.
+- **Discreet / Stealth Flavor:** Includes an optional build with an invisible app name (`\u3164`) and transparent launcher icon for complete privacy.
 - **Double-Tap Back Protection:** Prevents accidentally quitting your active game room session via gestures.
 
 ## Included Scripts / Addons
@@ -66,8 +67,8 @@ Every release provides two distinct APK variants:
 
 | Variant | Size | Description |
 | :--- | :--- | :--- |
-| **Standard APK** | ~4MB | Full branded release with default launcher icon and title. |
-| **Discreet APK** | ~4MB | Stealth build with invisible app name (Hangul Filler `U+3164`) and transparent icon. |
+| **Standard APK** | ~0.86 MB | Full branded release with official rope coil launcher icon and title. |
+| **Discreet APK** | ~0.85 MB | Stealth build with invisible app name (Hangul Filler `U+3164`) and transparent icon. |
 
 Download the latest APK directly from the [Releases](https://github.com/Izumii99/BC-Android/releases) page.
 
