@@ -75,4 +75,72 @@
         }
         return document.getElementById('InputChat');
     };
+
+    // Automatic Relog Handler (reconnects into the room instantly without manual password entry)
+    function hookAutoRelogin() {
+        const captureCredentials = function() {
+            try {
+                const accInput = document.getElementById('InputName');
+                const passInput = document.getElementById('InputPassword');
+                const acc = (accInput && accInput.value) ? accInput.value.trim() : (window.Player ? window.Player.AccountName : '');
+                const pass = passInput ? passInput.value : '';
+                if (acc && pass) {
+                    sessionStorage.setItem('_bc_session_creds', JSON.stringify({ account: acc, pass: pass }));
+                }
+            } catch (e) {}
+        };
+
+        document.addEventListener('submit', captureCredentials, true);
+        document.addEventListener('click', function(e) {
+            if (e.target && (e.target.id === 'Login' || e.target.id === 'relog-login')) {
+                captureCredentials();
+            }
+        }, true);
+
+        let hookAttempts = 0;
+        const hookInterval = setInterval(function() {
+            hookAttempts++;
+            if (typeof window.LoginDoLogin === 'function' && !window._bcLoginHooked) {
+                window._bcLoginHooked = true;
+                const origDoLogin = window.LoginDoLogin;
+                window.LoginDoLogin = function(account, password) {
+                    if (account && password) {
+                        try {
+                            sessionStorage.setItem('_bc_session_creds', JSON.stringify({ account: account, pass: password }));
+                        } catch (e) {}
+                    }
+                    return origDoLogin.apply(this, arguments);
+                };
+                clearInterval(hookInterval);
+            }
+            if (hookAttempts > 30) clearInterval(hookInterval);
+        }, 500);
+
+        setInterval(function() {
+            try {
+                if (window.CurrentScreen === 'Relog' && !window._bcRelogActive) {
+                    const raw = sessionStorage.getItem('_bc_session_creds');
+                    if (raw) {
+                        const creds = JSON.parse(raw);
+                        if (creds && creds.pass) {
+                            window._bcRelogActive = true;
+                            const passInput = document.getElementById('InputPassword');
+                            const loginBtn = document.getElementById('relog-login');
+                            if (passInput) passInput.value = creds.pass;
+                            if (loginBtn) {
+                                loginBtn.click();
+                            } else if (typeof window.LoginDoLogin === 'function') {
+                                const acc = (window.Player && window.Player.AccountName) ? window.Player.AccountName : creds.account;
+                                window.LoginDoLogin(acc, creds.pass);
+                            }
+                            setTimeout(function() {
+                                window._bcRelogActive = false;
+                            }, 4000);
+                        }
+                    }
+                }
+            } catch (e) {}
+        }, 1000);
+    }
+    hookAutoRelogin();
 })();

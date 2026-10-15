@@ -202,11 +202,13 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         setupImmersiveFullscreen()
         MemoryOptimizer.onResume(webView)
+        com.izumii.bcandroid.service.ConnectionKeeperService.stop(this)
     }
 
     override fun onPause() {
         super.onPause()
         MemoryOptimizer.onPause(webView)
+        com.izumii.bcandroid.service.ConnectionKeeperService.start(this)
     }
 
     override fun onTrimMemory(level: Int) {
@@ -227,6 +229,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        com.izumii.bcandroid.service.ConnectionKeeperService.stop(this)
         MemoryOptimizer.destroyWebView(webView)
         webView = null
         super.onDestroy()
