@@ -1,0 +1,29 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Output APKs / Bundles
+app/build/
+publish/
+release/
+*.apk
+*.aab
+
+# Keystore files
+*.jks
+*.keystore
+
+# Temporary files
+*.log
+*.tmp
+*.bak

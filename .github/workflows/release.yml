@@ -1,0 +1,99 @@
+name: 'Build and Release APK'
+
+'on':
+  push:
+    tags:
+      - '[0-9]+.[0-9]+*'
+      - 'v[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version / tag (e.g., 1.0)'
+        required: false
+        default: '1.0'
+        type: string
+      title:
+        description: 'Release Title Highlight (Title Case)'
+        required: false
+        default: 'Compact Android Client - Portrait Priority & Zero-Bar Fullscreen'
+        type: string
+      notes:
+        description: 'Custom Release Notes (leave empty to use standard template)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build Release APKs
+        run: |
+          ./gradlew assembleStandardRelease assembleDiscreetRelease --stacktrace
+
+      - name: Prepare APK Artifacts
+        shell: bash
+        run: |
+          mkdir -p publish
+          find app/build/outputs/apk/standard/release/ -name "*.apk" -exec cp {} publish/BC-Android-Standard-Release.apk \;
+          find app/build/outputs/apk/discreet/release/ -name "*.apk" -exec cp {} publish/BC-Android-Discreet-Release.apk \;
+          ls -lh publish/
+
+      - name: Prepare Tag and Release Notes
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_TITLE: ${{ inputs.title }}
+          INPUT_NOTES: ${{ inputs.notes }}
+        run: |
+          INPUT_VER="${INPUT_VERSION:-}"
+          REF_TAG="${GITHUB_REF_NAME:-}"
+          REF_TAG="${REF_TAG#v}"
+          VER="${INPUT_VER:-${REF_TAG:-1.0}}"
+
+          TITLE="${INPUT_TITLE:-Compact Android Client - Portrait Priority & Zero-Bar Fullscreen}"
+          CUSTOM_NOTES="${INPUT_NOTES:-}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "$VER" || true
+          git push origin "$VER" --force || true
+
+          if [ -n "$CUSTOM_NOTES" ]; then
+            printf "%s\n" "$CUSTOM_NOTES" > RELEASE_NOTES.md
+          fi
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.version || '1.0' }}
+          name: BC Android ${{ github.ref_name || inputs.version || '1.0' }} - ${{ inputs.title || 'Compact Portrait Client' }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            publish/BC-Android-Standard-Release.apk
+            publish/BC-Android-Discreet-Release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

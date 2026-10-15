@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Release APK Downloads
+    url: https://github.com/Izumii99/BC-Android/releases
+    about: Download the latest pre-compiled APK packages and updates.
