@@ -9,6 +9,8 @@
 - **Virtual Keyboard (IME) Soft Focus:** Chat and input dialogs smoothly resize the viewport (`adjustResize`) so that text input boxes and chat logs are never obstructed by the soft keyboard.
 - **Crash Auto-Recovery Safeguard:** Built-in watchdog smoothly recovers and reloads frozen WebKit render processes with crash-loop protection (up to 3 recoveries within 30 seconds).
 - **Double-Tap Back Gesture Guard:** Protects against accidental navigation gestures closing your game session in the middle of active gameplay.
+- **Native System File Chooser Integration:** Full support for HTML `<input type="file">`, allowing seamless import and export of appearances, wardrobe exports, and custom backgrounds directly via the native Android system file picker (Recent, Downloads, and Gallery).
+- **Context-Aware Dynamic Pinch-to-Zoom:** Enables pinch-to-zoom (up to 5x magnification) across standard landscape screens (such as the Lobby/Main Hall and non-portrait menus) for effortless readability of small buttons and text, while automatically locking zoom in portrait mode (BC-LCE vertical chatrooms and vertical room search UI) to ensure stable docking without gesture misalignments.
 - **Remote Addon Loader Synchronization:** Automatically fetches and loads the latest Addon Manager and scripts directly from the desktop repository on startup, delivering immediate updates without requiring APK reinstallation.
 
 ### Downloads:

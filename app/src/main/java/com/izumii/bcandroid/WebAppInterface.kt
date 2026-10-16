@@ -10,7 +10,8 @@ import android.widget.Toast
 
 class WebAppInterface(
     private val context: Context,
-    private val onOfflineAddonsRequested: (() -> Unit)? = null
+    private val onOfflineAddonsRequested: (() -> Unit)? = null,
+    private val onZoomStateChanged: ((Boolean) -> Unit)? = null
 ) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -39,6 +40,13 @@ class WebAppInterface(
     fun showToast(message: String) {
         mainHandler.post {
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    @JavascriptInterface
+    fun setZoomEnabled(enabled: Boolean) {
+        mainHandler.post {
+            onZoomStateChanged?.invoke(enabled)
         }
     }
 

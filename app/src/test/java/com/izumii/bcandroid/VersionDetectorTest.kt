@@ -36,4 +36,19 @@ class VersionDetectorTest {
         assertEquals(540.0, calculatedCanvasHeight, 0.001)
         assertTrue(calculatedCanvasHeight <= 2400.0) // Fits on standard 20:9 / 19.5:9 portrait screens
     }
+
+    @Test
+    fun portraitAdapter_containsDynamicZoomControl() {
+        val possiblePaths = listOf(
+            java.io.File("app/src/main/assets/portrait_adapter.js"),
+            java.io.File("../app/src/main/assets/portrait_adapter.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("portrait_adapter.js must exist", file != null && file.exists())
+        val content = file?.readText() ?: ""
+        assertTrue("Must include updateZoomState function", content.contains("updateZoomState"))
+        assertTrue("Must include user-scalable=yes for zoomable screens", content.contains("user-scalable=yes"))
+        assertTrue("Must include user-scalable=no for portrait screens", content.contains("user-scalable=no"))
+        assertTrue("Must communicate with AndroidBridge.setZoomEnabled", content.contains("AndroidBridge.setZoomEnabled"))
+    }
 }

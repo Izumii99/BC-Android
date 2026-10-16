@@ -134,14 +134,26 @@ class MainActivity : AppCompatActivity() {
         settings.loadWithOverviewMode = true
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         settings.cacheMode = WebSettings.LOAD_DEFAULT
-        settings.setSupportZoom(false)
-        settings.builtInZoomControls = false
+        settings.setSupportZoom(true)
+        settings.builtInZoomControls = true
         settings.displayZoomControls = false
         settings.allowFileAccess = true
 
-        v.addJavascriptInterface(WebAppInterface(this) {
-            ScriptLoader.injectLocalAddons(this@MainActivity, webView)
-        }, "AndroidBridge")
+        v.addJavascriptInterface(WebAppInterface(
+            context = this,
+            onOfflineAddonsRequested = {
+                ScriptLoader.injectLocalAddons(this@MainActivity, webView)
+            },
+            onZoomStateChanged = { enabled ->
+                webView?.let { wv ->
+                    wv.settings.setSupportZoom(enabled)
+                    wv.settings.builtInZoomControls = enabled
+                    if (!enabled) {
+                        wv.scrollTo(0, 0)
+                    }
+                }
+            }
+        ), "AndroidBridge")
 
         v.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(

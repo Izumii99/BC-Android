@@ -35,6 +35,7 @@ A minimal, native Android wrapper for BC, built with **Kotlin** and **Android We
 - **Crash Auto-Recovery:** Automatically recovers and restarts frozen or memory-exhausted WebKit render processes with rapid crash-loop guards.
 - **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
 - **Native System File Chooser:** Full support for HTML `<input type="file">`, allowing seamless import/export of appearances, wardrobe codes, custom backgrounds, and backup files directly through the Android system file picker (Recent, Downloads, Gallery).
+- **Context-Aware Dynamic Pinch-to-Zoom:** Enables pinch-to-zoom (up to 5x magnification) across standard landscape screens (such as the Lobby/Main Hall and non-portrait menus) for effortless readability of small buttons and text, while automatically locking zoom in portrait mode (BC-LCE vertical chatrooms and vertical room search UI) to ensure stable docking without gesture misalignments.
 - **Discreet / Stealth Flavor:** Includes an optional build with a minimal app name (`"BC"`) and transparent launcher icon for complete privacy without package-name fallbacks.
 - **Double-Tap Back Protection:** Prevents accidentally quitting your active game room session via gestures.
 

@@ -6,14 +6,49 @@
 (function() {
     'use strict';
 
-    // 1. Inject or update responsive viewport meta
-    let meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) {
-        meta = document.createElement('meta');
-        meta.name = 'viewport';
-        document.head.appendChild(meta);
+    // 1. Dynamic Viewport & Zoom State Manager
+    let currentZoomEnabled = null;
+
+    function updateZoomState(portraitActive) {
+        const shouldEnableZoom = !portraitActive;
+        if (currentZoomEnabled === shouldEnableZoom) return;
+        currentZoomEnabled = shouldEnableZoom;
+
+        let meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'viewport';
+            document.head.appendChild(meta);
+        }
+
+        if (shouldEnableZoom) {
+            // Enable pinch-to-zoom when portrait mode is inactive (e.g. Lobby / 2:1 horizontal canvas)
+            meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover';
+        } else {
+            // Lock zoom when portrait mode is active (BC-LCE vertical chatroom or vertical room search UI)
+            meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+            try {
+                window.scrollTo(0, 0);
+                if (document.documentElement) {
+                    document.documentElement.scrollLeft = 0;
+                    document.documentElement.scrollTop = 0;
+                }
+                if (document.body) {
+                    document.body.scrollLeft = 0;
+                    document.body.scrollTop = 0;
+                }
+            } catch (e) {}
+        }
+
+        if (window.AndroidBridge && typeof window.AndroidBridge.setZoomEnabled === 'function') {
+            try {
+                window.AndroidBridge.setZoomEnabled(shouldEnableZoom);
+            } catch (e) {}
+        }
     }
-    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+
+    // Initial zoom state evaluation
+    updateZoomState(isExternalPortraitActive());
 
     // 2. Base CSS for flexible browser-style centering
     const style = document.createElement('style');
@@ -90,27 +125,46 @@
      * Checks if BC-LCE, MPL, or any external portrait layout manager is active.
      */
     function isExternalPortraitActive() {
-        return !!(
-            window.BCPortraitMode ||
-            window.bcPortraitActive ||
-            window.BCMPL ||
-            window.MPL ||
-            window.Liko?.LCE?.Vertical?.getState?.()?.active ||
+        // Screens where portrait layout is never active (Lobby, Login, etc.)
+        if (window.CurrentScreen === 'MainHall' || window.CurrentScreen === 'Login' || window.CurrentScreen === 'Introduction') {
+            return false;
+        }
+
+        // 1. Direct DOM check for BC-LCE vertical containers (Chatroom, Room Search, Dressing Room)
+        if (
             document.getElementById('lce-v-cr') ||
-            document.getElementById('lce-v-dr') ||
             document.getElementById('lce-v-cs') ||
             document.getElementById('lce-v-csh') ||
-            document.getElementById('mpl-style') ||
+            document.getElementById('lce-v-dr') ||
             document.querySelector('#lce-stage[data-orient="portrait"]') ||
             document.querySelector('.portrait-mode') ||
             document.querySelector('#portrait-wrapper') ||
+            document.getElementById('mpl-style') ||
             document.body?.classList?.contains('bclce-portrait') ||
             (document.documentElement.style && document.documentElement.style.getPropertyValue('--lce-cr-top'))
-        );
+        ) {
+            return true;
+        }
+
+        // 2. Check BC-LCE runtime state
+        const lceState = window.Liko?.LCE?.Vertical?.getState?.();
+        if (lceState && lceState.active && lceState.mode && lceState.mode !== 'none') {
+            return true;
+        }
+
+        // 3. Check legacy or third-party portrait addon global flags
+        if (window.BCPortraitMode || window.bcPortraitActive || window.BCMPL || window.MPL) {
+            return true;
+        }
+
+        return false;
     }
 
     // 3. Dynamic layout observer and canvas scaler (centers in portrait and landscape)
     function adjustCanvasLayout() {
+        const portraitActive = isExternalPortraitActive();
+        updateZoomState(portraitActive);
+
         const canvas = document.getElementById('MainCanvas');
         if (!canvas) return;
 
@@ -119,7 +173,7 @@
         canvas.style.removeProperty('max-height');
 
         // If an external portrait addon is active (e.g. BC-LCE vertical mode), yield completely
-        if (isExternalPortraitActive()) {
+        if (portraitActive) {
             delete canvas.dataset.bcAdapterActive;
             canvas.style.removeProperty('right');
             canvas.style.removeProperty('bottom');
