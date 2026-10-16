@@ -1,13 +1,16 @@
 package com.izumii.bcandroid
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -18,6 +21,7 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -37,6 +41,16 @@ class MainActivity : AppCompatActivity() {
     private var backPressedTime: Long = 0
     private var recentCrashCount = 0
     private var lastCrashTime = 0L
+
+    private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
+
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uris = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+        fileUploadCallback?.onReceiveValue(uris)
+        fileUploadCallback = null
+    }
 
     private var currentLoadedUrl: String = VersionDetector.DEFAULT_FALLBACK_URL
 
@@ -129,7 +143,37 @@ class MainActivity : AppCompatActivity() {
             ScriptLoader.injectLocalAddons(this@MainActivity, webView)
         }, "AndroidBridge")
 
-        v.webChromeClient = WebChromeClient()
+        v.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(
+                view: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                fileUploadCallback?.onReceiveValue(null)
+                fileUploadCallback = filePathCallback
+
+                val intent = try {
+                    fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "*/*"
+                    }
+                } catch (e: Exception) {
+                    Intent(Intent.ACTION_GET_CONTENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "*/*"
+                    }
+                }
+
+                return try {
+                    fileChooserLauncher.launch(intent)
+                    true
+                } catch (e: Exception) {
+                    fileUploadCallback?.onReceiveValue(null)
+                    fileUploadCallback = null
+                    false
+                }
+            }
+        }
 
         v.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -243,6 +287,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        fileUploadCallback?.onReceiveValue(null)
+        fileUploadCallback = null
         ConnectionKeeperService.onPulseListener = null
         ConnectionKeeperService.stop(this)
         MemoryOptimizer.destroyWebView(webView)

@@ -34,6 +34,7 @@ A minimal, native Android wrapper for BC, built with **Kotlin** and **Android We
 - **Auto-Detects Latest Game Version:** Probes server endpoints concurrently on startup to launch the newest live game release (R132+).
 - **Crash Auto-Recovery:** Automatically recovers and restarts frozen or memory-exhausted WebKit render processes with rapid crash-loop guards.
 - **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
+- **Native System File Chooser:** Full support for HTML `<input type="file">`, allowing seamless import/export of appearances, wardrobe codes, custom backgrounds, and backup files directly through the Android system file picker (Recent, Downloads, Gallery).
 - **Discreet / Stealth Flavor:** Includes an optional build with a minimal app name (`"BC"`) and transparent launcher icon for complete privacy without package-name fallbacks.
 - **Double-Tap Back Protection:** Prevents accidentally quitting your active game room session via gestures.
 
