@@ -120,24 +120,40 @@
 
         // If an external portrait addon is active (e.g. BC-LCE vertical mode), yield completely
         if (isExternalPortraitActive()) {
+            delete canvas.dataset.bcAdapterActive;
             canvas.style.removeProperty('right');
             canvas.style.removeProperty('bottom');
-            if (canvas.dataset.bcAdapterActive) {
-                delete canvas.dataset.bcAdapterActive;
-                canvas.style.removeProperty('position');
-                canvas.style.removeProperty('top');
-                canvas.style.removeProperty('left');
-                canvas.style.removeProperty('margin');
-                canvas.style.removeProperty('width');
-                canvas.style.removeProperty('height');
-                canvas.style.removeProperty('display');
-                canvas.style.removeProperty('object-fit');
+            canvas.style.removeProperty('display');
+            canvas.style.removeProperty('object-fit');
+
+            // If BC-LCE vertical chatroom is active, guarantee the top-anchored square character canvas
+            const isLceCr = document.getElementById('lce-v-cr') || (window.Liko?.LCE?.Vertical?.getState?.()?.mode === 'chatroom');
+            if (isLceCr) {
+                const vw = window.innerWidth;
+                const cvH = Math.round(window.innerHeight * 0.50);
+                const scale = Math.min(vw, cvH) / 1000;
+                const width = Math.round(2000 * scale);
+                const height = Math.round(1000 * scale);
+                const left = Math.round((vw - 1000 * scale) / 2);
+                const top = Math.round((cvH - 1000 * scale) / 2);
+
+                canvas.style.setProperty('position', 'fixed', 'important');
+                canvas.style.setProperty('top', top + 'px', 'important');
+                canvas.style.setProperty('left', left + 'px', 'important');
+                canvas.style.setProperty('transform', 'none', 'important');
+                canvas.style.setProperty('width', width + 'px', 'important');
+                canvas.style.setProperty('height', height + 'px', 'important');
+                canvas.style.setProperty('clip-path', 'inset(0 50% 0 0)', 'important');
+                canvas.style.setProperty('margin', '0', 'important');
+                canvas.style.setProperty('z-index', '1', 'important');
             }
             return;
         }
 
         // Apply browser-standard auto centering for vanilla BC
         canvas.dataset.bcAdapterActive = 'true';
+        canvas.style.removeProperty('clip-path');
+        canvas.style.removeProperty('transform');
         canvas.style.setProperty('position', 'absolute', 'important');
         canvas.style.setProperty('top', '0', 'important');
         canvas.style.setProperty('bottom', '0', 'important');
