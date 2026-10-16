@@ -256,7 +256,6 @@
             html body #bcn-soft-paws {
                 overflow: hidden !important;
                 pointer-events: none !important;
-                transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease !important;
             }
             html body #bcn-soft-paws span {
                 color: ${P.icon} !important;
@@ -276,7 +275,18 @@
                 height: 100% !important;
             }
 
-            /* Option 2: 50% Kebawah (Bottom Half - Active when both Neko and BC-LCE Portrait Chatroom / Login are ON) */
+            /* Option 2: 50% Kebawah (Bottom Half - Active in Portrait Orientation or BC-LCE / MPL) */
+            @media (orientation: portrait) {
+                html body:not(.bcn-paws-right) #bcn-soft-paws:not(.paws-right) {
+                    top: 50% !important;
+                    bottom: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    width: 100% !important;
+                    height: 50% !important;
+                }
+            }
+
             html body.bcn-paws-bottom #bcn-soft-paws,
             html body #bcn-soft-paws.paws-bottom,
             html body.bcn-lce-portrait:not(.bcn-paws-right) #bcn-soft-paws:not(.paws-right),
@@ -290,9 +300,16 @@
                 height: 50% !important;
             }
 
-            /* Allow submenu to cleanly fit the layout toggle button */
+            /* Allow submenu to cleanly fit the layout toggle button when expanded, and properly collapse to 0 when closed */
             html body #bcn-panel #bcn-submenu {
-                max-width: 180px !important;
+                max-width: 220px !important;
+            }
+            html body.bcn-menu-collapsed #bcn-panel #bcn-submenu {
+                max-width: 0 !important;
+                opacity: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                pointer-events: none !important;
             }
 
             /* Top Menu */
@@ -508,11 +525,17 @@
     } catch (e) {}
 
     /**
-     * Detects if BC-LCE portrait features (specifically Portrait Chatroom or Portrait Login) are active.
+     * Detects if portrait mode (window aspect ratio, BC-LCE, or Liko-MPL) is active.
      */
     function isBcLcePortraitActive() {
-        // 1. BC-LCE Portrait Chatroom, Dialog, or Room Search
-        if (document.getElementById("lce-v-cr") || document.getElementById("lce-v-cs") || document.getElementById("lce-v-csh")) {
+        // 1. Native viewport orientation: if height >= width, it is definitively portrait
+        if (window.innerHeight >= window.innerWidth) {
+            return true;
+        }
+
+        // 2. BC-LCE / MPL Portrait Chatroom, Dialog, or Room Search elements
+        if (document.getElementById("lce-v-cr") || document.getElementById("lce-v-cs") || document.getElementById("lce-v-csh") ||
+            document.getElementById("liko-cs-bg") || document.getElementById("liko-csh-shell") || document.getElementById("liko-cr-fake-input-overlay")) {
             return true;
         }
         if (document.documentElement?.style && document.documentElement.style.getPropertyValue("--lce-cr-top")) {
@@ -522,14 +545,14 @@
             return true;
         }
 
-        // 2. BC-LCE Portrait Login Page
+        // 3. BC-LCE Portrait Login Page
         const stageEl = document.getElementById("lce-stage");
-        if (stageEl && (stageEl.dataset.orient === "portrait" || (window.innerWidth < window.innerHeight))) {
+        if (stageEl && stageEl.dataset.orient === "portrait") {
             return true;
         }
 
-        // 3. Document or class markers
-        if (document.body?.classList?.contains("bclce-portrait")) {
+        // 4. Document or class markers
+        if (document.body?.classList?.contains("bclce-portrait") || document.body?.classList?.contains("mpl-portrait")) {
             return true;
         }
 
@@ -570,7 +593,7 @@
         const labels = {
             right: "50% Ke Kanan (Right Half)",
             bottom: "50% Kebawah (Bottom Half)",
-            auto: "Auto (Aktif 50% Kebawah jika BC-LCE Portrait Chatroom / Login ON)"
+            auto: "Auto (50% Bawah saat Portrait / 50% Kanan saat Landscape)"
         };
         showNekoToast(`🐾 Paws Layout: ${labels[nextMode] || nextMode}`);
     }
@@ -597,7 +620,7 @@
             auto: "🐾⚡"
         };
         btn.textContent = icons[currentPawsMode] || "🐾";
-        btn.title = `Paws Layout: ${currentPawsMode.toUpperCase()} (Klik untuk ganti: 50% Kanan / 50% Bawah / Auto-LCE)`;
+        btn.title = `Paws Layout: ${currentPawsMode.toUpperCase()} (Klik untuk ganti: 50% Kanan / 50% Bawah / Auto-Portrait)`;
     }
 
     function hookPawsLayoutUI() {
