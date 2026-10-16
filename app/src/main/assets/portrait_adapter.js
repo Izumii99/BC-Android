@@ -95,13 +95,16 @@
             window.bcPortraitActive ||
             window.BCMPL ||
             window.MPL ||
-            window.Liko?.LCE ||
-            window.LCE ||
-            window.Vertical ||
+            window.Liko?.LCE?.Vertical?.getState?.()?.active ||
             document.getElementById('lce-v-cr') ||
+            document.getElementById('lce-v-dr') ||
+            document.getElementById('lce-v-cs') ||
+            document.getElementById('lce-v-csh') ||
             document.getElementById('mpl-style') ||
+            document.querySelector('#lce-stage[data-orient="portrait"]') ||
             document.querySelector('.portrait-mode') ||
             document.querySelector('#portrait-wrapper') ||
+            document.body?.classList?.contains('bclce-portrait') ||
             (document.documentElement.style && document.documentElement.style.getPropertyValue('--lce-cr-top'))
         );
     }
@@ -111,20 +114,22 @@
         const canvas = document.getElementById('MainCanvas');
         if (!canvas) return;
 
+        // Never restrict width with max-width: it breaks portrait addons that use 2000px canvas with clip-path
+        canvas.style.removeProperty('max-width');
+        canvas.style.removeProperty('max-height');
+
         // If an external portrait addon is active (e.g. BC-LCE vertical mode), yield completely
         if (isExternalPortraitActive()) {
+            canvas.style.removeProperty('right');
+            canvas.style.removeProperty('bottom');
             if (canvas.dataset.bcAdapterActive) {
                 delete canvas.dataset.bcAdapterActive;
                 canvas.style.removeProperty('position');
                 canvas.style.removeProperty('top');
-                canvas.style.removeProperty('bottom');
                 canvas.style.removeProperty('left');
-                canvas.style.removeProperty('right');
                 canvas.style.removeProperty('margin');
                 canvas.style.removeProperty('width');
                 canvas.style.removeProperty('height');
-                canvas.style.removeProperty('max-width');
-                canvas.style.removeProperty('max-height');
                 canvas.style.removeProperty('display');
                 canvas.style.removeProperty('object-fit');
             }
@@ -139,8 +144,6 @@
         canvas.style.setProperty('left', '0', 'important');
         canvas.style.setProperty('right', '0', 'important');
         canvas.style.setProperty('margin', 'auto', 'important');
-        canvas.style.setProperty('max-width', '100vw', 'important');
-        canvas.style.setProperty('max-height', '100vh', 'important');
         canvas.style.setProperty('display', 'block', 'important');
         canvas.style.setProperty('object-fit', 'contain', 'important');
 
@@ -148,16 +151,24 @@
         const screenHeight = window.innerHeight;
         const nativeAspect = 2.0; // Bondage Club native 2:1 aspect ratio
 
+        let targetWidth, targetHeight;
         if (screenWidth / screenHeight < nativeAspect) {
             // Screen is portrait or narrower than 2:1 -> width bound, centered vertically
-            const targetHeight = screenWidth / nativeAspect;
-            canvas.style.setProperty('width', screenWidth + 'px', 'important');
-            canvas.style.setProperty('height', targetHeight + 'px', 'important');
+            targetWidth = screenWidth;
+            targetHeight = screenWidth / nativeAspect;
         } else {
             // Screen is landscape or wider than 2:1 -> height bound, centered horizontally
-            const targetWidth = screenHeight * nativeAspect;
-            canvas.style.setProperty('width', targetWidth + 'px', 'important');
-            canvas.style.setProperty('height', screenHeight + 'px', 'important');
+            targetWidth = screenHeight * nativeAspect;
+            targetHeight = screenHeight;
+        }
+
+        const targetWStr = targetWidth + 'px';
+        const targetHStr = targetHeight + 'px';
+        if (canvas.style.getPropertyValue('width') !== targetWStr) {
+            canvas.style.setProperty('width', targetWStr, 'important');
+        }
+        if (canvas.style.getPropertyValue('height') !== targetHStr) {
+            canvas.style.setProperty('height', targetHStr, 'important');
         }
     }
 
@@ -235,10 +246,21 @@
         });
     }
 
-    window.addEventListener('resize', adjustCanvasLayout);
-    window.addEventListener('orientationchange', adjustCanvasLayout);
+    let layoutPending = false;
+    function scheduleLayoutUpdate() {
+        if (layoutPending) return;
+        layoutPending = true;
+        requestAnimationFrame(function() {
+            layoutPending = false;
+            adjustCanvasLayout();
+            adaptPromptDialogs();
+        });
+    }
+
+    window.addEventListener('resize', scheduleLayoutUpdate);
+    window.addEventListener('orientationchange', scheduleLayoutUpdate);
     if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', adjustCanvasLayout);
+        window.visualViewport.addEventListener('resize', scheduleLayoutUpdate);
     }
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
@@ -251,22 +273,19 @@
         });
     }
 
-    const canvasCheckInterval = setInterval(function() {
-        if (document.getElementById('MainCanvas')) {
-            adjustCanvasLayout();
-            adaptPromptDialogs();
-            clearInterval(canvasCheckInterval);
-        }
-    }, 250);
-
-    // Watch for dynamic DOM modals or error alerts
+    // Watch for dynamic DOM modals, error alerts, and addon style injections
     const domObserver = new MutationObserver(function() {
-        adaptPromptDialogs();
+        scheduleLayoutUpdate();
     });
-    const targetNode = document.body || document.documentElement;
+    const targetNode = document.documentElement || document.body;
     if (targetNode) {
         domObserver.observe(targetNode, { childList: true, subtree: true });
     }
-    setInterval(adaptPromptDialogs, 1000);
+
+    // Continuous safety heartbeat: ensures prompt adaptation and layout state stay in sync
+    setInterval(function() {
+        adjustCanvasLayout();
+        adaptPromptDialogs();
+    }, 500);
 
 })();
