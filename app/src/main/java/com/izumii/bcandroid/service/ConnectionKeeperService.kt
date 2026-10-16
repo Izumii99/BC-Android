@@ -81,6 +81,17 @@ class ConnectionKeeperService : Service() {
                     onPulseListener?.invoke()
                 } catch (ignored: Exception) {
                 }
+                try {
+                    kotlinx.coroutines.withContext(Dispatchers.IO) {
+                        val conn = java.net.URL("https://www.google.com/generate_204").openConnection() as java.net.HttpURLConnection
+                        conn.connectTimeout = 3000
+                        conn.readTimeout = 3000
+                        conn.requestMethod = "HEAD"
+                        conn.responseCode
+                        conn.disconnect()
+                    }
+                } catch (ignored: Exception) {
+                }
             }
         }
 

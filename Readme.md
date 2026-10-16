@@ -23,7 +23,11 @@ A minimal, native Android wrapper for BC, built with **Kotlin** and **Android We
 
 - **Zero-Bar Immersive Fullscreen:** Pure edge-to-edge experience without address bars, navigation buttons, tab switchers, or settings panels.
 - **Portrait-First Scaling Engine:** Intelligently fits the native 2:1 game canvas to portrait phone displays with zero horizontal overflow, while automatically yielding to portrait addons (such as BC-LCE or MPL) if active.
-- **Background Session Persistence:** Integrated background keep-alive service (`ConnectionKeeperService`) maintaining active WebSocket room connections and game timers even when the app is minimized or the screen is locked, preventing aggressive OEM battery killer disconnects.
+- **Background Session Persistence & Anti-Shutdown:** Integrated background keep-alive service (`ConnectionKeeperService`) maintaining active WebSocket room connections and game timers even when the app is minimized or the screen is locked, preventing aggressive OEM battery killer disconnects.
+  > **Note (Continuous 24/7 Background Running):** For uninterrupted room connections on aggressive OEM systems (Xiaomi MIUI/HyperOS, Samsung OneUI, Vivo, Oppo):
+  > 1. Set app battery setting to **"No restrictions"** (Unrestricted).
+  > 2. Disable **"Pause app activity if unused"**.
+  > 3. Enable **"Autostart"** (Mulai otomatis).
 - **Aggressive Memory & Battery Optimization:**
   - Redraws automatically throttle down to **15 FPS** when the app is paused or screen is locked.
   - Active memory pruning via Android `onTrimMemory` hooks clears non-essential cache buffers during long sessions without disconnecting WebSocket connections.
