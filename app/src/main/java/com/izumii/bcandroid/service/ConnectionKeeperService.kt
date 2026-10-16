@@ -14,6 +14,13 @@ import androidx.core.app.NotificationCompat
 import com.izumii.bcandroid.MainActivity
 import com.izumii.bcandroid.R
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
 /**
  * Foreground Service that prevents Android and OEM battery managers (MIUI / HyperOS, OneUI)
  * from freezing CPU threads or closing active WebSocket room connections when minimized.
@@ -21,10 +28,14 @@ import com.izumii.bcandroid.R
 class ConnectionKeeperService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var pulseJob: Job? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
     companion object {
         private const val CHANNEL_ID = "bc_connection_keeper"
         private const val NOTIFICATION_ID = 1001
+
+        var onPulseListener: (() -> Unit)? = null
 
         fun start(context: Context) {
             val intent = Intent(context, ConnectionKeeperService::class.java)
@@ -60,6 +71,19 @@ class ConnectionKeeperService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
+
+        // Trigger active socket keepalive pulse every 20 seconds to prevent NAT/carrier timeout
+        pulseJob?.cancel()
+        pulseJob = serviceScope.launch {
+            while (isActive) {
+                delay(20_000L)
+                try {
+                    onPulseListener?.invoke()
+                } catch (ignored: Exception) {
+                }
+            }
+        }
+
         return START_STICKY
     }
 
@@ -106,6 +130,9 @@ class ConnectionKeeperService : Service() {
 
     override fun onDestroy() {
         try {
+            pulseJob?.cancel()
+            pulseJob = null
+            onPulseListener = null
             if (wakeLock?.isHeld == true) {
                 wakeLock?.release()
             }

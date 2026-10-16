@@ -1,9 +1,14 @@
 package com.izumii.bcandroid
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -25,6 +30,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.izumii.bcandroid.memory.MemoryOptimizer
 import com.izumii.bcandroid.scripts.ScriptLoader
+import com.izumii.bcandroid.service.ConnectionKeeperService
 import com.izumii.bcandroid.updater.VersionDetector
 import kotlinx.coroutines.launch
 
@@ -48,6 +54,7 @@ class MainActivity : AppCompatActivity() {
         setupImmersiveFullscreen()
         setupDoubleTapBackToExit()
         setupWebView()
+        checkAndRequestBatteryOptimization()
 
         // Asynchronously probe and detect the newest game release URL
         lifecycleScope.launch {
@@ -202,13 +209,20 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         setupImmersiveFullscreen()
         MemoryOptimizer.onResume(webView)
-        com.izumii.bcandroid.service.ConnectionKeeperService.stop(this)
+        ConnectionKeeperService.onPulseListener = null
+        ConnectionKeeperService.stop(this)
     }
 
     override fun onPause() {
         super.onPause()
         MemoryOptimizer.onPause(webView)
-        com.izumii.bcandroid.service.ConnectionKeeperService.start(this)
+        ConnectionKeeperService.onPulseListener = {
+            webView?.evaluateJavascript(
+                "(()=>{if(window.ServerSocket&&ServerSocket.io&&ServerSocket.io.engine){try{ServerSocket.io.engine.ping();}catch(e){}}window.__bcBgPulse=Date.now();})();",
+                null
+            )
+        }
+        ConnectionKeeperService.start(this)
     }
 
     override fun onTrimMemory(level: Int) {
@@ -229,9 +243,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        com.izumii.bcandroid.service.ConnectionKeeperService.stop(this)
+        ConnectionKeeperService.onPulseListener = null
+        ConnectionKeeperService.stop(this)
         MemoryOptimizer.destroyWebView(webView)
         webView = null
         super.onDestroy()
+    }
+
+    @android.annotation.SuppressLint("BatteryLife")
+    private fun checkAndRequestBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+            val pkg = packageName
+            if (!powerManager.isIgnoringBatteryOptimizations(pkg)) {
+                val prefs = getSharedPreferences("bc_prefs", Context.MODE_PRIVATE)
+                val asked = prefs.getBoolean("battery_opt_prompted", false)
+                if (!asked) {
+                    prefs.edit().putBoolean("battery_opt_prompted", true).apply()
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = Uri.parse("package:$pkg")
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        try {
+                            val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                            startActivity(fallbackIntent)
+                        } catch (ignored: Exception) {
+                        }
+                    }
+                }
+            }
+        }
     }
 }

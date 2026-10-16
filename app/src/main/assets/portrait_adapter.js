@@ -126,16 +126,28 @@
             canvas.style.removeProperty('display');
             canvas.style.removeProperty('object-fit');
 
-            // If BC-LCE vertical chatroom is active, guarantee the top-anchored square character canvas
+            // If BC-LCE vertical chatroom is active, guarantee responsive edge-to-edge scaling
             const isLceCr = document.getElementById('lce-v-cr') || (window.Liko?.LCE?.Vertical?.getState?.()?.mode === 'chatroom');
             if (isLceCr) {
                 const vw = window.innerWidth;
-                const cvH = Math.round(window.innerHeight * 0.50);
-                const scale = Math.min(vw, cvH) / 1000;
+                const vh = window.innerHeight;
+
+                // When in portrait orientation (fullscreen phone or tall floating window):
+                // Ensure the 1:1 character canvas dynamically expands to 100% width (no side black bars/pillarboxing),
+                // while preserving at least minChatH for the chatroom controls and log below.
+                let charSize;
+                if (vh > vw) {
+                    const minChatH = 180;
+                    charSize = Math.min(vw, Math.max(120, vh - minChatH));
+                } else {
+                    charSize = Math.min(vw, Math.round(vh * 0.50));
+                }
+
+                const scale = charSize / 1000;
                 const width = Math.round(2000 * scale);
                 const height = Math.round(1000 * scale);
                 const left = Math.round((vw - 1000 * scale) / 2);
-                const top = Math.round((cvH - 1000 * scale) / 2);
+                const top = 0; // Seamlessly anchor to the top of window
 
                 canvas.style.setProperty('position', 'fixed', 'important');
                 canvas.style.setProperty('top', top + 'px', 'important');
@@ -146,6 +158,19 @@
                 canvas.style.setProperty('clip-path', 'inset(0 50% 0 0)', 'important');
                 canvas.style.setProperty('margin', '0', 'important');
                 canvas.style.setProperty('z-index', '1', 'important');
+
+                // Keep BC-LCE's chatroom container directly docked beneath the character
+                const root = document.documentElement;
+                const crTop = height;
+                const crHeight = Math.max(0, vh - crTop);
+                root.style.setProperty('--lce-cr-top', crTop + 'px');
+                root.style.setProperty('--lce-cr-height', crHeight + 'px');
+
+                const chatDiv = document.getElementById('chat-room-div');
+                if (chatDiv) {
+                    chatDiv.style.setProperty('top', crTop + 'px', 'important');
+                    chatDiv.style.setProperty('height', crHeight + 'px', 'important');
+                }
             }
             return;
         }
