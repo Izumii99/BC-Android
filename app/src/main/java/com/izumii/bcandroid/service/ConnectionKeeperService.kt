@@ -53,7 +53,7 @@ class ConnectionKeeperService : Service() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BCAndroid:ConnectionKeeperWakeLock")?.apply {
             setReferenceCounted(false)
-            acquire(60 * 60 * 1000L) // Safe ceiling
+            acquire(24 * 60 * 60 * 1000L) // 24-hour ceiling to support long background sessions
         }
     }
 
@@ -90,8 +90,8 @@ class ConnectionKeeperService : Service() {
         )
 
         val isDiscreet = packageName.contains("discreet")
-        val title = if (isDiscreet) "\u3164" else "Bondage Club"
-        val text = if (isDiscreet) "\u3164" else "Active room session running in background"
+        val title = if (isDiscreet) "BC" else "Bondage Club"
+        val text = if (isDiscreet) "Active session" else "Active room session running in background"
         val icon = if (isDiscreet) R.drawable.ic_transparent else R.drawable.ic_rope_logo
 
         return NotificationCompat.Builder(this, CHANNEL_ID)

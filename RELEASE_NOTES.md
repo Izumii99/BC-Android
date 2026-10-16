@@ -1,7 +1,7 @@
 ### Fixes & Improvements:
 
 - **Branding & Visual Identity (Launcher Icons):** Standard client builds now display the official desktop rope coil insignia across adaptive launcher icons and ongoing status bar indicators, providing seamless visual consistency between desktop and mobile installations.
-- **Stealth & Privacy Integrity (Discreet Mode):** The Discreet build features a completely invisible app label (`\u3164` Hangul Filler) paired with fully transparent adaptive icons and silent notification channels, ensuring homescreen placements remain completely concealed without visual markers.
+- **Stealth & Privacy Integrity (Discreet Mode):** The Discreet build features a minimal `"BC"` app label paired with fully transparent adaptive icons and silent notification channels, ensuring homescreen placements remain completely concealed while preventing system fallbacks to full package names.
 - **Background Session Persistence:** Integrated a low-overhead connection maintenance service (`ConnectionKeeperService`) that keeps WebSocket room connections and game timers active during app-switching and device lock states, preventing accidental room disconnects on aggressive battery-management engines (such as MIUI / HyperOS and OneUI).
 - **BC-LCE & Portrait Layout Responsiveness:** Enhanced dynamic viewport adaptation for extended canvas and portrait mods (including BC-LCE and external portrait engines), resolving UI coordinate shifts and ensuring natural touch targets across all screen ratios.
 - **Background Battery & RAM Optimization:** Redraws automatically throttle to 15 FPS when the application is minimized or the screen is locked, significantly reducing CPU heat and battery consumption. Inactive memory caches are trimmed via Android `onTrimMemory` hooks without dropping your active room session.
@@ -14,5 +14,5 @@
 ### Downloads:
 
 - **BC-Android-Standard-Release.apk (~0.86 MB):** Official client package with full app icon and branding.
-- **BC-Android-Discreet-Release.apk (~0.85 MB):** Stealth build featuring an invisible app name and completely transparent icon for discrete homescreen placement.
+- **BC-Android-Discreet-Release.apk (~0.86 MB):** Stealth build featuring minimal "BC" app name and completely transparent icon for discrete homescreen placement.
 

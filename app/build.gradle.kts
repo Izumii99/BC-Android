@@ -28,8 +28,7 @@ android {
         create("discreet") {
             dimension = "mode"
             applicationIdSuffix = ".discreet"
-            // U+3164 is Hangul Filler (invisible character for stealth mode)
-            manifestPlaceholders["appName"] = "\u3164"
+            manifestPlaceholders["appName"] = "BC"
             manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher_transparent"
             manifestPlaceholders["roundIcon"] = "@mipmap/ic_launcher_transparent"
         }

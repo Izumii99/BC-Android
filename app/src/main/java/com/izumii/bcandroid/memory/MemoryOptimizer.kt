@@ -29,6 +29,8 @@ object MemoryOptimizer {
         // 2. Prune volatile image/texture caches to release RAM (keeps persistent storage intact)
         try {
             webView.clearCache(false)
+            val freeMemMethod = WebView::class.java.getMethod("freeMemory")
+            freeMemMethod.invoke(webView)
         } catch (ignored: Exception) {
         }
     }
