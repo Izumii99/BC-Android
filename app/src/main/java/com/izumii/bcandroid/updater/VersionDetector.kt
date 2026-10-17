@@ -35,19 +35,39 @@ object VersionDetector {
         prefs.edit().putInt(KEY_SAVED_VERSION, version).apply()
     }
 
-    private suspend fun isVersionLive(client: OkHttpClient, version: Int): Boolean = withContext(Dispatchers.IO) {
+    enum class VersionStatus {
+        NotFound,
+        Active,
+        Outdated
+    }
+
+    suspend fun checkVersionStatus(client: OkHttpClient, version: Int): Pair<VersionStatus, Int?> = withContext(Dispatchers.IO) {
         val url = "https://www.bondage-asia.com/club/R$version/"
         try {
             val req = Request.Builder()
                 .url(url)
-                .head()
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
                 .build()
             client.newCall(req).execute().use { response ->
-                response.isSuccessful
+                if (!response.isSuccessful) return@withContext Pair(VersionStatus.NotFound, null)
+                val html = response.body?.string() ?: ""
+
+                val matcher = Pattern.compile("URL=(?:\\.\\./)?R(\\d+)/", Pattern.CASE_INSENSITIVE).matcher(html)
+                if (matcher.find()) {
+                    val nextVer = matcher.group(1)?.toIntOrNull()
+                    if (nextVer != null) {
+                        return@withContext Pair(VersionStatus.Outdated, nextVer)
+                    }
+                }
+
+                if (html.contains("Outdated Version", ignoreCase = true)) {
+                    return@withContext Pair(VersionStatus.Outdated, version + 1)
+                }
+
+                Pair(VersionStatus.Active, null)
             }
         } catch (e: Exception) {
-            false
+            Pair(VersionStatus.NotFound, null)
         }
     }
 
@@ -57,65 +77,33 @@ object VersionDetector {
             activeVersion = 132
         }
 
-        val candidates = mutableSetOf<Int>()
-        for (i in 0..8) {
-            candidates.add(activeVersion + i)
-        }
-        for (i in 1..3) {
-            if (activeVersion - i >= 132) candidates.add(activeVersion - i)
-        }
+        var currentProbe = activeVersion
+        val maxHops = 10
 
-        // Fast-forward candidate check using GitGud CHANGELOG if available
-        try {
-            val changelogReq = Request.Builder()
-                .url("https://gitgud.io/BondageProjects/Bondage-College/-/raw/master/BondageClub/CHANGELOG.md")
-                .header("User-Agent", "BC-Android-Client")
-                .build()
-            httpClient.newCall(changelogReq).execute().use { response ->
-                if (response.isSuccessful) {
-                    val bodyString = response.body?.string()
-                    if (bodyString != null) {
-                        val reader = BufferedReader(StringReader(bodyString))
-                        var line: String?
-                        var lineCount = 0
-                        val pattern = Pattern.compile("^## \\[R(\\d+)\\]")
-                        while (reader.readLine().also { line = it } != null && lineCount < 100) {
-                            lineCount++
-                            val currentLine = line ?: break
-                            val matcher = pattern.matcher(currentLine)
-                            if (matcher.find()) {
-                                val verStr = matcher.group(1)
-                                val ver = verStr?.toIntOrNull()
-                                if (ver != null && ver in 132..499) {
-                                    candidates.add(ver)
-                                }
-                            }
-                        }
-                    }
+        for (hop in 0 until maxHops) {
+            val (status, nextVer) = checkVersionStatus(httpClient, currentProbe)
+            if (status == VersionStatus.Active) {
+                activeVersion = currentProbe
+                break
+            } else if (status == VersionStatus.Outdated && nextVer != null) {
+                val (nextStatus, _) = checkVersionStatus(httpClient, nextVer)
+                if (nextStatus != VersionStatus.NotFound) {
+                    activeVersion = nextVer
+                    currentProbe = nextVer
+                    if (nextStatus == VersionStatus.Active) break
+                } else {
+                    break
                 }
-            }
-        } catch (ignored: Exception) {
-        }
-
-        // Probe candidates concurrently
-        val deferredList = candidates.map { ver ->
-            async {
-                val live = isVersionLive(httpClient, ver)
-                Pair(ver, live)
+            } else {
+                if (currentProbe > 132) {
+                    currentProbe--
+                    continue
+                }
+                break
             }
         }
 
-        val results = deferredList.awaitAll()
-        val bestLiveVersion = results
-            .filter { it.second }
-            .map { it.first }
-            .maxOrNull()
-
-        if (bestLiveVersion != null && bestLiveVersion > 0) {
-            saveVersion(context, bestLiveVersion)
-            return@withContext "https://www.bondage-asia.com/club/R$bestLiveVersion/"
-        }
-
+        saveVersion(context, activeVersion)
         "https://www.bondage-asia.com/club/R$activeVersion/"
     }
 
