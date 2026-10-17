@@ -8,14 +8,14 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 1.0)'
+        description: 'Release version / tag (e.g., 1.1)'
         required: false
-        default: '1.0'
+        default: '1.1'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Compact Android Client - Portrait Priority & Zero-Bar Fullscreen'
+        default: 'Server Redirection Chain & High-Availability OTA Addons'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -68,11 +68,14 @@ jobs:
           INPUT_NOTES: ${{ inputs.notes }}
         run: |
           INPUT_VER="${INPUT_VERSION:-}"
-          REF_TAG="${GITHUB_REF_NAME:-}"
-          REF_TAG="${REF_TAG#v}"
-          VER="${INPUT_VER:-${REF_TAG:-1.0}}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            REF_TAG="${GITHUB_REF_NAME#v}"
+          else
+            REF_TAG=""
+          fi
+          VER="${INPUT_VER:-${REF_TAG:-1.1}}"
 
-          TITLE="${INPUT_TITLE:-Compact Android Client - Portrait Priority & Zero-Bar Fullscreen}"
+          TITLE="${INPUT_TITLE:-Server Redirection Chain & High-Availability OTA Addons}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"
@@ -84,11 +87,14 @@ jobs:
             printf "%s\n" "$CUSTOM_NOTES" > RELEASE_NOTES.md
           fi
 
+          echo "RELEASE_VER=$VER" >> $GITHUB_ENV
+          echo "RELEASE_TITLE=$TITLE" >> $GITHUB_ENV
+
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || inputs.version || '1.0' }}
-          name: BC Android ${{ github.ref_name || inputs.version || '1.0' }} - ${{ inputs.title || 'Compact Portrait Client' }}
+          tag_name: ${{ env.RELEASE_VER }}
+          name: BC Android ${{ env.RELEASE_VER }} - ${{ env.RELEASE_TITLE }}
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
