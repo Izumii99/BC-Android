@@ -18,6 +18,7 @@ object VersionDetector {
     const val DEFAULT_FALLBACK_URL = "https://www.bondage-asia.com/club/R132/"
     private const val PREFS_NAME = "BCVersionPrefs"
     private const val KEY_SAVED_VERSION = "saved_version"
+    private const val KEY_VERSION_LOCKED = "is_version_locked"
     private const val GITHUB_REPO = "Izumii99/BC-Android"
 
     private val httpClient = OkHttpClient.Builder()
@@ -30,15 +31,52 @@ object VersionDetector {
         return prefs.getInt(KEY_SAVED_VERSION, 132)
     }
 
-    fun saveVersion(context: Context, version: Int) {
+    fun isVersionLocked(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putInt(KEY_SAVED_VERSION, version).apply()
+        return prefs.getBoolean(KEY_VERSION_LOCKED, false)
+    }
+
+    fun saveVersion(context: Context, version: Int, locked: Boolean = false) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putInt(KEY_SAVED_VERSION, version)
+            .putBoolean(KEY_VERSION_LOCKED, locked)
+            .apply()
+    }
+
+    fun setVersionLocked(context: Context, locked: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_VERSION_LOCKED, locked).apply()
+    }
+
+    fun parseVersionConfig(raw: String): Pair<Int, Boolean> {
+        val trimmed = raw.trim()
+        val isLocked = trimmed.endsWith(":lock", ignoreCase = true)
+        val verStr = trimmed.substringBefore(":")
+        val verNum = verStr.toIntOrNull() ?: 132
+        return Pair(verNum, isLocked)
     }
 
     enum class VersionStatus {
         NotFound,
         Active,
         Outdated
+    }
+
+    fun parseNextVersionFromHtml(html: String, fallbackVersion: Int): Pair<VersionStatus, Int?> {
+        val matcher = Pattern.compile("URL=(?:\\.\\./)?R(\\d+)/", Pattern.CASE_INSENSITIVE).matcher(html)
+        if (matcher.find()) {
+            val nextVer = matcher.group(1)?.toIntOrNull()
+            if (nextVer != null) {
+                return Pair(VersionStatus.Outdated, nextVer)
+            }
+        }
+
+        if (html.contains("Outdated Version", ignoreCase = true)) {
+            return Pair(VersionStatus.Outdated, fallbackVersion + 1)
+        }
+
+        return Pair(VersionStatus.Active, null)
     }
 
     suspend fun checkVersionStatus(client: OkHttpClient, version: Int): Pair<VersionStatus, Int?> = withContext(Dispatchers.IO) {
@@ -51,20 +89,7 @@ object VersionDetector {
             client.newCall(req).execute().use { response ->
                 if (!response.isSuccessful) return@withContext Pair(VersionStatus.NotFound, null)
                 val html = response.body?.string() ?: ""
-
-                val matcher = Pattern.compile("URL=(?:\\.\\./)?R(\\d+)/", Pattern.CASE_INSENSITIVE).matcher(html)
-                if (matcher.find()) {
-                    val nextVer = matcher.group(1)?.toIntOrNull()
-                    if (nextVer != null) {
-                        return@withContext Pair(VersionStatus.Outdated, nextVer)
-                    }
-                }
-
-                if (html.contains("Outdated Version", ignoreCase = true)) {
-                    return@withContext Pair(VersionStatus.Outdated, version + 1)
-                }
-
-                Pair(VersionStatus.Active, null)
+                parseNextVersionFromHtml(html, version)
             }
         } catch (e: Exception) {
             Pair(VersionStatus.NotFound, null)
@@ -72,23 +97,24 @@ object VersionDetector {
     }
 
     suspend fun detectLatestGameUrl(context: Context): String = withContext(Dispatchers.IO) {
-        var activeVersion = getSavedVersion(context)
-        if (activeVersion < 132 || activeVersion > 500) {
-            activeVersion = 132
+        val activeVersion = getSavedVersion(context)
+        if (isVersionLocked(context)) {
+            return@withContext "https://www.bondage-asia.com/club/R$activeVersion/"
         }
 
-        var currentProbe = activeVersion
+        var candidate = if (activeVersion in 132..500) activeVersion else 132
+        var currentProbe = candidate
         val maxHops = 10
 
         for (hop in 0 until maxHops) {
             val (status, nextVer) = checkVersionStatus(httpClient, currentProbe)
             if (status == VersionStatus.Active) {
-                activeVersion = currentProbe
+                candidate = currentProbe
                 break
             } else if (status == VersionStatus.Outdated && nextVer != null) {
                 val (nextStatus, _) = checkVersionStatus(httpClient, nextVer)
                 if (nextStatus != VersionStatus.NotFound) {
-                    activeVersion = nextVer
+                    candidate = nextVer
                     currentProbe = nextVer
                     if (nextStatus == VersionStatus.Active) break
                 } else {
@@ -103,8 +129,8 @@ object VersionDetector {
             }
         }
 
-        saveVersion(context, activeVersion)
-        "https://www.bondage-asia.com/club/R$activeVersion/"
+        saveVersion(context, candidate, false)
+        "https://www.bondage-asia.com/club/R$candidate/"
     }
 
     /**

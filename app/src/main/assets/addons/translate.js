@@ -5,11 +5,83 @@
     function initGoogleTranslate() {
         if (document.getElementById("bc-google-translate-btn")) return;
 
+        if (!document.getElementById("tailwind-script")) {
+            const configScript = document.createElement("script");
+            configScript.innerHTML = `
+                window.tailwind = window.tailwind || {};
+                window.tailwind.config = {
+                  corePlugins: { preflight: false },
+                  important: '#translate-root',
+                  theme: {
+                    extend: {
+                      colors: {
+                        widget: {
+                          bg: '#161724',
+                          surface: '#0f1019',
+                          card: '#1b1b2a',
+                          border: '#292b3f',
+                          accent: '#8b5cf6',
+                          accentGlow: 'rgba(139, 92, 246, 0.45)',
+                          textMuted: '#71768e',
+                          textLight: '#9499af'
+                        }
+                      },
+                      boxShadow: {
+                        'glow-purple': '0 0 20px -2px rgba(147, 51, 234, 0.55)',
+                        'widget-depth': '0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.07)'
+                      }
+                    }
+                  }
+                };
+            `;
+            document.head.appendChild(configScript);
+
+            const script = document.createElement("script");
+            script.id = "tailwind-script";
+            script.src = "https://cdn.tailwindcss.com";
+            document.head.appendChild(script);
+        }
+
         if (!document.getElementById("translate-glassmorphic-styles")) {
             const style = document.createElement("style");
             style.id = "translate-glassmorphic-styles";
             style.innerHTML = `
-                /* Translate Floating Widget Static CSS (Zero Runtime Dependency) */
+                .bc-spell-error {
+                  text-decoration: underline;
+                  text-decoration-style: wavy;
+                  text-decoration-color: #f43f5e;
+                  text-underline-offset: 5px;
+                  cursor: pointer;
+                }
+                .bc-translator-scroll::-webkit-scrollbar { width: 4px; }
+                .bc-translator-scroll::-webkit-scrollbar-track { background: transparent; }
+                .bc-translator-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+                /* Prevent Tailwind CDN preflight from leaking to game inputs */
+                input:not(#translate-root *), 
+                textarea:not(#translate-root *), 
+                select:not(#translate-root *), 
+                button:not(#translate-root *) {
+                    line-height: normal !important;
+                    font-family: Arial, sans-serif !important;
+                }
+
+                /* Self-contained styling for translate widget (protects against ad-blockers blocking cdn.tailwindcss.com) */
+                #translate-root * { box-sizing: border-box; }
+                #translate-widget {
+                    position: relative;
+                    width: 340px;
+                    background: rgba(22, 23, 36, 0.95);
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 24px;
+                    padding: 16px;
+                    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.07);
+                    color: #f1f5f9;
+                    font-family: ui-sans-serif, system-ui, sans-serif;
+                }
+
                 #bc-google-translate-btn {
                     position: fixed;
                     top: 10px;
@@ -30,76 +102,11 @@
                 }
                 #bc-google-translate-btn:hover { transform: scale(1.05); }
                 #bc-google-translate-btn:active { transform: scale(0.95); }
-
-                #translate-root * { box-sizing: border-box; }
-                #translate-root .flex { display: flex; }
-                #translate-root .flex-col { flex-direction: column; }
-                #translate-root .items-center { align-items: center; }
-                #translate-root .justify-between { justify-content: space-between; }
-                #translate-root .justify-end { justify-content: flex-end; }
-                #translate-root .space-x-3 > * + * { margin-left: 12px; }
-                #translate-root .space-x-2 > * + * { margin-left: 8px; }
-                #translate-root .space-x-2\.5 > * + * { margin-left: 10px; }
-                #translate-root .space-x-1\.5 > * + * { margin-left: 6px; }
-                #translate-root .gap-1 { gap: 4px; }
-                #translate-root .gap-1\.5 { gap: 6px; }
-                #translate-root .gap-2 { gap: 8px; }
-                #translate-root .gap-3\.5 { gap: 14px; }
-                #translate-root .w-full { width: 100%; }
-                #translate-root .w-3\.5 { width: 14px; }
-                #translate-root .h-3\.5 { height: 14px; }
-                #translate-root .w-4 { width: 16px; }
-                #translate-root .h-4 { height: 16px; }
-                #translate-root .w-5 { width: 20px; }
-                #translate-root .h-5 { height: 20px; }
-                #translate-root .w-6 { width: 24px; }
-                #translate-root .h-6 { height: 24px; }
-                #translate-root .w-8 { width: 32px; }
-                #translate-root .h-8 { height: 32px; }
-                #translate-root .w-10 { width: 40px; }
-                #translate-root .h-10 { height: 40px; }
-                #translate-root .p-0 { padding: 0; }
-                #translate-root .p-1 { padding: 4px; }
-                #translate-root .p-3\.5 { padding: 14px; }
-                #translate-root .p-4 { padding: 16px; }
-                #translate-root .px-1 { padding-left: 4px; padding-right: 4px; }
-                #translate-root .px-2\.5 { padding-left: 10px; padding-right: 10px; }
-                #translate-root .px-3\.5 { padding-left: 14px; padding-right: 14px; }
-                #translate-root .py-0\.5 { padding-top: 2px; padding-bottom: 2px; }
-                #translate-root .py-1\.5 { padding-top: 6px; padding-bottom: 6px; }
-                #translate-root .pt-0\.5 { padding-top: 2px; }
-                #translate-root .pt-1 { padding-top: 4px; }
-                #translate-root .pt-2 { padding-top: 8px; }
-                #translate-root .pt-3 { padding-top: 12px; }
-                #translate-root .pb-0\.5 { padding-bottom: 2px; }
-                #translate-root .pb-1 { padding-bottom: 4px; }
-                #translate-root .mt-1 { margin-top: 4px; }
-                #translate-root .mt-2 { margin-top: 8px; }
-                #translate-root .mt-auto { margin-top: auto; }
-                #translate-root .mb-2 { margin-bottom: 8px; }
-                #translate-root .mr-1 { margin-right: 4px; }
-                #translate-root .ml-1 { margin-left: 4px; }
-                #translate-root .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                #translate-root .hidden { display: none !important; }
-                #translate-root .shrink-0 { flex-shrink: 0; }
-                #translate-root .cursor-move { cursor: move; }
-                #translate-root .cursor-default { cursor: default; }
-                #translate-root .pointer-events-none { pointer-events: none; }
-                #translate-root .relative { position: relative; }
-
-                .bc-spell-error {
-                  text-decoration: underline;
-                  text-decoration-style: wavy;
-                  text-decoration-color: #f43f5e;
-                  text-underline-offset: 5px;
-                  cursor: pointer;
-                }
-                .bc-translator-scroll::-webkit-scrollbar { width: 4px; }
-                .bc-translator-scroll::-webkit-scrollbar-track { background: transparent; }
-                .bc-translator-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+                #bc-google-translate-btn svg { width: 24px; height: 24px; }
 
                 /* Dedicated class for widget textareas — does not touch BC game styles */
-                html body #translate-widget-container .bc-widget-textarea {
+                #translate-root .bc-widget-textarea {
+                    width: 100%;
                     background: transparent !important;
                     background-color: transparent !important;
                     border: none !important;
@@ -108,12 +115,121 @@
                     resize: none !important;
                     font-family: ui-sans-serif, system-ui, sans-serif !important;
                     color: #e2e8f0 !important;
+                    font-size: 13px !important;
+                    line-height: 1.5 !important;
+                    padding: 0 !important;
                 }
-                html body #translate-widget-container .bc-widget-textarea::placeholder {
+                #translate-root .bc-widget-textarea::placeholder {
+                    color: #71768e !important;
                     opacity: 1 !important;
                 }
-                html body #translate-widget-container .bc-widget-textarea.bc-output-muted { color: #71717a !important; }
-                html body #translate-widget-container .bc-widget-textarea.bc-output-active { color: #e2e8f0 !important; }
+                #translate-root .bc-widget-textarea.bc-output-muted { color: #71717a !important; }
+                #translate-root .bc-widget-textarea.bc-output-active { color: #e2e8f0 !important; }
+
+                /* Core layout utilities scoped to #translate-root */
+                #translate-root .flex { display: flex; }
+                #translate-root .flex-col { flex-direction: column; }
+                #translate-root .items-center { align-items: center; }
+                #translate-root .justify-between { justify-content: space-between; }
+                #translate-root .justify-end { justify-content: flex-end; }
+                #translate-root .w-full { width: 100%; }
+                #translate-root .hidden { display: none !important; }
+                #translate-root .relative { position: relative; }
+                #translate-root .shrink-0 { flex-shrink: 0; }
+                #translate-root .cursor-move { cursor: move; }
+                #translate-root .cursor-pointer { cursor: pointer; }
+                #translate-root .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+                #translate-root .bg-\[\#0f1019\] { background-color: #0f1019; }
+                #translate-root .bg-\[\#1b1c2b\] { background-color: #1b1c2b; }
+                #translate-root .rounded-2xl { border-radius: 16px; }
+                #translate-root .p-3\.5 { padding: 14px; }
+                #translate-root .min-h-\[140px\] { min-height: 140px; }
+                #translate-root .min-h-\[148px\] { min-height: 148px; }
+                #translate-root .border-white\/\[0\.04\] { border-color: rgba(255, 255, 255, 0.04); }
+                #translate-root .border-purple-500\/10 { border-color: rgba(168, 85, 247, 0.1); }
+                #translate-root .border { border-width: 1px; border-style: solid; }
+                #translate-root .border-t { border-top-width: 1px; border-top-style: solid; }
+
+                #translate-root .bc-quick-lang {
+                    padding: 3px 10px;
+                    border-radius: 6px;
+                    background: #212335;
+                    color: #cbd5e1;
+                    font-size: 11px;
+                    font-weight: 500;
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
+                #translate-root .bc-quick-lang:hover {
+                    background: rgba(139, 92, 246, 0.3);
+                    color: #d8b4fe;
+                }
+
+                #copy-translation-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: linear-gradient(to right, #9333ea, #6366f1);
+                    color: #ffffff;
+                    font-weight: 500;
+                    font-size: 12px;
+                    padding: 6px 14px;
+                    border-radius: 12px;
+                    border: none;
+                    box-shadow: 0 0 15px rgba(147, 51, 234, 0.4);
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
+                #copy-translation-btn:hover { background: linear-gradient(to right, #a855f7, #4f46e5); }
+                #copy-translation-btn:active { transform: scale(0.95); }
+
+                #btn-swap {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 8px;
+                    background: #212335;
+                    color: #94a3b8;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    cursor: pointer;
+                    transition: all 0.15s;
+                }
+                #btn-swap:hover {
+                    background: rgba(139, 92, 246, 0.3);
+                    color: #c084fc;
+                }
+
+                #clear-input {
+                    background: transparent;
+                    border: none;
+                    color: #71717a;
+                    cursor: pointer;
+                    padding: 2px;
+                    display: flex;
+                    align-items: center;
+                }
+                #clear-input:hover { color: #ffffff; }
+
+                #btn-minimize, #btn-close {
+                    background: transparent;
+                    border: none;
+                    color: #64748b;
+                    cursor: pointer;
+                    padding: 4px;
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.15s;
+                }
+                #btn-minimize:hover, #btn-close:hover {
+                    color: #ffffff;
+                    background: rgba(255, 255, 255, 0.08);
+                }
 
                 /* Custom dropdown */
                 .bc-dropdown { position: relative; flex: 1; }
@@ -184,6 +300,8 @@
                 .bc-dropdown-trigger:hover { background: rgba(39,41,64,1); }
                 .bc-dropdown-trigger.active { border-color: rgba(139,92,246,0.5); background: rgba(39,41,64,1); }
                 .bc-dropdown-chevron {
+                    width: 14px !important;
+                    height: 14px !important;
                     transition: transform 0.2s cubic-bezier(0.34,1.2,0.64,1);
                     flex-shrink: 0;
                 }

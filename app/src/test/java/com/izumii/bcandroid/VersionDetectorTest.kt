@@ -51,4 +51,41 @@ class VersionDetectorTest {
         assertTrue("Must include user-scalable=no for portrait screens", content.contains("user-scalable=no"))
         assertTrue("Must communicate with AndroidBridge.setZoomEnabled", content.contains("AndroidBridge.setZoomEnabled"))
     }
+
+    @Test
+    fun parseVersionConfig_correctlyExtractsNumberAndLock() {
+        val (ver1, lock1) = VersionDetector.parseVersionConfig("133:lock")
+        assertEquals(133, ver1)
+        assertTrue(lock1)
+
+        val (ver2, lock2) = VersionDetector.parseVersionConfig("132")
+        assertEquals(132, ver2)
+        assertFalse(lock2)
+
+        val (ver3, lock3) = VersionDetector.parseVersionConfig(" 134:LOCK ")
+        assertEquals(134, ver3)
+        assertTrue(lock3)
+
+        val (ver4, lock4) = VersionDetector.parseVersionConfig("invalid")
+        assertEquals(132, ver4)
+        assertFalse(lock4)
+    }
+
+    @Test
+    fun parseNextVersionFromHtml_detectsServerRedirection() {
+        val redirectHtml = "<html><head><meta http-equiv=\"refresh\" content=\"2; URL=../R133/\"></head><body>Outdated Version</body></html>"
+        val (status1, nextVer1) = VersionDetector.parseNextVersionFromHtml(redirectHtml, 132)
+        assertEquals(VersionDetector.VersionStatus.Outdated, status1)
+        assertEquals(133, nextVer1)
+
+        val genericOutdatedHtml = "<html><body><h1>Outdated Version - Please Update</h1></body></html>"
+        val (status2, nextVer2) = VersionDetector.parseNextVersionFromHtml(genericOutdatedHtml, 132)
+        assertEquals(VersionDetector.VersionStatus.Outdated, status2)
+        assertEquals(133, nextVer2)
+
+        val activeHtml = "<html><body><canvas id=\"MainCanvas\" width=\"2000\" height=\"1000\"></canvas></body></html>"
+        val (status3, nextVer3) = VersionDetector.parseNextVersionFromHtml(activeHtml, 133)
+        assertEquals(VersionDetector.VersionStatus.Active, status3)
+        assertEquals(null, nextVer3)
+    }
 }

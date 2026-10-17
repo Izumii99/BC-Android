@@ -47,10 +47,9 @@
                 --bcn-glow:   rgba(107, 80, 144, 0.35) !important;
             }
 
-            /* Container & Comfortable Font Sizing (Generous QAQMOON desktop proportions) */
+            /* Container & Dynamic Font Sizing (Inherits QAQMOON proportions & BC Settings) */
             html body #TextAreaChatLog {
-                font-size: clamp(18px, 1.25em, 26px) !important;
-                line-height: 1.4 !important;
+                font-size: inherit !important;
                 background: ${P.panel} !important;
                 background-color: ${P.panel} !important;
                 background-image: none !important;
@@ -61,12 +60,11 @@
             /* Base Bubbles, Addon Messages & Strict White Eradication */
             html body #TextAreaChatLog .ChatMessage,
             html body #TextAreaChatLog div.ChatMessage,
-            html body #TextAreaChatLog [class*="ChatMessage"],
+            html body #TextAreaChatLog [class*="ChatMessage"]:not(.ChatMessageName):not(button),
             html body #TextAreaChatLog .bcn-card-message {
                 font-size: inherit !important;
-                line-height: inherit !important;
-                margin: 6px 4px !important;
-                padding: 8px 50px 8px 14px !important;
+                margin: 7px 6px !important;
+                padding: 9px 54px 9px 14px !important;
                 border-radius: 12px !important;
                 background: ${P.soft} !important;
                 background-color: ${P.soft} !important;
@@ -91,7 +89,7 @@
                 color: ${P.text} !important;
                 box-shadow: ${P.borderAcc} 3px 0px 0px 0px inset, 0 2px 8px rgba(0,0,0,0.45) !important;
             }
-            html body #TextAreaChatLog .ChatMessage.bce-notification *:not(.ChatMessageName) {
+            html body #TextAreaChatLog .ChatMessage.bce-notification *:not(.ChatMessageName):not(.ChatMessageName *) {
                 color: ${P.text} !important;
                 text-shadow: none !important;
             }
@@ -110,19 +108,54 @@
                 color: ${P.beepTxt} !important;
             }
 
-            /* Name overrides */
-            html body #TextAreaChatLog .ChatMessageName {
-                text-shadow: none !important;
+            /* Name Styling: Completely remove button/box wrapper & enforce natural LabelColor (ID Color) */
+            html body #TextAreaChatLog .ChatMessageName,
+            html body #TextAreaChatLog button.ChatMessageName,
+            html body #TextAreaChatLog .ChatMessageName.button,
+            html body #TextAreaChatLog .ChatMessageName.blank-button {
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                border: none !important;
+                box-shadow: none !important;
+                outline: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                color: var(--label-color, ${P.text}) !important;
+                font-weight: 800 !important;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75) !important;
                 -webkit-text-stroke: 0 !important;
+                cursor: pointer !important;
+                display: inline !important;
+                vertical-align: baseline !important;
             }
 
-            /* Content text */
-            html body #TextAreaChatLog .ChatMessage *:not(.ChatMessageName) {
+            html body #TextAreaChatLog .ChatMessageName *:not(.bcn-relation-badge) {
+                color: var(--label-color, ${P.text}) !important;
+                background: transparent !important;
+                background-color: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            html body #TextAreaChatLog .ChatMessageName:hover,
+            html body #TextAreaChatLog .ChatMessageName:hover * {
+                color: var(--label-color, ${P.text}) !important;
+                text-decoration: underline !important;
+                background: transparent !important;
+                box-shadow: none !important;
+            }
+
+            /* Content text (strict exclusion so character names & badges preserve their ID color) */
+            html body #TextAreaChatLog .ChatMessage *:not(.ChatMessageName):not(.ChatMessageName *) {
                 color: ${P.text} !important;
                 text-shadow: 0 1px 3px rgba(0,0,0,0.6) !important;
             }
-            html body #TextAreaChatLog .ChatMessageWhisper *:not(.ChatMessageName) { color: ${P.whisperTxt} !important; }
-            html body #TextAreaChatLog .ChatMessageBeep *:not(.ChatMessageName) { color: ${P.beepTxt} !important; }
+            html body #TextAreaChatLog .ChatMessageWhisper *:not(.ChatMessageName):not(.ChatMessageName *) { color: ${P.whisperTxt} !important; }
+            html body #TextAreaChatLog .ChatMessageBeep *:not(.ChatMessageName):not(.ChatMessageName *) { color: ${P.beepTxt} !important; }
             
             /* Links */
             html body #TextAreaChatLog .ChatMessage:not(.ChatMessageBeep) a:not(.ChatMessageName) {
@@ -210,7 +243,7 @@
             html body #chat-room-bot #InputChat,
             html body #chat-room-bot textarea,
             html body #chat-room-bot input {
-                font-size: clamp(16px, 1.15em, 22px) !important;
+                font-size: inherit !important;
                 background: transparent !important;
                 background-color: transparent !important;
                 color: ${P.text} !important;
@@ -238,13 +271,15 @@
                 color: ${P.icon} !important;
             }
 
-            /* Floating New Message Indicator & Toasts */
+            /* Floating New Message Indicator & Scroll Buttons - Centered by default (Condition 1) */
             html body [id*="scroll-to-bottom"],
             html body [id*="chat-room-scroll"],
             html body [class*="new-message"],
             html body #TextAreaChatLog [class*="new-message"],
             html body .chat-room-new-messages-container,
             html body .chat-room-new-messages {
+                left: 50% !important;
+                transform: translateX(-50%) !important;
                 background: ${P.panel} !important;
                 background-color: ${P.panel} !important;
                 color: ${P.text} !important;
@@ -260,17 +295,66 @@
                 color: ${P.text} !important;
             }
 
-            /* Emotes/Activities */
+            /* Emotes / Actions / Activities: Subtle, compact, italic, smaller font with native Neko paw badge kept */
+            html body #TextAreaChatLog .ChatMessageEmote,
+            html body #TextAreaChatLog .ChatMessageAction,
+            html body #TextAreaChatLog .ChatMessageActivity,
             html body #TextAreaChatLog .nk-emote,
-            html body #TextAreaChatLog .nk-emote .chat-room-message-content,
-            html body #TextAreaChatLog .ChatMessageEmote .chat-room-message-content,
-            html body #TextAreaChatLog .ChatMessageAction .chat-room-message-content {
-                font-style: italic !important;
+            html body #TextAreaChatLog div.ChatMessageEmote,
+            html body #TextAreaChatLog div.ChatMessageAction,
+            html body #TextAreaChatLog div.ChatMessageActivity,
+            html body #TextAreaChatLog div.nk-emote {
+                margin: 2px 8px !important;
+                padding: 2px 14px !important;
+                border: none !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                box-shadow: none !important;
                 color: ${P.emoteTxt} !important;
+                font-style: italic !important;
+                font-weight: normal !important;
+                font-size: 0.88em !important;
+                min-height: 0 !important;
+                line-height: 1.35 !important;
             }
-            html body #TextAreaChatLog .nk-emote *:not(.ChatMessageName) {
+
+            html body #TextAreaChatLog .bcn-own-message.ChatMessageEmote,
+            html body #TextAreaChatLog .bcn-own-message.ChatMessageAction,
+            html body #TextAreaChatLog .bcn-own-message.ChatMessageActivity,
+            html body #TextAreaChatLog .bcn-own-message.nk-emote {
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            /* Own message paw badge theme styling */
+            html body #TextAreaChatLog .bcn-own-message::before {
+                background: ${P.panel} !important;
+                border-color: ${P.borderAcc} !important;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.5) !important;
+            }
+
+            /* Remove trailing ::after badge decorations from emotes/actions, keeping native ::before */
+            html body #TextAreaChatLog .ChatMessageEmote::after,
+            html body #TextAreaChatLog .ChatMessageAction::after,
+            html body #TextAreaChatLog .ChatMessageActivity::after,
+            html body #TextAreaChatLog .nk-emote::after {
+                content: none !important;
+                display: none !important;
+            }
+
+            html body #TextAreaChatLog .ChatMessageEmote *,
+            html body #TextAreaChatLog .ChatMessageAction *,
+            html body #TextAreaChatLog .ChatMessageActivity *,
+            html body #TextAreaChatLog .nk-emote *:not(.ChatMessageName):not(.ChatMessageName *) {
                 color: ${P.emoteTxt} !important;
                 text-shadow: none !important;
+                font-style: italic !important;
+                font-weight: normal !important;
             }
 
             /* Badges */
@@ -298,7 +382,7 @@
                 opacity: 0.12 !important;
             }
 
-            /* Portrait Mode (Mobile / Narrow View) - move 50% to bottom & adapt sizes */
+            /* Portrait Mode (Mobile / Narrow View) - move 50% to bottom & shift new-message/toast to right (Condition 2) */
             @media (orientation: portrait), (max-aspect-ratio: 1/1) {
                 html body #bcn-soft-paws {
                     left: 0 !important;
@@ -307,7 +391,20 @@
                     height: 50% !important;
                 }
                 html body #bcn-toast {
-                    left: 50% !important;
+                    left: 75% !important;
+                    transform: translateX(-50%) translateY(16px) !important;
+                }
+                html body #bcn-toast.show {
+                    transform: translateX(-50%) translateY(0) !important;
+                }
+                html body [id*="scroll-to-bottom"],
+                html body [id*="chat-room-scroll"],
+                html body [class*="new-message"],
+                html body #TextAreaChatLog [class*="new-message"],
+                html body .chat-room-new-messages-container,
+                html body .chat-room-new-messages {
+                    left: 75% !important;
+                    transform: translateX(-50%) !important;
                 }
                 html body #TextAreaChatLog {
                     font-size: clamp(12px, 3.2vw, 16px) !important;
@@ -353,7 +450,7 @@
                 color: #60a5fa !important;
                 opacity: 0.65 !important;
             }
-            html body #TextAreaChatLog div.ChatMessage.nk-online *:not(.ChatMessageName) { color: #60a5fa !important; text-shadow: none !important; }
+            html body #TextAreaChatLog div.ChatMessage.nk-online *:not(.ChatMessageName):not(.ChatMessageName *) { color: #60a5fa !important; text-shadow: none !important; }
 
             html body #TextAreaChatLog div.ChatMessage.nk-offline {
                 background: #1f0810 !important;
@@ -361,7 +458,7 @@
                 color: #fb7185 !important;
                 opacity: 0.65 !important;
             }
-            html body #TextAreaChatLog div.ChatMessage.nk-offline *:not(.ChatMessageName) { color: #fb7185 !important; text-shadow: none !important; }
+            html body #TextAreaChatLog div.ChatMessage.nk-offline *:not(.ChatMessageName):not(.ChatMessageName *) { color: #fb7185 !important; text-shadow: none !important; }
 
             html body #TextAreaChatLog div.ChatMessage.ChatMessageWhisper {
                 background: #2d142c !important;
@@ -370,7 +467,7 @@
                 opacity: 0.95 !important;
                 box-shadow: 0 0 5px rgba(217, 70, 239, 0.25) !important;
             }
-            html body #TextAreaChatLog div.ChatMessage.ChatMessageWhisper *:not(.ChatMessageName) { color: #f0abfc !important; text-shadow: none !important; }
+            html body #TextAreaChatLog div.ChatMessage.ChatMessageWhisper *:not(.ChatMessageName):not(.ChatMessageName *) { color: #f0abfc !important; text-shadow: none !important; }
 
             html body #TextAreaChatLog div.ChatMessage.nk-voice {
                 background: #1c150a !important;
@@ -378,39 +475,63 @@
                 color: #cda240 !important;
                 opacity: 0.75 !important;
             }
-            html body #TextAreaChatLog div.ChatMessage.nk-voice *:not(.ChatMessageName) { color: #cda240 !important; text-shadow: none !important; }
+            html body #TextAreaChatLog div.ChatMessage.nk-voice *:not(.ChatMessageName):not(.ChatMessageName *) { color: #cda240 !important; text-shadow: none !important; }
 
-            html body #TextAreaChatLog div.ChatMessage.nk-enter {
-                background: #141828 !important;
-                border: 1px solid #303870 !important;
-                color: #8898d0 !important;
-                font-style: italic !important;
-                opacity: 0.82 !important;
-                box-shadow: none !important;
+            /* Disconnect / Enter / Room Transitions: Centered, small, italic, unbolded, transparent */
+            html body #TextAreaChatLog .ChatMessageEnterLeave,
+            html body #TextAreaChatLog .nk-disconnect,
+            html body #TextAreaChatLog .nk-enter,
+            html body #TextAreaChatLog div.ChatMessageEnterLeave,
+            html body #TextAreaChatLog div.nk-disconnect,
+            html body #TextAreaChatLog div.nk-enter {
+                display: block !important;
                 text-align: center !important;
+                margin: 4px auto !important;
+                padding: 2px 16px !important;
+                font-style: italic !important;
+                font-weight: normal !important;
+                font-size: 0.85em !important;
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                width: fit-content !important;
+                max-width: 85% !important;
             }
-            html body #TextAreaChatLog div.ChatMessage.nk-enter *:not(.ChatMessageName) {
+
+            html body #TextAreaChatLog div.ChatMessage.nk-enter,
+            html body #TextAreaChatLog div.ChatMessage.nk-enter *:not(.ChatMessageName):not(.ChatMessageName *) {
                 color: #8898d0 !important;
                 text-shadow: none !important;
+                font-style: italic !important;
+                font-weight: normal !important;
             }
 
-            html body #TextAreaChatLog div.ChatMessage.nk-disconnect {
-                background: #1e1018 !important;
-                border: 1px solid #502030 !important;
-                color: #c07080 !important;
-                font-style: italic !important;
-                opacity: 0.8 !important;
-                box-shadow: none !important;
-                text-align: center !important;
-            }
-            html body #TextAreaChatLog div.ChatMessage.nk-disconnect *:not(.ChatMessageName) {
+            html body #TextAreaChatLog div.ChatMessage.nk-disconnect,
+            html body #TextAreaChatLog div.ChatMessage.nk-disconnect *:not(.ChatMessageName):not(.ChatMessageName *) {
                 color: #c07080 !important;
                 text-shadow: none !important;
+                font-style: italic !important;
+                font-weight: normal !important;
             }
 
-            /* Neko Toast / Mini Notification Popup (#bcn-toast) */
+            /* Suppress badges from room transitions */
+            html body #TextAreaChatLog .ChatMessageEnterLeave::before,
+            html body #TextAreaChatLog .ChatMessageEnterLeave::after,
+            html body #TextAreaChatLog .nk-disconnect::before,
+            html body #TextAreaChatLog .nk-disconnect::after,
+            html body #TextAreaChatLog .nk-enter::before,
+            html body #TextAreaChatLog .nk-enter::after {
+                content: none !important;
+                display: none !important;
+            }
+
+            /* Neko Toast / Mini Notification Popup (#bcn-toast) - Centered by default (Condition 1) */
             html body #bcn-toast {
-                left: 75% !important;
+                left: 50% !important;
+                transform: translateX(-50%) translateY(16px) !important;
                 background: ${P.panel} !important;
                 background-color: ${P.panel} !important;
                 background-image: none !important;
@@ -420,6 +541,9 @@
                 backdrop-filter: blur(12px) !important;
                 -webkit-backdrop-filter: blur(12px) !important;
                 text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+            }
+            html body #bcn-toast.show {
+                transform: translateX(-50%) translateY(0) !important;
             }
 
             /* Action composer warnings & blank wheel states */
@@ -478,6 +602,7 @@
         { cls: "nk-enter", re: /(entered|has entered|joined the room)/i },
     ];
     const EMOTE_RE = /^\s*\*[^*]+\*/;
+    const ACTION_RE = /^\s*\(.+\)\s*$/;
 
     function fixUndefinedName(el) {
         const name = window.Player?.Name || "";
@@ -502,10 +627,25 @@
             fixUndefinedName(el);
         }
 
+        const isRoomTransition = el.classList.contains("ChatMessageEnterLeave") ||
+                                 /(disconnected|has left|left the room|entered|has entered|joined the room)/i.test(text);
+        if (isRoomTransition) {
+            el.classList.add("ChatMessageEnterLeave");
+            el.style.setProperty("background", "transparent", "important");
+            el.style.setProperty("border", "none", "important");
+            el.style.setProperty("box-shadow", "none", "important");
+            if (/(disconnected|left)/i.test(text)) {
+                el.classList.add("nk-disconnect");
+            } else if (/(entered|joined)/i.test(text)) {
+                el.classList.add("nk-enter");
+            }
+            return;
+        }
+
         const isActivity = el.classList.contains("ChatMessageActivity") ||
                            el.classList.contains("ChatMessageEmote") ||
                            el.classList.contains("ChatMessageAction");
-        const isEmote = !isActivity && EMOTE_RE.test(text);
+        const isEmote = !isActivity && (EMOTE_RE.test(text) || ACTION_RE.test(text));
         
         if (isActivity || isEmote) {
             el.classList.add("nk-emote");
@@ -573,19 +713,23 @@
         const origRegister = sdk.registerMod;
         if (typeof origRegister !== "function") return;
 
-        // ponytail: wrap registerMod to return existing modApi on duplicate registration instead of unloading
-        sdk.registerMod = function (info) {
-            if (info && (info.name === "Bondage Club Neko Chat Enhancer (BCNekoEnhancer)" || info.name?.includes("BCNekoEnhancer"))) {
-                try {
-                    const existing = sdk.getMod ? sdk.getMod(info.name) : null;
-                    if (existing) {
-                        return existing;
-                    }
-                } catch (e) {}
-            }
-            return origRegister.apply(this, arguments);
-        };
-        sdk._nekoGuardHooked = true;
+        try {
+            // ponytail: wrap registerMod to return existing modApi on duplicate registration instead of unloading
+            sdk.registerMod = function (info) {
+                if (info && (info.name === "Bondage Club Neko Chat Enhancer (BCNekoEnhancer)" || info.name?.includes("BCNekoEnhancer"))) {
+                    try {
+                        const existing = sdk.getMod ? sdk.getMod(info.name) : null;
+                        if (existing) {
+                            return existing;
+                        }
+                    } catch (e) {}
+                }
+                return origRegister.apply(this, arguments);
+            };
+            sdk._nekoGuardHooked = true;
+        } catch (e) {
+            // In newer BC releases, bcModSdk may be frozen or sealed
+        }
     }
 
     if (window.bcModSdk) {
