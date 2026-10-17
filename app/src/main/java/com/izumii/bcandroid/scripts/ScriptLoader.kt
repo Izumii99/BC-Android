@@ -7,8 +7,8 @@ import java.io.InputStreamReader
 
 object ScriptLoader {
 
-    // Remote loader pointing to Izumii99/BC-Desktop
-    const val REMOTE_MANAGER_URL = "https://cdn.jsdelivr.net/gh/Izumii99/BC-Desktop@main/Scripts/addon-manager.js"
+    // Remote loader pointing to Izumii99/BC-Desktop GitHub Pages
+    const val REMOTE_MANAGER_URL = "https://izumii99.github.io/BC-Desktop/Scripts/addon-manager.js"
 
     private fun readAsset(context: Context, assetPath: String): String? {
         return try {
