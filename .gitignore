@@ -17,6 +17,7 @@ tester/
 *.aab
 *.jks
 *.keystore
+!app/signing/release.keystore
 
 ## IDE & editor files
 .idea/

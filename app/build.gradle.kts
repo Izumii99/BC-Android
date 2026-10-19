@@ -11,8 +11,8 @@ android {
         applicationId = "com.izumii.bcandroid"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,6 +34,15 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("signing/release.keystore")
+            storePassword = "bc_release_key"
+            keyAlias = "bc_release"
+            keyPassword = "bc_release_key"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -42,7 +51,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false
@@ -62,6 +71,25 @@ android {
     buildFeatures {
         buildConfig = true
     }
+}
+
+tasks.register<Copy>("syncAddons") {
+    description = "Syncs addons from upstream BC-Desktop Scripts directory to Android assets/addons"
+    val candidate1 = rootProject.file("../Bondage Club/Scripts")
+    val candidate2 = rootProject.file("../../Bondage Club/Scripts")
+    val sourceDir = when {
+        candidate1.exists() && candidate1.isDirectory -> candidate1
+        candidate2.exists() && candidate2.isDirectory -> candidate2
+        else -> null
+    }
+    if (sourceDir != null) {
+        from(sourceDir)
+        into(file("src/main/assets/addons"))
+    }
+}
+
+tasks.matching { it.name == "preBuild" || (it.name.startsWith("merge") && it.name.endsWith("Assets")) }.configureEach {
+    dependsOn("syncAddons")
 }
 
 dependencies {

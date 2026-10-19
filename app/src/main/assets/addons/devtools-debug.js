@@ -80,16 +80,27 @@
 
     // ── Drag ───────────────────────────────────────────────────────────────
     let dragging = false, ox = 0, oy = 0;
-    header.addEventListener("mousedown", e => {
-        if (e.target === closeBtn || e.target === toggleBtn) return;
-        dragging = true; ox = e.clientX - panel.offsetLeft; oy = e.clientY - panel.offsetTop;
-    });
-    document.addEventListener("mousemove", e => {
+    const startDrag = e => {
+        if (e.target === closeBtn || e.target === toggleBtn || e.target === scanBtn || e.target === watchBtn) return;
+        dragging = true;
+        const pos = (e.touches && e.touches[0]) ? e.touches[0] : e;
+        ox = pos.clientX - panel.offsetLeft;
+        oy = pos.clientY - panel.offsetTop;
+    };
+    const moveDrag = e => {
         if (!dragging) return;
-        panel.style.left = (e.clientX - ox) + "px";
-        panel.style.top  = (e.clientY - oy) + "px";
-    });
-    document.addEventListener("mouseup", () => { dragging = false; });
+        const pos = (e.touches && e.touches[0]) ? e.touches[0] : e;
+        panel.style.left = (pos.clientX - ox) + "px";
+        panel.style.top  = (pos.clientY - oy) + "px";
+    };
+    const stopDrag = () => { dragging = false; };
+
+    header.addEventListener("mousedown", startDrag);
+    header.addEventListener("touchstart", startDrag, { passive: true });
+    document.addEventListener("mousemove", moveDrag);
+    document.addEventListener("touchmove", moveDrag, { passive: false });
+    document.addEventListener("mouseup", stopDrag);
+    document.addEventListener("touchend", stopDrag);
 
     // ── Pick mode ──────────────────────────────────────────────────────────
     let picking = false;

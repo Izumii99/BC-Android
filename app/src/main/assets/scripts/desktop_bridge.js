@@ -5,6 +5,13 @@
 (function() {
     'use strict';
 
+    // Guard against undefined pidx ReferenceError
+    if (typeof window.pidx === 'undefined') {
+        try {
+            Object.defineProperty(window, 'pidx', { get: () => 0, set: () => {}, configurable: true });
+        } catch (e) {}
+    }
+
     // Clipboard bridge to Android native ClipboardManager
     const origClipboard = navigator.clipboard;
     const mockClipboard = {
@@ -54,8 +61,86 @@
         return originalExecCommand.apply(this, arguments);
     };
 
+    // Helper to identify Bondage Club internal game domains
+    function isGameDomain(url) {
+        if (!url || typeof url !== 'string') return false;
+        const clean = url.trim().toLowerCase();
+        return clean.indexOf("bondage-asia.com") !== -1 ||
+               clean.indexOf("bondageprojects.com") !== -1 ||
+               clean.indexOf("bondageprojects.elementfx.com") !== -1 ||
+               clean.indexOf("bondage-europe.com") !== -1;
+    }
+
+    // Intercept window.open to open external links with Android app chooser ("Open with:")
+    const origWindowOpen = window.open;
+    window.open = function(url, target, features) {
+        if (url && typeof url === 'string') {
+            if (!isGameDomain(url) && window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
+                window.AndroidBridge.openExternalUrl(url);
+                return null;
+            }
+        }
+        return origWindowOpen ? origWindowOpen.apply(this, arguments) : null;
+    };
+
+    // Intercept clicks on external <a> links to prevent unloading the game canvas
+    document.addEventListener('click', function(e) {
+        let el = e.target;
+        while (el && el.tagName !== 'A') {
+            el = el.parentElement;
+        }
+        if (el && el.href) {
+            const href = el.href;
+            if (!isGameDomain(href) && (href.startsWith('http://') || href.startsWith('https://'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
+                    window.AndroidBridge.openExternalUrl(href);
+                }
+            }
+        }
+    }, true);
+
+    function isInteractive(el) {
+        if (!el) return false;
+        const tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || el.isContentEditable;
+    }
+
+    // Hook window.ElementFocus so InputChat does not steal focus from addon search/text inputs
+    let patchInterval = setInterval(function() {
+        if (typeof window.ElementFocus === 'function' && !window.ElementFocus._isHooked) {
+            const origElementFocus = window.ElementFocus;
+            window.ElementFocus = function(ID) {
+                const targetEl = typeof ID === 'string' ? document.getElementById(ID) : ID;
+                const active = document.activeElement;
+                const isUserInAnotherInput = active && isInteractive(active) && active !== targetEl;
+
+                if (ID === 'InputChat' && isUserInAnotherInput) {
+                    return;
+                }
+                origElementFocus(ID);
+            };
+            window.ElementFocus._isHooked = true;
+            clearInterval(patchInterval);
+        }
+    }, 200);
+
     // Soft focus management: prevents canvas taps from unexpectedly losing input focus
     let origFocus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function() {
+        try {
+            const isLayeringInput = this.id && this.id.startsWith('layering-input-');
+            const active = document.activeElement;
+            const isUserInAnotherInput = active && isInteractive(active) && active !== this;
+
+            if (this.id === 'InputChat' && isUserInAnotherInput && !isLayeringInput) {
+                return;
+            }
+        } catch (e) {}
+        origFocus.call(this);
+    };
+
     document.addEventListener('focusin', function(e) {
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
             window.bcFocusMemory = e.target;

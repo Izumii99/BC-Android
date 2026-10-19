@@ -10,24 +10,27 @@
   <p>
     <img src="https://img.shields.io/badge/Android-8.0+_(API_26+)-brightgreen?logo=android" alt="Android 8.0+" />
     <img src="https://img.shields.io/badge/Kotlin-1.9-purple?logo=kotlin" alt="Kotlin 1.9" />
-    <img src="https://img.shields.io/badge/Footprint-~0.86MB_APK-blue" alt="Lightweight" />
+    <img src="https://img.shields.io/badge/Footprint-~0.9MB_APK-blue" alt="Lightweight" />
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
   </p>
 </div>
 
 ---
 
-A minimal, native Android wrapper for BC, built with **Kotlin** and **Android WebView**. Designed specifically to replace bloated mobile browsers by leveraging the OS-native WebKit engine with aggressive memory management, zero browser chrome, and portrait-first canvas scaling.
+A minimal native Android wrapper for BC, built with **Kotlin** and **Android WebView**. Designed specifically to replace bloated mobile browsers by leveraging the OS-native WebKit engine with aggressive memory management, zero browser chrome, portrait-first canvas scaling, and continuous background session retention.
 
 ## Features
 
 - **Zero-Bar Immersive Fullscreen:** Pure edge-to-edge experience without address bars, navigation buttons, tab switchers, or settings panels.
-- **Portrait-First Scaling Engine:** Intelligently fits the native 2:1 game canvas to portrait phone displays with zero horizontal overflow, while automatically yielding to portrait addons (such as BC-LCE or MPL) if active.
+- **Portrait-First Scaling Engine:** Intelligently fits the native 2:1 game canvas to portrait phone displays with zero horizontal overflow, while automatically yielding to portrait addons (such as BC-LCE or MPL) when active.
 - **Background Session Persistence & Anti-Shutdown:** Integrated background keep-alive service (`ConnectionKeeperService`) maintaining active WebSocket room connections and game timers even when the app is minimized or the screen is locked, preventing aggressive OEM battery killer disconnects.
-  > **Note (Continuous 24/7 Background Running):** For uninterrupted room connections on aggressive OEM systems (Xiaomi MIUI/HyperOS, Samsung OneUI, Vivo, Oppo):
+  > [!TIP]
+  > **For Uninterrupted 24/7 Background Running:** On aggressive OEM systems (Xiaomi MIUI/HyperOS, Samsung OneUI, Vivo, Oppo):
   > 1. Set app battery setting to **"No restrictions"** (Unrestricted).
   > 2. Disable **"Pause app activity if unused"**.
   > 3. Enable **"Autostart"** (Mulai otomatis).
+- **Native "Open with" System App Chooser:** Tapping external links (GitHub addon repositories, Discord links, guides, bug trackers) or scripts triggering `window.open` launches Android's native system app picker, allowing you to view external content in Chrome, Firefox, or official apps without ever disrupting your active game room session.
+- **Smart Back Navigation & Double-Tap Protection:** Intelligently navigates back from external web pages to the game canvas, while reserving the double-tap exit confirmation strictly for the active game room to prevent accidental disconnections.
 - **Aggressive Memory & Battery Optimization:**
   - Redraws automatically throttle down to **15 FPS** when the app is paused or screen is locked.
   - Active memory pruning via Android `onTrimMemory` hooks clears non-essential cache buffers during long sessions without disconnecting WebSocket connections.
@@ -36,33 +39,57 @@ A minimal, native Android wrapper for BC, built with **Kotlin** and **Android We
 - **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
 - **Native System File Chooser:** Full support for HTML `<input type="file">`, allowing seamless import/export of appearances, wardrobe codes, custom backgrounds, and backup files directly through the Android system file picker (Recent, Downloads, Gallery).
 - **Context-Aware Dynamic Pinch-to-Zoom:** Enables pinch-to-zoom (up to 5x magnification) across standard landscape screens (such as the Lobby/Main Hall and non-portrait menus) for effortless readability of small buttons and text, while automatically locking zoom in portrait mode (BC-LCE vertical chatrooms and vertical room search UI) to ensure stable docking without gesture misalignments.
-- **Discreet / Stealth Flavor:** Includes an optional build with a minimal app name (`"BC"`) and transparent launcher icon for complete privacy without package-name fallbacks.
-- **Double-Tap Back Protection:** Prevents accidentally quitting your active game room session via gestures.
+- **Discreet / Stealth Flavor:** Includes an optional build with a minimal app name (`"BC"`) and transparent launcher icon for complete privacy.
 
-## Included Scripts / Addons
+---
 
-The client bundles mobile-friendly adaptations of standalone quality-of-life scripts:
+## Included Addons & Script Ecosystem
+
+> [!TIP]
+> **Centralized Upstream Distribution Hub:**  
+> All addon scripts are maintained upstream in the **[BC-Desktop](https://github.com/Izumii99/BC-Desktop)** repository. The Android client automatically receives over-the-air (OTA) updates on startup via jsDelivr and GitHub Pages, and includes built-in offline fallbacks out-of-the-box.
 
 ### 1. Neko Dark Mode (`neko-dark.js`)
+
 A custom dark theme tailored for **Neko Chat Enhancer**, replacing harsh white backgrounds with a sleek purple aesthetic.
-<br><br>
+
 <img src="Assets/neko_dark_preview.png" width="450" alt="Neko Dark Mode Preview" />
 
-### 2. Wardrobe & Appearance Pagination (`wardrobe-pagination.js`)
-Prevents clothing lists and wardrobe items from overflowing beyond screen boundaries.
-<br><br>
-<p float="left">
-  <img src="Assets/wardrobe_page1.png" width="48%" alt="Wardrobe Page 1" />
-  <img src="Assets/wardrobe_page2.png" width="48%" alt="Wardrobe Page 2" />
-</p>
+### 2. Chat QoL & Emoticons (`chat-qol.js`)
 
-### 3. Chat QoL & Emoticons (`chat-qol.js`)
-Translates text emoticons into character expressions and streamlines mobile chat room interactions.
-<br><br>
+Translates text emoticons into character expressions, forces ungarbled messages, and streamlines mobile chat room interactions.
+
 <img src="Assets/chat_qol_ui.png" width="300" alt="Chat QoL Settings" />
 
-### 4. Addon Manager & Cheats (`addon-manager.js`, `cheat-menu.js`)
-Standalone management utilities for loading, toggling, and configuring custom addons on mobile.
+### 3. Addon Manager UI (`addon-manager.js`)
+
+A built-in GUI to manage all your installed addons and compatible community scripts in one place with simple toggle switches.
+
+<img src="Assets/addon_manager.png" width="350" alt="Addon Manager Preview" />
+
+### 4. Cheat Menu (`cheat-menu.js`)
+
+Quick-access floating draggable menu providing convenient shortcuts and utilities for testing, instant escape, wardrobe overrides, and NPC manipulation.
+
+<img src="Assets/Cheat_menu.png" width="320" alt="Cheat Menu Preview" />
+
+> [!NOTE]
+> **Wardrobe Pagination:**  
+> Modern versions of Bondage Club Extended (BCX) have wardrobe and appearance pagination natively integrated into their core, eliminating the need for standalone monkey-patch scripts.
+
+---
+
+## Why not Mobile Browsers?
+
+| Feature / Metric | Mobile Browsers (Chrome / Kiwi / Firefox) | BC Android (Native Client) |
+| :--- | :--- | :--- |
+| **App Size** | ~100 MB – 250 MB | **~0.9 MB** (Ultra-compact) |
+| **RAM Footprint (Idle)** | ~400 MB – 700 MB | **~40 MB – 80 MB** (Aggressive trim hooks) |
+| **Background Room Retention** | Disconnects after 1–3 minutes | **24/7 Persistent** (Foreground keeper service) |
+| **Screen Real Estate** | Cluttered by URL bar & navigation bars | **100% Immersive Zero-Bar** edge-to-edge |
+| **Background Battery Drain** | Burns full 60 FPS in background | **15 FPS Throttle** on minimize / screen-off |
+| **External Links** | Hijacks game tab and drops room | **Native "Open with" Chooser** in external apps |
+| **Accidental Exits** | Swipes easily exit or reload room | **Double-Tap Back Guard** & Smart Navigation |
 
 ---
 
@@ -72,8 +99,8 @@ Every release provides two distinct APK variants:
 
 | Variant | Size | Description |
 | :--- | :--- | :--- |
-| **Standard APK** | ~0.86 MB | Full branded release with official rope coil launcher icon and title. |
-| **Discreet APK** | ~0.86 MB | Stealth build with minimal "BC" app name and transparent icon. |
+| **Standard APK** | ~0.9 MB | Full branded release with official rope coil launcher icon and title. |
+| **Discreet APK** | ~0.9 MB | Stealth build with minimal "BC" app name and transparent icon. |
 
 Download the latest APK directly from the [Releases](https://github.com/Izumii99/BC-Android/releases) page.
 
@@ -107,15 +134,39 @@ On Windows, you can also run the automated build script:
 
 ---
 
-## Architecture & Memory Strategy
+## Running Tests
 
-Standard mobile browsers retain full browsing tabs, pre-rendering engines, background telemetry, and extensive cache structures that consume 500MB–1GB+ of memory during extended BC sessions.
+To run the automated unit test suite locally:
 
-**BC Android achieves a ~40–80MB baseline memory footprint through:**
-1. **Direct WebKit Host:** Runs in a single dedicated process with no browser chrome overhead.
-2. **Dynamic Unfocused FPS Throttle:** Injects a script capping redraws to 15 FPS when minimized or screen-off, slashing GPU texture allocations and battery heat.
-3. **Low-Memory Callbacks:** Hooks into Android's `ComponentCallbacks2` to actively dump volatile bitmap caches upon receiving `TRIM_MEMORY_RUNNING_CRITICAL` or `TRIM_MEMORY_UI_HIDDEN`.
-4. **Crash-Loop Guard:** Detects WebKit render terminations and smoothly resurrects the page state up to 3 times within 30 seconds without hard-crashing the application.
+```powershell
+./gradlew test
+```
+
+---
+
+## Project Structure
+
+```text
+BC-Android/
+├── app/
+│   ├── src/main/
+│   │   ├── java/com/izumii/bcandroid/
+│   │   │   ├── MainActivity.kt               — WebView host, file chooser, and link interceptors
+│   │   │   ├── WebAppInterface.kt            — JavaScript bridge (clipboard, toasts, link chooser)
+│   │   │   ├── memory/MemoryOptimizer.kt     — Low-memory trim callbacks & 15 FPS throttle
+│   │   │   ├── service/                      — Foreground connection keeper service
+│   │   │   ├── updater/VersionDetector.kt    — Concurrent game server auto-detection
+│   │   │   └── scripts/ScriptLoader.kt       — Offline fallback addon injection
+│   │   ├── assets/
+│   │   │   ├── addons/                       — Offline fallback scripts (synced from BC-Desktop)
+│   │   │   ├── scripts/                      — Desktop bridge & remote loader scripts
+│   │   │   └── portrait_adapter.js           — Dynamic 2:1 canvas scaling & zoom controller
+│   │   └── res/                              — App layouts, drawables, and launcher icons
+│   └── src/test/                             — Automated unit tests (JUnit)
+├── Assets/                                   — Readme showcase screenshots & launcher branding
+├── publish/                                  — Compiled output release APKs
+└── .github/workflows/                        — CI/CD test checks & release workflows
+```
 
 ---
 

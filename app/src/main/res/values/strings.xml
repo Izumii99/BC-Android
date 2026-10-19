@@ -3,4 +3,5 @@
     <string name="exit_prompt">Press back again to exit</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
     <string name="reloading_game">Recovering game session…</string>
+    <string name="open_with">Open with</string>
 </resources>

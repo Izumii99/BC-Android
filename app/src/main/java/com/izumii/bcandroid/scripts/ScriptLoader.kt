@@ -2,6 +2,8 @@ package com.izumii.bcandroid.scripts
 
 import android.content.Context
 import android.webkit.WebView
+import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -44,29 +46,84 @@ object ScriptLoader {
 
     /**
      * Fallback offline injector: loads embedded assets/addons if the remote CDN cannot be reached.
+     * Respects user addon preferences saved in localStorage (BCDesktop_Addons_Config).
      */
     fun injectLocalAddons(context: Context, webView: WebView?) {
         webView ?: return
 
-        val orderedScripts = listOf(
-            "fusam-liko-loader.js",
-            "chat-qol.js",
-            "translate.js",
-            "cheat-menu.js",
-            "neko-dark.js",
-            "wardrobe-pagination.js"
-        )
+        val checkConfigJs = """
+            (function() {
+                try {
+                    return localStorage.getItem('BCDesktop_Addons_Config') || '{}';
+                } catch(e) {
+                    return '{}';
+                }
+            })();
+        """.trimIndent()
 
-        try {
-            val available = context.assets.list("addons")?.toSet() ?: emptySet()
-            for (scriptName in orderedScripts) {
-                if (available.contains(scriptName)) {
-                    readAsset(context, "addons/$scriptName")?.let { addonScript ->
-                        webView.evaluateJavascript(addonScript, null)
+        webView.evaluateJavascript(checkConfigJs) { rawJson ->
+            val configStr = if (rawJson != null && rawJson != "null") {
+                try {
+                    JSONTokener(rawJson).nextValue() as? String ?: rawJson
+                } catch (e: Exception) {
+                    rawJson
+                }
+            } else "{}"
+
+            val configObj = try {
+                JSONObject(configStr)
+            } catch (e: Exception) {
+                JSONObject()
+            }
+
+            val defaultDisabled = setOf(
+                "FUSAM",
+                "LikoPlugin",
+                "fusam-liko-loader.js",
+                "neko-dark.js",
+                "translate.js",
+                "cheat-menu.js"
+            )
+
+            // Ordered scripts without deprecated wardrobe-pagination.js
+            val scriptCandidates = listOf(
+                "fusam-liko-loader.js" to listOf("FUSAM", "LikoPlugin", "fusam-liko-loader.js"),
+                "chat-qol.js" to listOf("chat-qol.js"),
+                "translate.js" to listOf("translate.js"),
+                "cheat-menu.js" to listOf("cheat-menu.js"),
+                "neko-dark.js" to listOf("neko-dark.js")
+            )
+
+            try {
+                val available = context.assets.list("addons")?.toSet() ?: emptySet()
+                for ((filename, configKeys) in scriptCandidates) {
+                    if (!available.contains(filename)) continue
+
+                    var isEnabled = false
+                    var hasExplicitConfig = false
+                    for (key in configKeys) {
+                        if (configObj.has(key)) {
+                            hasExplicitConfig = true
+                            if (configObj.optBoolean(key, false)) {
+                                isEnabled = true
+                                break
+                            }
+                        }
+                    }
+
+                    if (!hasExplicitConfig) {
+                        val isDefaultDisabled = configKeys.any { defaultDisabled.contains(it) }
+                        isEnabled = !isDefaultDisabled
+                    }
+
+                    if (isEnabled) {
+                        readAsset(context, "addons/$filename")?.let { addonScript ->
+                            webView.evaluateJavascript(addonScript, null)
+                        }
                     }
                 }
+            } catch (ignored: Exception) {
             }
-        } catch (ignored: Exception) {
         }
     }
 }

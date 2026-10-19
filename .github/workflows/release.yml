@@ -8,14 +8,14 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 1.1)'
+        description: 'Release version / tag (e.g., 1.3)'
         required: false
-        default: '1.1'
+        default: '1.3'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Server Redirection Chain & High-Availability OTA Addons'
+        default: 'Interactive Update Dialog, Offline Addon Guard & Focus Overhaul'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -47,6 +47,13 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
+
+      - name: Sync upstream scripts from BC-Desktop
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/Izumii99/BC-Desktop.git temp-desktop
+          cp -r temp-desktop/Scripts/* app/src/main/assets/addons/
+          rm -rf temp-desktop
 
       - name: Build Release APKs
         run: |

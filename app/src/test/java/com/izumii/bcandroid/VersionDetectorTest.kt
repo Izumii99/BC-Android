@@ -88,4 +88,21 @@ class VersionDetectorTest {
         assertEquals(VersionDetector.VersionStatus.Active, status3)
         assertEquals(null, nextVer3)
     }
+
+    @Test
+    fun isGameUrl_distinguishesBetweenGameAndExternalUrls() {
+        // Official game URLs
+        assertTrue(VersionDetector.isGameUrl("https://www.bondage-asia.com/club/R133/"))
+        assertTrue(VersionDetector.isGameUrl("https://bondage-europe.com/club/"))
+        assertTrue(VersionDetector.isGameUrl("https://www.bondageprojects.elementfx.com/R132/"))
+        assertTrue(VersionDetector.isGameUrl("https://www.bondageprojects.com/club/R134/"))
+
+        // External & non-game links
+        assertFalse(VersionDetector.isGameUrl("https://github.com/Izumii99/BC-Desktop"))
+        assertFalse(VersionDetector.isGameUrl("https://discord.gg/bondageclub"))
+        assertFalse(VersionDetector.isGameUrl("https://www.google.com"))
+        assertFalse(VersionDetector.isGameUrl("https://www.bondageprojects.com/privacy"))
+        assertFalse(VersionDetector.isGameUrl(""))
+        assertFalse(VersionDetector.isGameUrl(null))
+    }
 }

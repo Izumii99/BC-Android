@@ -26,12 +26,33 @@ object VersionDetector {
         .readTimeout(3, TimeUnit.SECONDS)
         .build()
 
+    fun readLocalVersionFile(context: Context): Pair<Int, Boolean>? {
+        return try {
+            val externalFile = context.getExternalFilesDir(null)?.resolve("version.txt")
+            val internalFile = java.io.File(context.filesDir, "version.txt")
+            val target = when {
+                externalFile != null && externalFile.exists() && externalFile.isFile -> externalFile
+                internalFile.exists() && internalFile.isFile -> internalFile
+                else -> null
+            }
+            target?.readText()?.let { parseVersionConfig(it) }
+        } catch (ignored: Exception) {
+            null
+        }
+    }
+
     fun getSavedVersion(context: Context): Int {
+        val fileConfig = readLocalVersionFile(context)
+        if (fileConfig != null) return fileConfig.first
+
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getInt(KEY_SAVED_VERSION, 132)
     }
 
     fun isVersionLocked(context: Context): Boolean {
+        val fileConfig = readLocalVersionFile(context)
+        if (fileConfig != null) return fileConfig.second
+
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getBoolean(KEY_VERSION_LOCKED, false)
     }
@@ -55,6 +76,23 @@ object VersionDetector {
         val verStr = trimmed.substringBefore(":")
         val verNum = verStr.toIntOrNull() ?: 132
         return Pair(verNum, isLocked)
+    }
+
+    /**
+     * Determines whether the given URL is an active Bondage Club game canvas.
+     */
+    fun isGameUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        val cleanUrl = url.trim().lowercase()
+
+        val isBcHost = cleanUrl.contains("bondage-asia.com") ||
+                       cleanUrl.contains("bondageprojects.com") ||
+                       cleanUrl.contains("bondageprojects.elementfx.com") ||
+                       cleanUrl.contains("bondage-europe.com")
+
+        if (!isBcHost) return false
+
+        return cleanUrl.contains("/club") || cleanUrl.contains("/r1") || cleanUrl.contains("/r2")
     }
 
     enum class VersionStatus {
@@ -97,8 +135,11 @@ object VersionDetector {
     }
 
     suspend fun detectLatestGameUrl(context: Context): String = withContext(Dispatchers.IO) {
-        val activeVersion = getSavedVersion(context)
-        if (isVersionLocked(context)) {
+        val fileConfig = readLocalVersionFile(context)
+        val activeVersion = fileConfig?.first ?: getSavedVersion(context)
+        val isLocked = fileConfig?.second ?: isVersionLocked(context)
+
+        if (isLocked) {
             return@withContext "https://www.bondage-asia.com/club/R$activeVersion/"
         }
 
@@ -129,7 +170,9 @@ object VersionDetector {
             }
         }
 
-        saveVersion(context, candidate, false)
+        if (fileConfig == null) {
+            saveVersion(context, candidate, false)
+        }
         "https://www.bondage-asia.com/club/R$candidate/"
     }
 

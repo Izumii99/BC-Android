@@ -53,12 +53,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var currentLoadedUrl: String = VersionDetector.DEFAULT_FALLBACK_URL
+    private var isAppInForeground = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         rootContainer = findViewById(R.id.rootContainer)
+
+        // Request runtime notification permission on Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
 
         setupImmersiveFullscreen()
         setupDoubleTapBackToExit()
@@ -70,14 +78,20 @@ class MainActivity : AppCompatActivity() {
             currentLoadedUrl = targetUrl
             webView?.loadUrl(targetUrl)
 
-            // Silent update checker for newer APK releases
+            // Interactive update checker for newer APK releases
             val updateInfo = VersionDetector.checkForAppUpdate(BuildConfig.VERSION_NAME)
             if (updateInfo.hasUpdate) {
-                Toast.makeText(
-                    this@MainActivity,
-                    "New BC Android update available: ${updateInfo.latestTag}",
-                    Toast.LENGTH_LONG
-                ).show()
+                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Update Available (${updateInfo.latestTag})")
+                    .setMessage("A new version of BC Android is available. Would you like to view the release page?")
+                    .setPositiveButton("Download") { _, _ ->
+                        try {
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo.downloadUrl)))
+                        } catch (ignored: Exception) {
+                        }
+                    }
+                    .setNegativeButton("Later", null)
+                    .show()
             }
         }
     }
@@ -98,6 +112,16 @@ class MainActivity : AppCompatActivity() {
     private fun setupDoubleTapBackToExit() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                val wv = webView
+                val currentUrl = wv?.url
+
+                // If currently viewing an external or non-game link, and can navigate back in history:
+                if (wv != null && wv.canGoBack() && !VersionDetector.isGameUrl(currentUrl)) {
+                    wv.goBack()
+                    return
+                }
+
+                // If already at the main game canvas or no previous page exists, require double-tap to exit
                 val now = System.currentTimeMillis()
                 if (now - backPressedTime < 2000) {
                     finish()
@@ -107,6 +131,21 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    private fun openExternalChooser(url: String): Boolean {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(intent, getString(R.string.open_with)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(chooser)
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -185,12 +224,36 @@ class MainActivity : AppCompatActivity() {
                     false
                 }
             }
+
+            override fun onReceivedTitle(view: WebView?, title: String?) {
+                super.onReceivedTitle(view, title)
+                if (!isAppInForeground) {
+                    val count = title?.let {
+                        val match = Regex("""^\((\d+)\)""").find(it)
+                        match?.groupValues?.get(1)?.toIntOrNull()
+                    } ?: 0
+                    ConnectionKeeperService.updateBadgeCount(this@MainActivity, count)
+                }
+            }
         }
 
         v.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                val url = request?.url?.toString() ?: return false
+                if (VersionDetector.isGameUrl(url)) {
+                    return false
+                }
+                return openExternalChooser(url)
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                ScriptLoader.injectCoreScripts(this@MainActivity, view)
+                if (VersionDetector.isGameUrl(url)) {
+                    ScriptLoader.injectCoreScripts(this@MainActivity, view)
+                }
             }
 
             override fun onReceivedHttpError(
@@ -257,10 +320,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        isAppInForeground = true
         setupImmersiveFullscreen()
         MemoryOptimizer.onResume(webView)
         ConnectionKeeperService.onPulseListener = null
         ConnectionKeeperService.stop(this)
+        ConnectionKeeperService.updateBadgeCount(this, 0)
 
         // Seamless resume check: auto-restore if socket disconnected or dropped while backgrounded
         webView?.evaluateJavascript(
@@ -270,6 +335,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        isAppInForeground = false
         super.onPause()
         MemoryOptimizer.onPause(webView)
         ConnectionKeeperService.onPulseListener = {

@@ -10,7 +10,14 @@ object MemoryOptimizer {
 
     // Throttles redraws when app is unfocused/backgrounded to minimize CPU & RAM heat
     private const val CAP_UNFOCUSED_FPS_SCRIPT =
-        "(()=>{const g=window.Player&&Player.GraphicsSettings;if(g&&!g.MaxUnfocusedFPS&&window.CurrentScreen!=='Preference'){g.MaxUnfocusedFPS=15;window.bcFpsCap=g;}})();"
+        "(()=>{" +
+        "const g=window.Player&&Player.GraphicsSettings;" +
+        "if(g&&!g.MaxUnfocusedFPS&&window.CurrentScreen!=='Preference'){g.MaxUnfocusedFPS=15;window.bcFpsCap=g;}" +
+        "if(window.bcFocusMemory&&!window.bcFocusMemory.isConnected)window.bcFocusMemory=null;" +
+        "if(window.bcLastMousedown&&!window.bcLastMousedown.isConnected)window.bcLastMousedown=null;" +
+        "if(window.bcLastFocusedLayer&&!window.bcLastFocusedLayer.isConnected)window.bcLastFocusedLayer=null;" +
+        "if(typeof window.gc==='function'){try{window.gc();}catch(e){}}" +
+        "})();"
 
     private const val RESTORE_UNFOCUSED_FPS_SCRIPT =
         "(()=>{const g=window.bcFpsCap;if(g){if(g.MaxUnfocusedFPS===15)g.MaxUnfocusedFPS=0;window.bcFpsCap=null;}})();"

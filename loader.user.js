@@ -40,7 +40,10 @@
         script.src = src + "?v=" + Date.now();
         script.async = false;
         script.onerror = () => {
-            console.warn("BC Desktop: Remote Addon Manager could not be reached. Continuing in standalone mode.");
+            console.warn("BC Desktop: Remote Addon Manager unreachable. Loading local offline addons...");
+            if (window.AndroidBridge && typeof window.AndroidBridge.loadOfflineAddons === "function") {
+                window.AndroidBridge.loadOfflineAddons();
+            }
         };
         target.appendChild(script);
         console.log("BC Desktop: Loaded Addon Manager remotely from CDN fallback");

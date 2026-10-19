@@ -37,6 +37,48 @@ class ConnectionKeeperService : Service() {
 
         var onPulseListener: (() -> Unit)? = null
 
+        fun buildNotification(context: Context, unreadCount: Int = 0): Notification {
+            val launchIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
+            val isDiscreet = context.packageName.contains("discreet")
+            val baseTitle = if (isDiscreet) "BC" else "Bondage Club"
+            val title = if (unreadCount > 0) "$baseTitle ($unreadCount)" else baseTitle
+            val text = if (unreadCount > 0) {
+                if (isDiscreet) "$unreadCount new message${if (unreadCount > 1) "s" else ""}" else "$unreadCount new chat message${if (unreadCount > 1) "s" else ""}"
+            } else {
+                if (isDiscreet) "Active session" else "Active room session running in background"
+            }
+            val icon = if (isDiscreet) R.drawable.ic_transparent else R.drawable.ic_rope_logo
+
+            return NotificationCompat.Builder(context, CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(icon)
+                .setOngoing(true)
+                .setPriority(if (unreadCount > 0) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(pendingIntent)
+                .apply {
+                    if (unreadCount > 0) setNumber(unreadCount)
+                }
+                .build()
+        }
+
+        fun updateBadgeCount(context: Context, count: Int) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            try {
+                manager.notify(NOTIFICATION_ID, buildNotification(context, count))
+            } catch (ignored: Exception) {
+            }
+        }
+
         fun start(context: Context) {
             val intent = Intent(context, ConnectionKeeperService::class.java)
             try {
@@ -69,7 +111,7 @@ class ConnectionKeeperService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = buildNotification()
+        val notification = buildNotification(this, 0)
         startForeground(NOTIFICATION_ID, notification)
 
         // Trigger active socket keepalive pulse every 20 seconds to prevent NAT/carrier timeout
@@ -111,32 +153,6 @@ class ConnectionKeeperService : Service() {
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
-    }
-
-    private fun buildNotification(): Notification {
-        val launchIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-        )
-
-        val isDiscreet = packageName.contains("discreet")
-        val title = if (isDiscreet) "BC" else "Bondage Club"
-        val text = if (isDiscreet) "Active session" else "Active room session running in background"
-        val icon = if (isDiscreet) R.drawable.ic_transparent else R.drawable.ic_rope_logo
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(icon)
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setContentIntent(pendingIntent)
-            .build()
     }
 
     override fun onDestroy() {

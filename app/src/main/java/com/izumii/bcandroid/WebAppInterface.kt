@@ -3,6 +3,8 @@ package com.izumii.bcandroid
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.webkit.JavascriptInterface
@@ -53,5 +55,21 @@ class WebAppInterface(
     @JavascriptInterface
     fun getAppVersion(): String {
         return BuildConfig.VERSION_NAME
+    }
+
+    @JavascriptInterface
+    fun openExternalUrl(url: String) {
+        mainHandler.post {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                val chooser = Intent.createChooser(intent, context.getString(R.string.open_with)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(chooser)
+            } catch (ignored: Exception) {
+            }
+        }
     }
 }
