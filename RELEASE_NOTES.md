@@ -1,6 +1,5 @@
 ### Fixes & Improvements:
 
-- **Canvas & Dialog Alignment:** Resolved UI overlap and clipping conflicts in character inspection and item selection menus, ensuring pixel-perfect 2:1 canvas centering matching standard desktop viewports.
 - **Persistent Whispers:** Private chat whispers (`/w`) now persist automatically across messages until cancelled (or cleared with Escape), with expanded emoticons and refined room chat interactions.
 - **Isolated Translation UI:** Upgraded the translation widget into an isolated Shadow DOM container with automatic language detection, real-time spellcheck hints, and boundary-clamped dragging.
 - **Clutter-Free Edge-to-Edge:** Automatically suppressed redundant in-game fullscreen overlay buttons for a cleaner view on mobile zero-bar immersive displays.
