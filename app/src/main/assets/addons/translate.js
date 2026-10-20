@@ -534,10 +534,21 @@
         const srcRomaji           = $("bc-translate-src-romaji");
         const tgtRomaji           = $("bc-translate-tgt-romaji");
 
-        // Isolasi event ketikan agar tidak dibajak oleh listener game Bondage Club atau runtime lain
-        ["keydown", "keyup", "keypress", "input", "paste", "mousedown", "click"].forEach(evt => {
+        // Isolasi event ketikan, klik, dan fokus agar tidak dibajak oleh listener game Bondage Club atau runtime lain
+        ["keydown", "keyup", "keypress", "input", "paste", "mousedown", "mouseup", "click", "pointerdown", "pointerup"].forEach(evt => {
             inputArea.addEventListener(evt, (e) => e.stopPropagation());
             outputArea.addEventListener(evt, (e) => e.stopPropagation());
+        });
+
+        // Sinkronisasi status fokus dengan memory fokus desktop/mobile
+        const registerTranslateFocus = () => {
+            window.bcUserPrefersGameChat = false;
+            window.bcFocusMemory = inputArea;
+        };
+        inputArea.addEventListener("focus", registerTranslateFocus);
+        inputArea.addEventListener("focusin", (e) => {
+            e.stopPropagation();
+            registerTranslateFocus();
         });
 
         function getLangLabel(langs, value) {
@@ -627,8 +638,16 @@
             }
         });
 
+        // Cegah kebocoran event mousedown & click dari dalam panel translate ke canvas game
+        popup.addEventListener("mousedown", (e) => {
+            e.stopPropagation();
+            registerTranslateFocus();
+        });
+        popup.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeAllDropdowns();
+        });
         document.addEventListener("click", closeAllDropdowns);
-        popup.addEventListener("click", closeAllDropdowns);
 
         // --- Swap (Mendukung swap dari bahasa yang terdeteksi otomatis) ---
         swapBtn.onclick = (e) => {
@@ -652,6 +671,7 @@
             correctionContainer.classList.add("hidden");
             metaDiv.classList.add("hidden");
             detectedBadge.innerText = "";
+            registerTranslateFocus();
             inputArea.focus();
         };
 
@@ -876,6 +896,9 @@
         closeBtn.onclick = (e) => {
             e.stopPropagation();
             popup.style.display = "none";
+            if (window.bcFocusMemory === inputArea) {
+                window.bcFocusMemory = null;
+            }
         };
 
         let isMinimized = false;
@@ -894,11 +917,15 @@
             const dx = pos.clientX - startX;
             const dy = pos.clientY - startY;
             if (btnDragging) {
-                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) btnMoved = true;
-                const newX = Math.max(0, Math.min(btnInitX + dx, window.innerWidth - btn.offsetWidth));
-                const newY = Math.max(0, Math.min(btnInitY + dy, window.innerHeight - btn.offsetHeight));
-                btn.style.left = `${newX}px`;
-                btn.style.top  = `${newY}px`;
+                if (!btnMoved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+                    btnMoved = true;
+                }
+                if (btnMoved) {
+                    const newX = Math.max(0, Math.min(btnInitX + dx, window.innerWidth - btn.offsetWidth));
+                    const newY = Math.max(0, Math.min(btnInitY + dy, window.innerHeight - btn.offsetHeight));
+                    btn.style.left = `${newX}px`;
+                    btn.style.top  = `${newY}px`;
+                }
             } else if (popupDragging) {
                 const newX = Math.max(0, Math.min(popupInitX + dx, window.innerWidth - popup.offsetWidth));
                 const newY = Math.max(0, Math.min(popupInitY + dy, window.innerHeight - popup.offsetHeight));
@@ -910,13 +937,17 @@
         const onMouseUp = () => {
             btnDragging = false;
             popupDragging = false;
+            window.removeEventListener("mousemove", onMouseMove, true);
+            window.removeEventListener("mouseup", onMouseUp, true);
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
             document.removeEventListener("touchmove", onMouseMove);
             document.removeEventListener("touchend", onMouseUp);
+            setTimeout(() => { btnMoved = false; }, 60);
         };
 
         const onStartDragBtn = (e) => {
+            if (e.button !== undefined && e.button !== 0) return;
             btnDragging = true;
             btnMoved = false;
             const pos = (e.touches && e.touches[0]) ? e.touches[0] : e;
@@ -924,8 +955,8 @@
             startY = pos.clientY;
             btnInitX = btn.offsetLeft;
             btnInitY = btn.offsetTop;
-            document.addEventListener("mousemove", onMouseMove);
-            document.addEventListener("mouseup", onMouseUp);
+            window.addEventListener("mousemove", onMouseMove, { capture: true, passive: true });
+            window.addEventListener("mouseup", onMouseUp, { capture: true });
             document.addEventListener("touchmove", onMouseMove, { passive: false });
             document.addEventListener("touchend", onMouseUp);
         };
@@ -935,14 +966,15 @@
 
         const onStartDragHeader = (e) => {
             if (e.target.closest("button")) return;
+            if (e.button !== undefined && e.button !== 0) return;
             popupDragging = true;
             const pos = (e.touches && e.touches[0]) ? e.touches[0] : e;
             startX = pos.clientX;
             startY = pos.clientY;
             popupInitX = popup.offsetLeft;
             popupInitY = popup.offsetTop;
-            document.addEventListener("mousemove", onMouseMove);
-            document.addEventListener("mouseup", onMouseUp);
+            window.addEventListener("mousemove", onMouseMove, { capture: true, passive: true });
+            window.addEventListener("mouseup", onMouseUp, { capture: true });
             document.addEventListener("touchmove", onMouseMove, { passive: false });
             document.addEventListener("touchend", onMouseUp);
         };
@@ -966,21 +998,64 @@
         });
 
         btn.onclick = (e) => {
+            e.stopPropagation();
             if (btnMoved) { e.preventDefault(); return; }
             if (popup.style.display === "none" || !popup.style.display) {
                 popup.style.display = "block";
-                setTimeout(() => inputArea.focus(), 50);
+                registerTranslateFocus();
+                setTimeout(() => inputArea.focus(), 60);
             } else {
                 popup.style.display = "none";
+                if (window.bcFocusMemory === inputArea) {
+                    window.bcFocusMemory = null;
+                }
             }
         };
 
         window.addEventListener("keydown", (e) => {
             if ((e.key === "Escape" || e.keyCode === 27) && popup.style.display === "block") {
                 popup.style.display = "none";
+                if (window.bcFocusMemory === inputArea) {
+                    window.bcFocusMemory = null;
+                }
                 e.stopPropagation();
             }
         }, true);
+
+        // Integrasi dengan Focus Crawler platform runtime (WPF / Linux / WebView2)
+        // Memastikan kursor tidak ditarik paksa ke chat game saat widget Translate aktif
+        function wrapCrawler(fn) {
+            if (typeof fn !== "function") return fn;
+            const wrapped = function () {
+                if (popup && popup.style.display === "block" && !window.bcUserPrefersGameChat) {
+                    if (inputArea && !inputArea.disabled && !inputArea.readOnly) {
+                        return inputArea;
+                    }
+                }
+                return fn.apply(this, arguments);
+            };
+            wrapped._translateHooked = true;
+            return wrapped;
+        }
+
+        try {
+            let _crawler = wrapCrawler(window.bcRunFocusCrawler);
+            Object.defineProperty(window, "bcRunFocusCrawler", {
+                configurable: true,
+                enumerable: true,
+                get: () => _crawler,
+                set: (newFn) => {
+                    _crawler = wrapCrawler(newFn);
+                }
+            });
+        } catch (err) {
+            const crawlerInterval = setInterval(() => {
+                if (typeof window.bcRunFocusCrawler === "function" && !window.bcRunFocusCrawler._translateHooked) {
+                    window.bcRunFocusCrawler = wrapCrawler(window.bcRunFocusCrawler);
+                }
+            }, 400);
+            setTimeout(() => clearInterval(crawlerInterval), 20000);
+        }
     }
 
     if (document.readyState === "loading") {
