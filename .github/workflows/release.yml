@@ -8,14 +8,14 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 1.3)'
+        description: 'Release version / tag (e.g., 1.4)'
         required: false
-        default: '1.3'
+        default: '1.4'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Interactive Update Dialog, Offline Addon Guard & Focus Overhaul'
+        default: 'Indefinite Background Keep-Alive & Chromium Renderer Anti-Freeze'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -80,9 +80,9 @@ jobs:
           else
             REF_TAG=""
           fi
-          VER="${INPUT_VER:-${REF_TAG:-1.1}}"
+          VER="${INPUT_VER:-${REF_TAG:-1.4}}"
 
-          TITLE="${INPUT_TITLE:-Server Redirection Chain & High-Availability OTA Addons}"
+          TITLE="${INPUT_TITLE:-Indefinite Background Keep-Alive & Chromium Renderer Anti-Freeze}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"

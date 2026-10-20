@@ -29,6 +29,7 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
   > 1. Set app battery setting to **"No restrictions"** (Unrestricted).
   > 2. Disable **"Pause app activity if unused"**.
   > 3. Enable **"Autostart"** (Mulai otomatis).
+  > 4. **Lock the app in Recent Apps** (long-press the app card in Recent Apps and tap the Padlock icon) to prevent OEM task killers from killing the process during heavy multitasking.
 - **Native "Open with" System App Chooser:** Tapping external links (GitHub addon repositories, Discord links, guides, bug trackers) or scripts triggering `window.open` launches Android's native system app picker, allowing you to view external content in Chrome, Firefox, or official apps without ever disrupting your active game room session.
 - **Smart Back Navigation & Double-Tap Protection:** Intelligently navigates back from external web pages to the game canvas, while reserving the double-tap exit confirmation strictly for the active game room to prevent accidental disconnections.
 - **Aggressive Memory & Battery Optimization:**
