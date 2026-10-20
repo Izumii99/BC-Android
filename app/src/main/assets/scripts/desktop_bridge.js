@@ -347,4 +347,22 @@
     document.addEventListener('click', initSilentAudioKeepAlive, { once: true, passive: true });
     document.addEventListener('touchstart', initSilentAudioKeepAlive, { once: true, passive: true });
     initSilentAudioKeepAlive();
+
+    // Suppress native Bondage Club fullscreen button (unnecessary in edge-to-edge immersive app)
+    function suppressFullscreenButton() {
+        try {
+            if (window.Fullscreen && typeof window.Fullscreen.UpdateButton === 'function') {
+                window.Fullscreen.Init = function() {};
+            }
+            const btn = document.getElementById('bc-fullscreen-button') || document.querySelector('.bc-fullscreen-button');
+            if (btn) {
+                btn.style.setProperty('display', 'none', 'important');
+                btn.remove();
+            }
+        } catch (e) {}
+    }
+    suppressFullscreenButton();
+    document.addEventListener('DOMContentLoaded', suppressFullscreenButton);
+    setInterval(suppressFullscreenButton, 1000);
 })();
+

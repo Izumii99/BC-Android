@@ -77,6 +77,22 @@
             font-size: 16px !important; /* Prevents auto-zoom on iOS/Android WebViews */
         }
 
+        /* Suppress redundant fullscreen button overlay on Android zero-bar immersive display */
+        #bc-fullscreen-button,
+        .bc-fullscreen-button,
+        [id*="fullscreen-button"],
+        button[aria-label*="Fullscreen"],
+        button[aria-label*="fullscreen"] {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            left: -9999px !important;
+        }
+
         /* Addon Manager Mobile UI Fit */
         div[style*="zIndex: 1000000"], div[style*="z-index: 1000000"] {
             padding: 10px !important;
