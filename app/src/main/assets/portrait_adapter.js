@@ -108,30 +108,6 @@
             max-height: 80vh !important;
         }
 
-        /* Universal Constraints for Addon/Game Dialogs, Popups & Prompts */
-        dialog,
-        .modal,
-        .dialog,
-        div[role="dialog"],
-        div[role="alertdialog"],
-        div[class*="dialog"],
-        div[class*="modal"],
-        div[class*="popup"],
-        div[class*="banner"] {
-            max-width: 94vw !important;
-            box-sizing: border-box !important;
-        }
-
-        dialog button,
-        .modal button,
-        .dialog button,
-        div[role="dialog"] button,
-        div[role="alertdialog"] button {
-            min-height: 44px !important;
-            padding: 10px 14px !important;
-            font-size: 14px !important;
-            box-sizing: border-box !important;
-        }
     `;
     if (!document.getElementById('bc-android-portrait-style')) {
         document.head.appendChild(style);
