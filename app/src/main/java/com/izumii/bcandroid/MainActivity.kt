@@ -163,6 +163,15 @@ class MainActivity : AppCompatActivity() {
         webView = v
 
         v.setBackgroundColor(Color.parseColor("#0D0D0D"))
+        v.isFocusable = true
+        v.isFocusableInTouchMode = true
+        v.requestFocus(View.FOCUS_DOWN)
+        v.setOnTouchListener { view, _ ->
+            if (!view.hasFocus()) {
+                view.requestFocus()
+            }
+            false
+        }
 
         val settings = v.settings
         settings.javaScriptEnabled = true
