@@ -1,11 +1,9 @@
 ### Fixes & Improvements:
 
-- **Background Persistence:** Stays connected in online rooms indefinitely when minimized or locked without disconnecting after 2–3 minutes.
-- **File & Photo Downloads:** Export wardrobe backups, appearance codes, BCX configs, chat logs, and canvas photos directly to your device's Downloads folder with instant notifications.
-- **Export Data Integrity:** Fixed appearance/wardrobe export codes getting corrupted by space characters, and eliminated screen lag during large image or chatlog saves.
-- **Typing & Keyboard Focus:** Smooth virtual keyboard popup in chat, reliable cursor retention, and focus protection while adjusting wardrobe layers.
-- **Auto-Reconnection:** Seamlessly recovers and logs back into the room automatically after brief Wi-Fi or mobile data interruptions.
-- **UI & Addon Cleanup:** Cleaner transparent floating addon menu icon, and removed retired legacy scripts.
+- **Persistent Whispers:** Private chat whispers (`/w`) now persist automatically across messages until cancelled (or cleared with Escape), with expanded emoticons and refined room chat interactions.
+- **Isolated Translation UI:** Upgraded the translation widget into an isolated Shadow DOM container with automatic language detection, real-time spellcheck hints, and boundary-clamped dragging.
+- **Clutter-Free Edge-to-Edge:** Automatically suppressed redundant in-game fullscreen overlay buttons for a cleaner view on mobile zero-bar immersive displays.
+- **Addon Ecosystem Sync:** Refreshed offline fallback addon bundles synchronized directly with the latest upstream BC-Desktop distribution.
 
 ### How to Keep the App Connected in Background:
 
