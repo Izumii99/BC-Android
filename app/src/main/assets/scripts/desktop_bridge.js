@@ -228,4 +228,45 @@
         }, 1000);
     }
     hookAutoRelogin();
+
+    // Force Page Visibility API to report visible state permanently
+    try {
+        Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
+        Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
+        window.addEventListener('visibilitychange', function(e) {
+            e.stopImmediatePropagation();
+        }, true);
+    } catch (e) {}
+
+    // Silent WebAudio Keep-Alive to prevent Android & Chromium sandbox process freeze
+    function initSilentAudioKeepAlive() {
+        if (window._bcAudioKeepAliveActive) return;
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            gain.gain.value = 0.00001;
+            osc.frequency.value = 1;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+
+            window._bcAudioCtx = ctx;
+            window._bcAudioKeepAliveActive = true;
+
+            setInterval(function() {
+                if (window._bcAudioCtx && window._bcAudioCtx.state === 'suspended') {
+                    window._bcAudioCtx.resume().catch(function() {});
+                }
+            }, 5000);
+        } catch (e) {}
+    }
+
+    document.addEventListener('click', initSilentAudioKeepAlive, { once: true, passive: true });
+    document.addEventListener('touchstart', initSilentAudioKeepAlive, { once: true, passive: true });
+    initSilentAudioKeepAlive();
 })();

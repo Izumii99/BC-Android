@@ -24,22 +24,14 @@ object MemoryOptimizer {
 
     /**
      * Called when Activity is sent to background or loses focus.
-     * Throttles graphics engine to 15 FPS and trims volatile caches without pausing
-     * background JS timers or dropping Socket.IO WebSocket room connections.
+     * Throttles graphics engine to 15 FPS without triggering memory coordinator
+     * eviction or freezing background JS timers / WebSocket connections.
      */
     fun onPause(webView: WebView?) {
         webView ?: return
 
-        // 1. Immediately throttle in-game graphics engine to 15 FPS to cut CPU heat and battery
+        // Throttle in-game graphics engine to 15 FPS to cut CPU heat and battery
         webView.evaluateJavascript(CAP_UNFOCUSED_FPS_SCRIPT, null)
-
-        // 2. Prune volatile image/texture caches to release RAM (keeps persistent storage intact)
-        try {
-            webView.clearCache(false)
-            val freeMemMethod = WebView::class.java.getMethod("freeMemory")
-            freeMemMethod.invoke(webView)
-        } catch (ignored: Exception) {
-        }
     }
 
     /**
@@ -59,26 +51,13 @@ object MemoryOptimizer {
         webView ?: return
 
         when (level) {
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE,
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> {
-                // Moderate pressure: clear volatile image caches
-                try {
-                    webView.clearCache(false)
-                } catch (ignored: Exception) {
-                }
-            }
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
-            ComponentCallbacks2.TRIM_MEMORY_COMPLETE,
-            ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
-                // High pressure: trim memory and suggest runtime garbage collection
+            ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
+                // Clear volatile image caches only under severe OS memory pressure
                 try {
                     webView.clearCache(false)
-                    // Invoke freeMemory if available on this WebKit build
-                    val freeMemMethod = WebView::class.java.getMethod("freeMemory")
-                    freeMemMethod.invoke(webView)
                 } catch (ignored: Exception) {
                 }
-                System.gc()
             }
         }
     }

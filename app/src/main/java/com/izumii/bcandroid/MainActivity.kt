@@ -150,8 +150,8 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
-        val existingView = findViewById<WebView>(R.id.webView)
-        val v = existingView ?: WebView(this).also {
+        val existingView = findViewById<KeepAliveWebView>(R.id.webView)
+        val v = existingView ?: KeepAliveWebView(this).also {
             rootContainer.addView(
                 it,
                 FrameLayout.LayoutParams(
@@ -340,7 +340,28 @@ class MainActivity : AppCompatActivity() {
         MemoryOptimizer.onPause(webView)
         ConnectionKeeperService.onPulseListener = {
             webView?.evaluateJavascript(
-                "(()=>{try{if(window.ServerSocket&&window.ServerSocket.connected){window.ServerSocket.emit('Ping');}}catch(e){}})();",
+                """
+                (()=>{
+                    try {
+                        if (window._bcAudioCtx && window._bcAudioCtx.state === 'suspended') {
+                            window._bcAudioCtx.resume();
+                        }
+                        if (window.ServerSocket) {
+                            if (window.ServerSocket.connected) {
+                                window.ServerSocket.emit('Ping');
+                                if (window.ServerSocket.io && window.ServerSocket.io.engine) {
+                                    window.ServerSocket.io.engine.write('2');
+                                }
+                            } else if (typeof window.ServerInit === 'function') {
+                                window.ServerInit();
+                            }
+                        }
+                        if (window.CurrentScreen === 'Relog' && typeof window.RelogSend === 'function') {
+                            window.RelogSend();
+                        }
+                    } catch(e) {}
+                })();
+                """.trimIndent(),
                 null
             )
         }

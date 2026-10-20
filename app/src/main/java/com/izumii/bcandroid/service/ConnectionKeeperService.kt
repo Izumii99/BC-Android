@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -23,11 +25,12 @@ import kotlinx.coroutines.launch
 
 /**
  * Foreground Service that prevents Android and OEM battery managers (MIUI / HyperOS, OneUI)
- * from freezing CPU threads or closing active WebSocket room connections when minimized.
+ * from freezing CPU threads, Wi-Fi networking, or closing active WebSocket room connections.
  */
 class ConnectionKeeperService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
     private var pulseJob: Job? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
@@ -108,17 +111,38 @@ class ConnectionKeeperService : Service() {
             setReferenceCounted(false)
             acquire(24 * 60 * 60 * 1000L) // 24-hour ceiling to support long background sessions
         }
+
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val lockType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+        } else {
+            @Suppress("DEPRECATION")
+            WifiManager.WIFI_MODE_FULL_HIGH_PERF
+        }
+        try {
+            wifiLock = wifiManager?.createWifiLock(lockType, "BCAndroid:ConnectionKeeperWifiLock")?.apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        } catch (ignored: Exception) {
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification(this, 0)
-        startForeground(NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val serviceTypes = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            startForeground(NOTIFICATION_ID, notification, serviceTypes)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
 
-        // Trigger active socket keepalive pulse every 20 seconds to prevent NAT/carrier timeout
+        // Trigger active socket keepalive pulse every 12 seconds to prevent NAT/carrier timeout
         pulseJob?.cancel()
         pulseJob = serviceScope.launch {
             while (isActive) {
-                delay(20_000L)
+                delay(12_000L)
                 try {
                     onPulseListener?.invoke()
                 } catch (ignored: Exception) {
@@ -163,9 +187,13 @@ class ConnectionKeeperService : Service() {
             if (wakeLock?.isHeld == true) {
                 wakeLock?.release()
             }
+            if (wifiLock?.isHeld == true) {
+                wifiLock?.release()
+            }
         } catch (ignored: Exception) {
         }
         wakeLock = null
+        wifiLock = null
         super.onDestroy()
     }
 

@@ -63,4 +63,18 @@ class ScriptDistributionTest {
         val matchNone = regex.find("Bondage Club")
         assertEquals(null, matchNone?.groupValues?.get(1)?.toIntOrNull())
     }
+
+    @Test
+    fun desktopBridge_containsVisibilitySpoofAndAudioKeepAlive() {
+        val possiblePaths = listOf(
+            File("app/src/main/assets/scripts/desktop_bridge.js"),
+            File("../app/src/main/assets/scripts/desktop_bridge.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("desktop_bridge.js must exist", file != null && file.exists())
+
+        val content = file?.readText() ?: ""
+        assertTrue("Must spoof Page Visibility API", content.contains("visibilityState") && content.contains("document, 'hidden'"))
+        assertTrue("Must include silent WebAudio keep-alive", content.contains("initSilentAudioKeepAlive") && content.contains("_bcAudioKeepAliveActive"))
+    }
 }
