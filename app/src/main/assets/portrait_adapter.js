@@ -141,34 +141,46 @@
      * Checks if BC-LCE, MPL, or any external portrait layout manager is active.
      */
     function isExternalPortraitActive() {
-        // Screens where portrait layout is never active (Lobby, Login, etc.)
-        if (window.CurrentScreen === 'MainHall' || window.CurrentScreen === 'Login' || window.CurrentScreen === 'Introduction') {
+        // 1. Jika sedang membuka menu karakter/item (CurrentCharacter != null) atau di luar ChatRoom/RoomSearch,
+        // WAJIB kembali ke rasio 2:1 penuh agar menu kiri (Facial Expression) & kanan (Items/Dialog) tidak tumpang tindih!
+        if (
+            window.CurrentScreen === 'MainHall' ||
+            window.CurrentScreen === 'Login' ||
+            window.CurrentScreen === 'Introduction' ||
+            window.CurrentScreen === 'Appearance' ||
+            window.CurrentScreen === 'InformationSheet' ||
+            (typeof window.CurrentCharacter !== 'undefined' && window.CurrentCharacter !== null)
+        ) {
             return false;
         }
 
-        // 1. Direct DOM check for BC-LCE vertical containers (Chatroom, Room Search, Dressing Room)
+        // 2. Direct DOM check for BC-LCE vertical containers (hanya jika elemen benar-benar visible)
+        const lceCr = document.getElementById('lce-v-cr');
+        const lceCs = document.getElementById('lce-v-cs');
+        const lceCsh = document.getElementById('lce-v-csh');
+        const lceDr = document.getElementById('lce-v-dr');
+
         if (
-            document.getElementById('lce-v-cr') ||
-            document.getElementById('lce-v-cs') ||
-            document.getElementById('lce-v-csh') ||
-            document.getElementById('lce-v-dr') ||
+            (lceCr && lceCr.offsetParent !== null) ||
+            (lceCs && lceCs.offsetParent !== null) ||
+            (lceCsh && lceCsh.offsetParent !== null) ||
+            (lceDr && lceDr.offsetParent !== null) ||
             document.querySelector('#lce-stage[data-orient="portrait"]') ||
             document.querySelector('.portrait-mode') ||
             document.querySelector('#portrait-wrapper') ||
             document.getElementById('mpl-style') ||
-            document.body?.classList?.contains('bclce-portrait') ||
-            (document.documentElement.style && document.documentElement.style.getPropertyValue('--lce-cr-top'))
+            document.body?.classList?.contains('bclce-portrait')
         ) {
             return true;
         }
 
-        // 2. Check BC-LCE runtime state
+        // 3. Check BC-LCE runtime state
         const lceState = window.Liko?.LCE?.Vertical?.getState?.();
         if (lceState && lceState.active && lceState.mode && lceState.mode !== 'none') {
             return true;
         }
 
-        // 3. Check legacy or third-party portrait addon global flags
+        // 4. Check legacy or third-party portrait addon global flags
         if (window.BCPortraitMode || window.bcPortraitActive || window.BCMPL || window.MPL) {
             return true;
         }
@@ -184,11 +196,14 @@
         const canvas = document.getElementById('MainCanvas');
         if (!canvas) return;
 
-        // Never restrict width with max-width: it breaks portrait addons that use 2000px canvas with clip-path
+        // Pastikan atribut resolusi internal canvas (buffer drawing) TIDAK PERNAH berubah dari 2000x1000
+        if (canvas.width !== 2000) canvas.width = 2000;
+        if (canvas.height !== 1000) canvas.height = 1000;
+
         canvas.style.removeProperty('max-width');
         canvas.style.removeProperty('max-height');
 
-        // If an external portrait addon is active (e.g. BC-LCE vertical mode), yield completely
+        // Jika external portrait addon aktif DAN tidak sedang membuka menu karakter (CurrentCharacter == null)
         if (portraitActive) {
             delete canvas.dataset.bcAdapterActive;
             canvas.style.removeProperty('right');
@@ -196,15 +211,11 @@
             canvas.style.removeProperty('display');
             canvas.style.removeProperty('object-fit');
 
-            // If BC-LCE vertical chatroom is active, guarantee responsive edge-to-edge scaling
             const isLceCr = document.getElementById('lce-v-cr') || (window.Liko?.LCE?.Vertical?.getState?.()?.mode === 'chatroom');
             if (isLceCr) {
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;
 
-                // When in portrait orientation (fullscreen phone or tall floating window):
-                // Ensure the 1:1 character canvas dynamically expands to 100% width (no side black bars/pillarboxing),
-                // while preserving at least minChatH for the chatroom controls and log below.
                 let charSize;
                 if (vh > vw) {
                     const minChatH = 180;
@@ -217,7 +228,7 @@
                 const width = Math.round(2000 * scale);
                 const height = Math.round(1000 * scale);
                 const left = Math.round((vw - 1000 * scale) / 2);
-                const top = 0; // Seamlessly anchor to the top of window
+                const top = 0;
 
                 canvas.style.setProperty('position', 'fixed', 'important');
                 canvas.style.setProperty('top', top + 'px', 'important');
@@ -229,7 +240,6 @@
                 canvas.style.setProperty('margin', '0', 'important');
                 canvas.style.setProperty('z-index', '1', 'important');
 
-                // Keep BC-LCE's chatroom container directly docked beneath the character
                 const root = document.documentElement;
                 const crTop = height;
                 const crHeight = Math.max(0, vh - crTop);
@@ -245,42 +255,38 @@
             return;
         }
 
-        // Apply browser-standard auto centering for vanilla BC
+        // Mode Standar (2:1 seperti di Chrome):
+        // Reset paksa clip-path dan transform agar tidak menyangkut dari state sebelumnya
         canvas.dataset.bcAdapterActive = 'true';
-        canvas.style.removeProperty('clip-path');
-        canvas.style.removeProperty('transform');
-        canvas.style.setProperty('position', 'absolute', 'important');
-        canvas.style.setProperty('top', '0', 'important');
-        canvas.style.setProperty('bottom', '0', 'important');
-        canvas.style.setProperty('left', '0', 'important');
-        canvas.style.setProperty('right', '0', 'important');
-        canvas.style.setProperty('margin', 'auto', 'important');
+        canvas.style.setProperty('clip-path', 'none', 'important');
+        canvas.style.setProperty('transform', 'none', 'important');
+        canvas.style.setProperty('position', 'fixed', 'important');
+        canvas.style.setProperty('margin', '0', 'important');
         canvas.style.setProperty('display', 'block', 'important');
-        canvas.style.setProperty('object-fit', 'contain', 'important');
+        canvas.style.removeProperty('object-fit');
+        canvas.style.removeProperty('right');
+        canvas.style.removeProperty('bottom');
 
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
-        const nativeAspect = 2.0; // Bondage Club native 2:1 aspect ratio
+        const nativeAspect = 2.0; // Bondage Club native 2:1 (2000x1000)
 
         let targetWidth, targetHeight;
         if (screenWidth / screenHeight < nativeAspect) {
-            // Screen is portrait or narrower than 2:1 -> width bound, centered vertically
             targetWidth = screenWidth;
-            targetHeight = screenWidth / nativeAspect;
+            targetHeight = Math.round(screenWidth / nativeAspect);
         } else {
-            // Screen is landscape or wider than 2:1 -> height bound, centered horizontally
-            targetWidth = screenHeight * nativeAspect;
             targetHeight = screenHeight;
+            targetWidth = Math.round(screenHeight * nativeAspect);
         }
 
-        const targetWStr = targetWidth + 'px';
-        const targetHStr = targetHeight + 'px';
-        if (canvas.style.getPropertyValue('width') !== targetWStr) {
-            canvas.style.setProperty('width', targetWStr, 'important');
-        }
-        if (canvas.style.getPropertyValue('height') !== targetHStr) {
-            canvas.style.setProperty('height', targetHStr, 'important');
-        }
+        const leftOffset = Math.round((screenWidth - targetWidth) / 2);
+        const topOffset = Math.round((screenHeight - targetHeight) / 2);
+
+        canvas.style.setProperty('width', targetWidth + 'px', 'important');
+        canvas.style.setProperty('height', targetHeight + 'px', 'important');
+        canvas.style.setProperty('left', leftOffset + 'px', 'important');
+        canvas.style.setProperty('top', topOffset + 'px', 'important');
     }
 
     // 4. Intercept and adapt desktop-proportioned banners, alerts, and recovery prompts
