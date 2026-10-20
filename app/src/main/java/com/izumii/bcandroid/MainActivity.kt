@@ -165,13 +165,6 @@ class MainActivity : AppCompatActivity() {
         v.setBackgroundColor(Color.parseColor("#0D0D0D"))
         v.isFocusable = true
         v.isFocusableInTouchMode = true
-        v.requestFocus(View.FOCUS_DOWN)
-        v.setOnTouchListener { view, _ ->
-            if (!view.hasFocus()) {
-                view.requestFocus()
-            }
-            false
-        }
 
         val settings = v.settings
         settings.javaScriptEnabled = true
@@ -187,7 +180,7 @@ class MainActivity : AppCompatActivity() {
         settings.displayZoomControls = false
         settings.allowFileAccess = true
 
-        v.addJavascriptInterface(WebAppInterface(
+        val bridge = WebAppInterface(
             context = this,
             onOfflineAddonsRequested = {
                 ScriptLoader.injectLocalAddons(this@MainActivity, webView)
@@ -201,7 +194,34 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
-        ), "AndroidBridge")
+        )
+        v.addJavascriptInterface(bridge, "AndroidBridge")
+
+        v.setDownloadListener { url, _, contentDisposition, mimetype, _ ->
+            val guessedName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimetype)
+            if (url.startsWith("data:")) {
+                bridge.saveBase64File(url, guessedName, mimetype)
+            } else if (url.startsWith("blob:")) {
+                val js = """
+                    (function() {
+                        fetch('$url')
+                            .then(function(r) { return r.blob(); })
+                            .then(function(b) {
+                                const reader = new FileReader();
+                                reader.onloadend = function() {
+                                    if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
+                                        window.AndroidBridge.saveBase64File(reader.result, '$guessedName', b.type || '$mimetype');
+                                    }
+                                };
+                                reader.readAsDataURL(b);
+                            }).catch(function() {});
+                    })();
+                """.trimIndent()
+                v.evaluateJavascript(js, null)
+            } else {
+                bridge.downloadHttpFile(url, guessedName, mimetype)
+            }
+        }
 
         v.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
@@ -330,6 +350,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         isAppInForeground = true
+        (webView as? KeepAliveWebView)?.keepAliveInBackground = false
         setupImmersiveFullscreen()
         MemoryOptimizer.onResume(webView)
         ConnectionKeeperService.onPulseListener = null
@@ -345,6 +366,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         isAppInForeground = false
+        (webView as? KeepAliveWebView)?.keepAliveInBackground = true
         super.onPause()
         MemoryOptimizer.onPause(webView)
         ConnectionKeeperService.onPulseListener = {

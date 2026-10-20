@@ -83,6 +83,61 @@
         return origWindowOpen ? origWindowOpen.apply(this, arguments) : null;
     };
 
+    // Intercept download requests (blob:, data:, and <a download>)
+    function handleDownloadUrl(url, filename, mimeType) {
+        if (!url || typeof url !== 'string') return false;
+
+        // 1. Blob URL: fetch blob inside web context, convert to Base64, and pass to native bridge
+        if (url.startsWith('blob:')) {
+            fetch(url)
+                .then(function(res) { return res.blob(); })
+                .then(function(blob) {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
+                            window.AndroidBridge.saveBase64File(reader.result, filename || 'download', blob.type || mimeType || '');
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(function(err) {
+                    console.error("Failed to read blob for download", err);
+                });
+            return true;
+        }
+
+        // 2. Data URL: directly pass to native bridge
+        if (url.startsWith('data:')) {
+            if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
+                window.AndroidBridge.saveBase64File(url, filename || 'download', mimeType || '');
+            }
+            return true;
+        }
+
+        // 3. HTTP / HTTPS with explicit download attribute:
+        if (filename && (url.startsWith('http://') || url.startsWith('https://'))) {
+            if (window.AndroidBridge && typeof window.AndroidBridge.downloadHttpFile === 'function') {
+                window.AndroidBridge.downloadHttpFile(url, filename, mimeType || '');
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Hook HTMLAnchorElement.prototype.click to catch programmatic downloads (e.g. wardrobe/log exports)
+    const origAnchorClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function() {
+        const href = this.href;
+        const download = this.getAttribute('download');
+        if (download !== null || (href && (href.startsWith('blob:') || href.startsWith('data:')))) {
+            if (handleDownloadUrl(href, download || '', '')) {
+                return;
+            }
+        }
+        return origAnchorClick ? origAnchorClick.apply(this, arguments) : null;
+    };
+
     // Intercept clicks on external <a> links to prevent unloading the game canvas
     document.addEventListener('click', function(e) {
         let el = e.target;
@@ -91,6 +146,15 @@
         }
         if (el && el.href) {
             const href = el.href;
+            const download = el.getAttribute('download');
+            if (download !== null || href.startsWith('blob:') || href.startsWith('data:')) {
+                if (handleDownloadUrl(href, download || '', '')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+            }
+
             if (!isGameDomain(href) && (href.startsWith('http://') || href.startsWith('https://'))) {
                 e.preventDefault();
                 e.stopPropagation();

@@ -77,4 +77,18 @@ class ScriptDistributionTest {
         assertTrue("Must spoof Page Visibility API", content.contains("visibilityState") && content.contains("document, 'hidden'"))
         assertTrue("Must include silent WebAudio keep-alive", content.contains("initSilentAudioKeepAlive") && content.contains("_bcAudioKeepAliveActive"))
     }
+
+    @Test
+    fun desktopBridge_containsDownloadAndFileExportHooks() {
+        val possiblePaths = listOf(
+            File("app/src/main/assets/scripts/desktop_bridge.js"),
+            File("../app/src/main/assets/scripts/desktop_bridge.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("desktop_bridge.js must exist", file != null && file.exists())
+
+        val content = file?.readText() ?: ""
+        assertTrue("Must hook anchor click for downloads", content.contains("HTMLAnchorElement.prototype.click"))
+        assertTrue("Must handle blob and data URLs", content.contains("saveBase64File") && content.contains("blob:"))
+    }
 }

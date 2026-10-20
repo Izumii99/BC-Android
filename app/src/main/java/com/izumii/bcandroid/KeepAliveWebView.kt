@@ -15,12 +15,8 @@ class KeepAliveWebView : WebView {
     constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
     constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr)
 
-    var keepAliveInBackground = true
-
-    init {
-        isFocusable = true
-        isFocusableInTouchMode = true
-    }
+    // Default false saat di foreground agar siklus IME / Keyboard normal 100%
+    var keepAliveInBackground = false
 
     override fun onWindowVisibilityChanged(visibility: Int) {
         if (keepAliveInBackground && visibility != View.VISIBLE) {
