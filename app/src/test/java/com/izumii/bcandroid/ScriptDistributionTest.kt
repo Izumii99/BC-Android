@@ -90,5 +90,7 @@ class ScriptDistributionTest {
         val content = file?.readText() ?: ""
         assertTrue("Must hook anchor click for downloads", content.contains("HTMLAnchorElement.prototype.click"))
         assertTrue("Must handle blob and data URLs", content.contains("saveBase64File") && content.contains("blob:"))
+        assertTrue("Must hook revokeObjectURL to prevent race conditions", content.contains("window.URL.revokeObjectURL"))
+        assertTrue("Must protect layering inputs from focus theft", content.contains("currentIsLayering"))
     }
 }

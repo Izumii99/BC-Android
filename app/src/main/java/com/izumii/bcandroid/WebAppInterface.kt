@@ -88,11 +88,11 @@ class WebAppInterface(
 
     /**
      * Saves base64 / data-URI file exports (e.g. wardrobe backups, chatlogs, images)
-     * directly into the Android public Downloads directory.
+     * directly into the Android public Downloads directory on a background thread.
      */
     @JavascriptInterface
     fun saveBase64File(dataUri: String, suggestedFileName: String, mimeTypeHint: String) {
-        mainHandler.post {
+        Thread {
             try {
                 var cleanName = suggestedFileName.trim()
                 if (cleanName.isEmpty()) {
@@ -107,35 +107,50 @@ class WebAppInterface(
 
                 if (mime.isEmpty() && header.startsWith("data:")) {
                     val semicolonIndex = header.indexOf(';')
-                    if (semicolonIndex != -1) {
-                        mime = header.substring(5, semicolonIndex)
+                    val endIdx = if (semicolonIndex != -1) semicolonIndex else header.length
+                    if (endIdx > 5) {
+                        mime = header.substring(5, endIdx)
                     }
                 }
                 if (mime.isEmpty()) {
                     mime = "application/octet-stream"
                 }
 
-                if (!cleanName.contains(".")) {
-                    val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: "bin"
-                    cleanName = "$cleanName.$ext"
+                val extFromMime = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: when {
+                    mime.contains("json") -> "json"
+                    mime.contains("text/plain") -> "txt"
+                    mime.contains("html") -> "html"
+                    mime.contains("png") -> "png"
+                    mime.contains("jpeg") || mime.contains("jpg") -> "jpg"
+                    else -> "bin"
                 }
 
-                val bytes = if (header.contains(";base64")) {
+                val lastDot = cleanName.lastIndexOf('.')
+                val hasValidExt = lastDot > 0 && (cleanName.length - lastDot - 1) in 2..5
+                if (!hasValidExt) {
+                    cleanName = "$cleanName.$extFromMime"
+                }
+
+                val bytes = if (header.contains(";base64", ignoreCase = true)) {
                     Base64.decode(payload, Base64.DEFAULT)
                 } else {
-                    URLDecoder.decode(payload, "UTF-8").toByteArray()
+                    (Uri.decode(payload) ?: payload).toByteArray(Charsets.UTF_8)
                 }
 
                 val savedUri = saveBytesToDownloads(context, cleanName, mime, bytes)
-                if (savedUri != null) {
-                    Toast.makeText(context, "Saved to Downloads: $cleanName", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(context, "Failed to save file: $cleanName", Toast.LENGTH_SHORT).show()
+                mainHandler.post {
+                    if (savedUri != null) {
+                        Toast.makeText(context, "Saved to Downloads: $cleanName", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Failed to save file: $cleanName", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "Error saving file: ${e.message}", Toast.LENGTH_SHORT).show()
+                mainHandler.post {
+                    Toast.makeText(context, "Error saving file: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
-        }
+        }.start()
     }
 
     /**

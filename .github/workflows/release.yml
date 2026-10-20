@@ -15,7 +15,7 @@ name: 'Build and Release APK'
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Indefinite Background Keep-Alive & Chromium Renderer Anti-Freeze'
+        default: 'Background Persistence, File Downloads & Quality of Life'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'

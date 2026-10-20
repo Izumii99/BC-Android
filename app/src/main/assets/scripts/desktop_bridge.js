@@ -83,6 +83,18 @@
         return origWindowOpen ? origWindowOpen.apply(this, arguments) : null;
     };
 
+    // Defer URL.revokeObjectURL for 3 seconds to allow asynchronous fetch(blobUrl) to read blob data
+    if (window.URL && typeof window.URL.revokeObjectURL === 'function') {
+        const origRevokeObjectURL = window.URL.revokeObjectURL;
+        window.URL.revokeObjectURL = function(url) {
+            setTimeout(function() {
+                try {
+                    origRevokeObjectURL.call(window.URL, url);
+                } catch (e) {}
+            }, 3000);
+        };
+    }
+
     // Intercept download requests (blob:, data:, and <a download>)
     function handleDownloadUrl(url, filename, mimeType) {
         if (!url || typeof url !== 'string') return false;
@@ -196,8 +208,10 @@
         try {
             const isLayeringInput = this.id && this.id.startsWith('layering-input-');
             const active = document.activeElement;
-            const isUserInAnotherInput = active && isInteractive(active) && active !== this;
+            const currentIsLayering = active && active.id && active.id.startsWith('layering-input-');
+            if (currentIsLayering && !isLayeringInput) return;
 
+            const isUserInAnotherInput = active && isInteractive(active) && active !== this;
             if (this.id === 'InputChat' && isUserInAnotherInput && !isLayeringInput) {
                 return;
             }
