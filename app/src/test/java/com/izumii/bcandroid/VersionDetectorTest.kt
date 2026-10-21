@@ -105,4 +105,61 @@ class VersionDetectorTest {
         assertFalse(VersionDetector.isGameUrl(""))
         assertFalse(VersionDetector.isGameUrl(null))
     }
+
+    @Test
+    fun parseApkAssetUrl_matchesCorrectFlavorAndFallback() {
+        val sampleJson = org.json.JSONObject(
+            """
+            {
+              "tag_name": "1.6",
+              "assets": [
+                {
+                  "name": "BC-Android-Standard-Release.apk",
+                  "browser_download_url": "https://github.com/Izumii99/BC-Android/releases/download/1.6/BC-Android-Standard-Release.apk",
+                  "size": 950000
+                },
+                {
+                  "name": "BC-Android-Discreet-Release.apk",
+                  "browser_download_url": "https://github.com/Izumii99/BC-Android/releases/download/1.6/BC-Android-Discreet-Release.apk",
+                  "size": 940000
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        // Discreet flavor match
+        val (discreetUrl, discreetSize) = VersionDetector.parseApkAssetUrl(sampleJson, "discreet")
+        assertEquals("https://github.com/Izumii99/BC-Android/releases/download/1.6/BC-Android-Discreet-Release.apk", discreetUrl)
+        assertEquals(940000L, discreetSize)
+
+        // Standard flavor match
+        val (standardUrl, standardSize) = VersionDetector.parseApkAssetUrl(sampleJson, "standard")
+        assertEquals("https://github.com/Izumii99/BC-Android/releases/download/1.6/BC-Android-Standard-Release.apk", standardUrl)
+        assertEquals(950000L, standardSize)
+
+        // Single generic fallback APK
+        val genericJson = org.json.JSONObject(
+            """
+            {
+              "assets": [
+                {
+                  "name": "BC-Android-Release.apk",
+                  "browser_download_url": "https://github.com/Izumii99/BC-Android/releases/download/1.6/BC-Android-Release.apk",
+                  "size": 930000
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+        val (genericUrl, genericSize) = VersionDetector.parseApkAssetUrl(genericJson, "standard")
+        assertEquals("https://github.com/Izumii99/BC-Android/releases/download/1.6/BC-Android-Release.apk", genericUrl)
+        assertEquals(930000L, genericSize)
+
+        // No APKs present
+        val emptyJson = org.json.JSONObject("{\"assets\": []}")
+        val (emptyUrl, emptySize) = VersionDetector.parseApkAssetUrl(emptyJson, "standard")
+        assertEquals(null, emptyUrl)
+        assertEquals(0L, emptySize)
+    }
 }

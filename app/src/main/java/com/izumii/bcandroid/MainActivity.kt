@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -31,12 +32,16 @@ import com.izumii.bcandroid.memory.MemoryOptimizer
 import com.izumii.bcandroid.scripts.ScriptLoader
 import com.izumii.bcandroid.service.ConnectionKeeperService
 import com.izumii.bcandroid.updater.VersionDetector
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var rootContainer: FrameLayout
     private var webView: WebView? = null
+    private var pendingInstallFile: File? = null
 
     private var backPressedTime: Long = 0
     private var recentCrashCount = 0
@@ -72,6 +77,9 @@ class MainActivity : AppCompatActivity() {
         setupDoubleTapBackToExit()
         setupWebView()
 
+        // Clean any leftover APK update files from previous sessions
+        VersionDetector.cleanCachedApks(this)
+
         // Asynchronously probe and detect the newest game release URL
         lifecycleScope.launch {
             val targetUrl = VersionDetector.detectLatestGameUrl(this@MainActivity)
@@ -79,19 +87,9 @@ class MainActivity : AppCompatActivity() {
             webView?.loadUrl(targetUrl)
 
             // Interactive update checker for newer APK releases
-            val updateInfo = VersionDetector.checkForAppUpdate(BuildConfig.VERSION_NAME)
+            val updateInfo = VersionDetector.checkForAppUpdate(BuildConfig.VERSION_NAME, BuildConfig.FLAVOR)
             if (updateInfo.hasUpdate) {
-                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Update Available (${updateInfo.latestTag})")
-                    .setMessage("A new version of BC Android is available. Would you like to view the release page?")
-                    .setPositiveButton("Download") { _, _ ->
-                        try {
-                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo.downloadUrl)))
-                        } catch (ignored: Exception) {
-                        }
-                    }
-                    .setNegativeButton("Later", null)
-                    .show()
+                showUpdateDialog(updateInfo)
             }
         }
     }
@@ -357,6 +355,15 @@ class MainActivity : AppCompatActivity() {
         ConnectionKeeperService.stop(this)
         ConnectionKeeperService.updateBadgeCount(this, 0)
 
+        // Check if an update was downloaded and waiting for install permission
+        val pending = pendingInstallFile
+        if (pending != null && pending.exists()) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()) {
+                pendingInstallFile = null
+                triggerApkInstall(pending)
+            }
+        }
+
         // Seamless resume check: auto-restore if socket disconnected or dropped while backgrounded
         webView?.evaluateJavascript(
             "(()=>{try{if(window.CurrentScreen==='Relog'&&typeof window.RelogSend==='function'){window.RelogSend();}else if(window.ServerSocket&&!window.ServerSocket.connected&&typeof window.ServerInit==='function'){window.ServerInit();}}catch(e){}})();",
@@ -424,5 +431,119 @@ class MainActivity : AppCompatActivity() {
         MemoryOptimizer.destroyWebView(webView)
         webView = null
         super.onDestroy()
+    }
+
+    private fun showUpdateDialog(updateInfo: VersionDetector.AppReleaseInfo) {
+        val hasDirectApk = !updateInfo.apkDownloadUrl.isNullOrEmpty()
+        val message = if (hasDirectApk) {
+            "A new version of BC Android (${updateInfo.latestTag}) is available. Would you like to download and install it now?"
+        } else {
+            "A new version of BC Android (${updateInfo.latestTag}) is available. Would you like to view the release page?"
+        }
+
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Update Available (${updateInfo.latestTag})")
+            .setMessage(message)
+            .setPositiveButton(if (hasDirectApk) "Update Now" else "Download") { _, _ ->
+                val apkUrl = updateInfo.apkDownloadUrl
+                if (!apkUrl.isNullOrEmpty()) {
+                    startInstantUpdate(updateInfo)
+                } else {
+                    openBrowserUrl(updateInfo.downloadUrl)
+                }
+            }
+            .setNegativeButton("Later", null)
+
+        if (hasDirectApk) {
+            builder.setNeutralButton("Notes") { _, _ ->
+                openBrowserUrl(updateInfo.downloadUrl)
+            }
+        }
+
+        builder.show()
+    }
+
+    private fun startInstantUpdate(updateInfo: VersionDetector.AppReleaseInfo) {
+        val apkUrl = updateInfo.apkDownloadUrl ?: return
+
+        val progressBar = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = false
+            max = 100
+            progress = 0
+            setPadding(60, 30, 60, 30)
+        }
+
+        var downloadJob: kotlinx.coroutines.Job? = null
+
+        val progressDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Downloading Update")
+            .setMessage("Downloading BC Android ${updateInfo.latestTag}...")
+            .setView(progressBar)
+            .setCancelable(false)
+            .setNegativeButton("Cancel") { _, _ ->
+                downloadJob?.cancel()
+            }
+            .create()
+
+        progressDialog.show()
+
+        downloadJob = lifecycleScope.launch {
+            val apkFile = VersionDetector.downloadApk(this@MainActivity, apkUrl) { percent ->
+                lifecycleScope.launch(Dispatchers.Main) {
+                    progressBar.progress = percent
+                }
+            }
+
+            progressDialog.dismiss()
+
+            if (apkFile != null && apkFile.exists()) {
+                triggerApkInstall(apkFile)
+            } else if (isActive) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Download failed. Opening release page...",
+                    Toast.LENGTH_SHORT
+                ).show()
+                openBrowserUrl(updateInfo.downloadUrl)
+            }
+        }
+    }
+
+    private fun triggerApkInstall(apkFile: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!packageManager.canRequestPackageInstalls()) {
+                pendingInstallFile = apkFile
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Permission Required")
+                    .setMessage("To install the update, please allow 'Install unknown apps' for BC Android in settings.")
+                    .setPositiveButton("Settings") { _, _ ->
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES))
+                        }
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+                return
+            }
+        }
+
+        try {
+            val intent = VersionDetector.createInstallIntent(this, apkFile)
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to launch installer", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openBrowserUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (ignored: Exception) {
+        }
     }
 }

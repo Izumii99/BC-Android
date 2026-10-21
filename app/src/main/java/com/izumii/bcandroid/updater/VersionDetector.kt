@@ -198,9 +198,46 @@ object VersionDetector {
         return false
     }
 
-    data class AppReleaseInfo(val hasUpdate: Boolean, val latestTag: String, val downloadUrl: String)
+    data class AppReleaseInfo(
+        val hasUpdate: Boolean,
+        val latestTag: String,
+        val downloadUrl: String,
+        val apkDownloadUrl: String? = null,
+        val apkSize: Long = 0L
+    )
 
-    suspend fun checkForAppUpdate(currentVersion: String): AppReleaseInfo = withContext(Dispatchers.IO) {
+    fun parseApkAssetUrl(json: JSONObject, flavor: String = ""): Pair<String?, Long> {
+        val assets = json.optJSONArray("assets") ?: return Pair(null, 0L)
+        val isDiscreet = flavor.contains("discreet", ignoreCase = true)
+        var fallbackUrl: String? = null
+        var fallbackSize = 0L
+
+        for (i in 0 until assets.length()) {
+            val asset = assets.optJSONObject(i) ?: continue
+            val name = asset.optString("name", "")
+            val url = asset.optString("browser_download_url", "")
+            val size = asset.optLong("size", 0L)
+            if (!name.endsWith(".apk", ignoreCase = true) || url.isEmpty()) continue
+
+            if (isDiscreet) {
+                if (name.contains("discreet", ignoreCase = true)) {
+                    return Pair(url, size)
+                }
+            } else {
+                if (name.contains("standard", ignoreCase = true)) {
+                    return Pair(url, size)
+                }
+            }
+
+            if (fallbackUrl == null) {
+                fallbackUrl = url
+                fallbackSize = size
+            }
+        }
+        return Pair(fallbackUrl, fallbackSize)
+    }
+
+    suspend fun checkForAppUpdate(currentVersion: String, flavor: String = ""): AppReleaseInfo = withContext(Dispatchers.IO) {
         try {
             val req = Request.Builder()
                 .url("https://api.github.com/repos/$GITHUB_REPO/releases/latest")
@@ -214,13 +251,92 @@ object VersionDetector {
 
                 val tagName = json.optString("tag_name", "")
                 val htmlUrl = json.optString("html_url", "https://github.com/$GITHUB_REPO/releases/latest")
+                val (apkUrl, apkSize) = parseApkAssetUrl(json, flavor)
 
                 if (tagName.isNotEmpty() && isNewerVersion(tagName, currentVersion)) {
-                    return@withContext AppReleaseInfo(true, tagName, htmlUrl)
+                    return@withContext AppReleaseInfo(true, tagName, htmlUrl, apkUrl, apkSize)
                 }
             }
         } catch (ignored: Exception) {
         }
         AppReleaseInfo(false, "", "")
+    }
+
+    suspend fun downloadApk(
+        context: Context,
+        downloadUrl: String,
+        onProgress: (percent: Int) -> Unit
+    ): java.io.File? = withContext(Dispatchers.IO) {
+        try {
+            val updatesDir = java.io.File(context.cacheDir, "updates")
+            if (!updatesDir.exists()) updatesDir.mkdirs()
+            val tempFile = java.io.File(updatesDir, "update.apk.tmp")
+            val targetFile = java.io.File(updatesDir, "update.apk")
+
+            if (tempFile.exists()) tempFile.delete()
+            if (targetFile.exists()) targetFile.delete()
+
+            val downloadClient = httpClient.newBuilder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .build()
+
+            val req = Request.Builder()
+                .url(downloadUrl)
+                .header("User-Agent", "BC-Android-Client")
+                .build()
+
+            downloadClient.newCall(req).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val body = response.body ?: return@withContext null
+                val contentLength = body.contentLength()
+
+                body.byteStream().use { input ->
+                    tempFile.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        var bytesRead: Int
+                        var totalRead = 0L
+
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalRead += bytesRead
+                            if (contentLength > 0) {
+                                val percent = ((totalRead * 100) / contentLength).toInt()
+                                onProgress(percent.coerceIn(0, 100))
+                            }
+                        }
+                        output.flush()
+                    }
+                }
+            }
+
+            if (tempFile.exists() && tempFile.length() > 0) {
+                if (tempFile.renameTo(targetFile)) {
+                    return@withContext targetFile
+                }
+            }
+        } catch (ignored: Exception) {
+        }
+        null
+    }
+
+    fun createInstallIntent(context: Context, apkFile: java.io.File): android.content.Intent {
+        val authority = "${context.packageName}.fileprovider"
+        val apkUri = androidx.core.content.FileProvider.getUriForFile(context, authority, apkFile)
+        return android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+            setDataAndType(apkUri, "application/vnd.android.package-archive")
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
+
+    fun cleanCachedApks(context: Context) {
+        try {
+            val updatesDir = java.io.File(context.cacheDir, "updates")
+            if (updatesDir.exists()) {
+                updatesDir.listFiles()?.forEach { it.delete() }
+            }
+        } catch (ignored: Exception) {
+        }
     }
 }

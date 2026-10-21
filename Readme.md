@@ -35,7 +35,8 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
 - **Aggressive Memory & Battery Optimization:**
   - Redraws automatically throttle down to **15 FPS** when the app is paused or screen is locked.
   - Active memory pruning via Android `onTrimMemory` hooks clears non-essential cache buffers during long sessions without disconnecting WebSocket connections.
-- **Auto-Detects Latest Game Version:** Probes server endpoints concurrently on startup to launch the newest live game release (R132+).
+- **Auto-Detects Latest Game Version:** Probes server endpoints concurrently on startup to launch the newest live game release (`R132+`). Supports manual version override or locking via a local `version.txt` file (e.g. `133:lock`).
+- **Instant In-App Updates & Auto-Clean Cache:** Automatically detects new APK releases on launch and provides seamless 1-tap in-app download and direct package installation. Downloaded APKs are stored in private internal sandbox cache and automatically cleaned up on startup, keeping your device's Downloads folder completely clutter-free.
 - **Crash Auto-Recovery:** Automatically recovers and restarts frozen or memory-exhausted WebKit render processes with rapid crash-loop guards.
 - **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
 - **Native System File Chooser:** Full support for HTML `<input type="file">`, allowing seamless import/export of appearances, wardrobe codes, custom backgrounds, and backup files directly through the Android system file picker (Recent, Downloads, Gallery).
@@ -156,13 +157,13 @@ BC-Android/
 │   │   │   ├── WebAppInterface.kt            — JavaScript bridge (clipboard, toasts, link chooser)
 │   │   │   ├── memory/MemoryOptimizer.kt     — Low-memory trim callbacks & 15 FPS throttle
 │   │   │   ├── service/                      — Foreground connection keeper service
-│   │   │   ├── updater/VersionDetector.kt    — Concurrent game server auto-detection
+│   │   │   ├── updater/VersionDetector.kt    — Game server auto-detection & in-app APK updater
 │   │   │   └── scripts/ScriptLoader.kt       — Offline fallback addon injection
 │   │   ├── assets/
 │   │   │   ├── addons/                       — Offline fallback scripts (synced from BC-Desktop)
 │   │   │   ├── scripts/                      — Desktop bridge & remote loader scripts
 │   │   │   └── portrait_adapter.js           — Dynamic 2:1 canvas scaling & zoom controller
-│   │   └── res/                              — App layouts, drawables, and launcher icons
+│   │   └── res/                              — App layouts, drawables, FileProvider XML, and launcher icons
 │   └── src/test/                             — Automated unit tests (JUnit)
 ├── Assets/                                   — Readme showcase screenshots & launcher branding
 ├── publish/                                  — Compiled output release APKs
