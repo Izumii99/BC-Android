@@ -134,46 +134,68 @@ object VersionDetector {
         }
     }
 
+    const val BASE_GAME_URL = "https://www.bondage-asia.com/club/R%d/"
+
+    // Dynilath UTC calendar version formula (auto-increments every 16th of the month at UTC)
+    fun getCalculatedCalendarVersion(calendar: java.util.Calendar? = null): Int {
+        val cal = calendar ?: java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+        val year = cal.get(java.util.Calendar.YEAR)
+        val month = cal.get(java.util.Calendar.MONTH) + 1 // 1-indexed (Jan=1..Dec=12)
+        val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
+        return ((year - 2025) * 12 + month) + 110 + if (day >= 16) 1 else 0
+    }
+
+    // Scrape active official release version number from portal, enforced to bondage-asia
+    suspend fun fetchOfficialVersionNumber(client: OkHttpClient = httpClient): Int? = withContext(Dispatchers.IO) {
+        try {
+            val req = Request.Builder()
+                .url("https://bondageprojects.com/club_game/")
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                .header("Cache-Control", "no-cache, no-store")
+                .build()
+
+            client.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) return@withContext null
+                val html = res.body?.string() ?: return@withContext null
+
+                val pattern = Pattern.compile("onclick=\"window\\.location='https://www\\.bondage[^']+/R(\\d+)/[^']*'\"", Pattern.CASE_INSENSITIVE)
+                val matcher = pattern.matcher(html)
+                if (matcher.find()) {
+                    return@withContext matcher.group(1)?.toIntOrNull()
+                }
+            }
+        } catch (_: Exception) {
+            // Return null on failure/timeout to fall back to calendar formula
+        }
+        null
+    }
+
     suspend fun detectLatestGameUrl(context: Context): String = withContext(Dispatchers.IO) {
         val fileConfig = readLocalVersionFile(context)
-        val activeVersion = fileConfig?.first ?: getSavedVersion(context)
+        var activeVersion = fileConfig?.first ?: getSavedVersion(context)
         val isLocked = fileConfig?.second ?: isVersionLocked(context)
 
+        // 1. If user locked the version (e.g. "132:lock"), bypass auto-detect directly
         if (isLocked) {
             return@withContext "https://www.bondage-asia.com/club/R$activeVersion/"
         }
 
-        var candidate = if (activeVersion in 132..500) activeVersion else 132
-        var currentProbe = candidate
-        val maxHops = 10
-
-        for (hop in 0 until maxHops) {
-            val (status, nextVer) = checkVersionStatus(httpClient, currentProbe)
-            if (status == VersionStatus.Active) {
-                candidate = currentProbe
-                break
-            } else if (status == VersionStatus.Outdated && nextVer != null) {
-                val (nextStatus, _) = checkVersionStatus(httpClient, nextVer)
-                if (nextStatus != VersionStatus.NotFound) {
-                    candidate = nextVer
-                    currentProbe = nextVer
-                    if (nextStatus == VersionStatus.Active) break
-                } else {
-                    break
-                }
-            } else {
-                if (currentProbe > 132) {
-                    currentProbe--
-                    continue
-                }
-                break
+        // 2. Try scraping official version from portal
+        val officialVer = fetchOfficialVersionNumber(httpClient)
+        if (officialVer != null && officialVer in 132..499) {
+            activeVersion = officialVer
+        } else {
+            // 3. Fallback to Dynilath calendar formula
+            val calVer = getCalculatedCalendarVersion()
+            if (calVer in 132..499) {
+                activeVersion = calVer
             }
         }
 
         if (fileConfig == null) {
-            saveVersion(context, candidate, false)
+            saveVersion(context, activeVersion, false)
         }
-        "https://www.bondage-asia.com/club/R$candidate/"
+        "https://www.bondage-asia.com/club/R$activeVersion/"
     }
 
     /**

@@ -162,4 +162,39 @@ class VersionDetectorTest {
         assertEquals(null, emptyUrl)
         assertEquals(0L, emptySize)
     }
+
+    @Test
+    fun getCalculatedCalendarVersion_matchesDynilathFormulaBoundaries() {
+        val utcTz = java.util.TimeZone.getTimeZone("UTC")
+
+        fun makeCal(year: Int, month1Indexed: Int, day: Int): java.util.Calendar {
+            return java.util.Calendar.getInstance(utcTz).apply {
+                clear()
+                set(year, month1Indexed - 1, day)
+            }
+        }
+
+        // Jan 2025
+        assertEquals(111, VersionDetector.getCalculatedCalendarVersion(makeCal(2025, 1, 1)))
+        assertEquals(112, VersionDetector.getCalculatedCalendarVersion(makeCal(2025, 1, 16)))
+
+        // Oct 2026
+        assertEquals(132, VersionDetector.getCalculatedCalendarVersion(makeCal(2026, 10, 15)))
+        assertEquals(133, VersionDetector.getCalculatedCalendarVersion(makeCal(2026, 10, 16)))
+        assertEquals(133, VersionDetector.getCalculatedCalendarVersion(makeCal(2026, 10, 22)))
+    }
+
+    @Test
+    fun officialPortalRegex_extractsVersionNumber() {
+        val sampleHtml = "<button onclick=\"window.location='https://www.bondageprojects.com/club/R133/'\">Play</button>"
+        val pattern = java.util.regex.Pattern.compile("onclick=\"window\\.location='https://www\\.bondage[^']+/R(\\d+)/[^']*'\"", java.util.regex.Pattern.CASE_INSENSITIVE)
+        val matcher = pattern.matcher(sampleHtml)
+        assertTrue(matcher.find())
+        assertEquals("133", matcher.group(1))
+    }
+
+    @Test
+    fun baseGameUrl_formatsCorrectly() {
+        assertEquals("https://www.bondage-asia.com/club/R133/", String.format(VersionDetector.BASE_GAME_URL, 133))
+    }
 }
