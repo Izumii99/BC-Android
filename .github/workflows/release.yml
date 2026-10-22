@@ -8,14 +8,14 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 1.6)'
+        description: 'Release version / tag (e.g., 1.7)'
         required: false
-        default: '1.6'
+        default: '1.7'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Instant In-App Updates, Self-Purging Cache & Direct Installer'
+        default: 'Safe VRAM Optimization, Texture Cache Maintenance & Stability Overhaul'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -80,9 +80,9 @@ jobs:
           else
             REF_TAG=""
           fi
-          VER="${INPUT_VER:-${REF_TAG:-1.6}}"
+          VER="${INPUT_VER:-${REF_TAG:-1.7}}"
 
-          TITLE="${INPUT_TITLE:-Instant In-App Updates, Self-Purging Cache & Direct Installer}"
+          TITLE="${INPUT_TITLE:-Safe VRAM Optimization, Texture Cache Maintenance & Stability Overhaul}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"

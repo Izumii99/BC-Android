@@ -1,10 +1,9 @@
 ### Fixes & Improvements:
 
-- **Menu & Dialog Alignment:** Fixed in-game character and facial expression toolbar alignment across portrait and landscape orientations to prevent button and text overlap.
-- **Persistent Whispers:** Private chat whispers (`/w`) now persist automatically across messages until cancelled (or cleared with Escape), with expanded emoticons and refined room chat interactions.
-- **Isolated Translation UI:** Upgraded the translation widget into an isolated Shadow DOM container with automatic language detection, real-time spellcheck hints, and boundary-clamped dragging.
-- **Clutter-Free Edge-to-Edge:** Automatically suppressed redundant in-game fullscreen overlay buttons for a cleaner view on mobile zero-bar immersive displays.
-- **Addon Ecosystem Sync:** Refreshed offline fallback addon bundles synchronized directly with the latest upstream BC-Desktop distribution.
+- **Improvement (Memory & Performance):** Integrated automated texture cache maintenance directly into the Android bridge. Assets and textures browsed in the Wardrobe are gently pruned after 90 seconds, dramatically reducing memory pressure on mobile Unified Memory (RAM/VRAM).
+- **Improvement (Anti-Crash & Post-Wardrobe Cleanup):** Added a 12-second safe delay after leaving Wardrobe before discarding unused clothing textures, completely preventing silent app terminations caused by the Android Low Memory Killer (LMK).
+- **Fix (Rendering Stability):** WebGL canvas context and active character rendering loops are fully protected during room transitions without lockups or visual artifacts.
+- **Feature (Ecosystem Parity):** Synchronized texture retention and memory lifecycle directly with BC-Desktop v7.3.
 
 ### How to Keep the App Connected in Background:
 
@@ -17,4 +16,3 @@ For the best background room experience without Android terminating your connect
 
 - **BC-Android-Standard-Release.apk (~0.9MB):** Official client package with full app icon and branding.
 - **BC-Android-Discreet-Release.apk (~0.9MB):** Stealth build featuring minimal "BC" app name and completely transparent icon for discrete homescreen placement.
-
