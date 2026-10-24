@@ -107,7 +107,6 @@ class ConnectionKeeperService : Service() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BCAndroid:ConnectionKeeperWakeLock")?.apply {
             setReferenceCounted(false)
-            acquire(24 * 60 * 60 * 1000L) // 24-hour ceiling to support long background sessions
         }
     }
 
@@ -119,12 +118,14 @@ class ConnectionKeeperService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Trigger active socket keepalive pulse every 25 seconds to prevent NAT/carrier timeout
+        // Trigger active socket keepalive pulse every 25 seconds with a brief 1.5s pulse guard
+        // CPU sleeps 94% of the time (deep sleep), briefly waking up for 1.5s to ensure ping transmission
         pulseJob?.cancel()
         pulseJob = serviceScope.launch {
             while (isActive) {
                 delay(25_000L)
                 try {
+                    wakeLock?.acquire(1_500L)
                     onPulseListener?.invoke()
                 } catch (ignored: Exception) {
                 }
