@@ -53,6 +53,20 @@ class VersionDetectorTest {
     }
 
     @Test
+    fun portraitAdapter_allowsChatTextSelectionAndTouchCallout() {
+        val possiblePaths = listOf(
+            java.io.File("app/src/main/assets/portrait_adapter.js"),
+            java.io.File("../app/src/main/assets/portrait_adapter.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("portrait_adapter.js must exist", file != null && file.exists())
+        val content = file?.readText() ?: ""
+        assertTrue("Must enable user-select text for chat log", content.contains("#TextAreaChatLog") && content.contains("user-select: text !important"))
+        assertTrue("Must enable -webkit-touch-callout default for chat messages", content.contains("-webkit-touch-callout: default !important"))
+        assertTrue("MainCanvas must keep user-select none", content.contains("#MainCanvas") && content.contains("user-select: none !important"))
+    }
+
+    @Test
     fun parseVersionConfig_correctlyExtractsNumberAndLock() {
         val (ver1, lock1) = VersionDetector.parseVersionConfig("133:lock")
         assertEquals(133, ver1)

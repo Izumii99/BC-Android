@@ -61,10 +61,36 @@
             padding: 0 !important;
             overflow: hidden !important;
             background-color: #0D0D0D !important;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Prevent canvas selection artifacts while preserving game touch responses */
+        #MainCanvas {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -webkit-touch-callout: none !important;
+        }
+
+        /* Full support for holding and dragging (blocking) chat text and inputs on Android */
+        #TextAreaChatLog,
+        #TextAreaChatLog *,
+        .ChatMessage,
+        .ChatMessage *,
+        [class*="ChatMessage"],
+        [class*="ChatMessage"] *,
+        #chat-room-div,
+        #chat-room-div *,
+        #chat-room-main,
+        #chat-room-main *,
+        #InputChat,
+        input,
+        textarea,
+        [contenteditable="true"],
+        .selectable,
+        .selectable * {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            -webkit-touch-callout: default !important;
         }
 
         /* Prevent chat input from hiding under Android IME virtual keyboard */

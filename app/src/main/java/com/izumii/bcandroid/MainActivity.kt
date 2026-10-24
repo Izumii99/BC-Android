@@ -163,6 +163,8 @@ class MainActivity : AppCompatActivity() {
         v.setBackgroundColor(Color.parseColor("#0D0D0D"))
         v.isFocusable = true
         v.isFocusableInTouchMode = true
+        v.isLongClickable = true
+        v.isHapticFeedbackEnabled = true
 
         val settings = v.settings
         settings.javaScriptEnabled = true

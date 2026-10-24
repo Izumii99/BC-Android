@@ -5,6 +5,7 @@
 - **Hardware Power Savings (Audio Deactivation):** Deactivated background silent audio hardware loops to avoid unnecessary battery drain from device sound processors.
 - **Performance & Background Throttling:** Added smart background pauses to viewport layout calculations and addon visibility checks, preventing background CPU overhead.
 - **Clipboard & Outfit Import:** Fixed an issue where importing outfits, wardrobe presets, and addon configurations from your clipboard failed, restoring seamless 1-tap clipboard import across all screens.
+- **Chat Text Selection (Blocking):** Restored native touch-and-drag text selection (blocking) and highlight handles across chat logs and messages, allowing seamless copying and quoting.
 
 ### How to Keep the App Connected in Background:
 
