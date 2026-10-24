@@ -316,32 +316,10 @@
         }, true);
     } catch (e) {}
 
-    // Silent WebAudio Keep-Alive to prevent Android & Chromium sandbox process freeze
+    // Silent WebAudio Keep-Alive stub (active flag stubbed to avoid activating hardware audio)
     function initSilentAudioKeepAlive() {
         if (window._bcAudioKeepAliveActive) return;
-        try {
-            const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            if (!AudioCtx) return;
-
-            const ctx = new AudioCtx();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            gain.gain.value = 0.00001;
-            osc.frequency.value = 1;
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start();
-
-            window._bcAudioCtx = ctx;
-            window._bcAudioKeepAliveActive = true;
-
-            setInterval(function() {
-                if (window._bcAudioCtx && window._bcAudioCtx.state === 'suspended') {
-                    window._bcAudioCtx.resume().catch(function() {});
-                }
-            }, 5000);
-        } catch (e) {}
+        window._bcAudioKeepAliveActive = true;
     }
 
     document.addEventListener('click', initSilentAudioKeepAlive, { once: true, passive: true });
@@ -349,6 +327,7 @@
     initSilentAudioKeepAlive();
 
     // Suppress native Bondage Club fullscreen button (unnecessary in edge-to-edge immersive app)
+    let suppressFullscreenInterval = null;
     function suppressFullscreenButton() {
         try {
             if (window.Fullscreen && typeof window.Fullscreen.UpdateButton === 'function') {
@@ -358,12 +337,16 @@
             if (btn) {
                 btn.style.setProperty('display', 'none', 'important');
                 btn.remove();
+                if (suppressFullscreenInterval) {
+                    clearInterval(suppressFullscreenInterval);
+                    suppressFullscreenInterval = null;
+                }
             }
         } catch (e) {}
     }
     suppressFullscreenButton();
     document.addEventListener('DOMContentLoaded', suppressFullscreenButton);
-    setInterval(suppressFullscreenButton, 1000);
+    suppressFullscreenInterval = setInterval(suppressFullscreenButton, 1000);
 
     // Safe VRAM & texture optimization via BC's native ImageCache
     (function setupSafeVramOptimization() {
@@ -378,6 +361,7 @@
         // 1. Periodically prune expired textures (safely handles GLDrawImageCache & DrawImageCache)
         setInterval(function() {
             try {
+                if (window._bcIsBackground) return;
                 applyPurgeDelay();
                 if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') return;
 
@@ -395,11 +379,13 @@
         let screenTimer = null;
         setInterval(function() {
             try {
+                if (window._bcIsBackground) return;
                 applyPurgeDelay();
                 if (typeof window.CurrentScreen !== 'undefined') {
                     if (lastScreen === 'Appearance' && window.CurrentScreen !== 'Appearance') {
                         if (screenTimer) clearTimeout(screenTimer);
                         screenTimer = setTimeout(function() {
+                            if (window._bcIsBackground) return;
                             if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') return;
                             if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
                                 window.GLDrawImageCache.purge(true);

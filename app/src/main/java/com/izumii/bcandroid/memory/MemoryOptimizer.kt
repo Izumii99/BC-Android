@@ -8,30 +8,45 @@ import android.webkit.WebView
 
 object MemoryOptimizer {
 
-    // Throttles redraws when app is unfocused/backgrounded to minimize CPU & RAM heat
-    private const val CAP_UNFOCUSED_FPS_SCRIPT =
+    private const val ENTER_BACKGROUND_SCRIPT =
         "(()=>{" +
-        "const g=window.Player&&Player.GraphicsSettings;" +
-        "if(g&&!g.MaxUnfocusedFPS&&window.CurrentScreen!=='Preference'){g.MaxUnfocusedFPS=15;window.bcFpsCap=g;}" +
+        "window._bcIsBackground=true;" +
+        "if(!window._bcOrigRAF){" +
+        "window._bcOrigRAF=window.requestAnimationFrame;" +
+        "window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(performance.now());},1000);};" +
+        "}" +
+        "if(!window._bcOrigDrawProcess&&typeof window.DrawProcess==='function'){" +
+        "window._bcOrigDrawProcess=window.DrawProcess;" +
+        "window.DrawProcess=function(...args){if(window._bcIsBackground)return;return window._bcOrigDrawProcess.apply(this,args);};" +
+        "}" +
         "if(window.bcFocusMemory&&!window.bcFocusMemory.isConnected)window.bcFocusMemory=null;" +
         "if(window.bcLastMousedown&&!window.bcLastMousedown.isConnected)window.bcLastMousedown=null;" +
         "if(window.bcLastFocusedLayer&&!window.bcLastFocusedLayer.isConnected)window.bcLastFocusedLayer=null;" +
         "if(typeof window.gc==='function'){try{window.gc();}catch(e){}}" +
         "})();"
 
-    private const val RESTORE_UNFOCUSED_FPS_SCRIPT =
-        "(()=>{const g=window.bcFpsCap;if(g){if(g.MaxUnfocusedFPS===15)g.MaxUnfocusedFPS=0;window.bcFpsCap=null;}})();"
+    private const val RESTORE_FOREGROUND_SCRIPT =
+        "(()=>{" +
+        "window._bcIsBackground=false;" +
+        "if(window._bcOrigRAF){" +
+        "window.requestAnimationFrame=window._bcOrigRAF;" +
+        "window._bcOrigRAF=null;" +
+        "}" +
+        "if(window._bcOrigDrawProcess){" +
+        "window.DrawProcess=window._bcOrigDrawProcess;" +
+        "window._bcOrigDrawProcess=null;" +
+        "}" +
+        "})();"
 
     /**
      * Called when Activity is sent to background or loses focus.
-     * Throttles graphics engine to 15 FPS without triggering memory coordinator
-     * eviction or freezing background JS timers / WebSocket connections.
+     * Throttles graphics engine to 1 FPS and skips canvas rendering without
+     * freezing background JS timers / WebSocket connections.
      */
     fun onPause(webView: WebView?) {
         webView ?: return
 
-        // Throttle in-game graphics engine to 15 FPS to cut CPU heat and battery
-        webView.evaluateJavascript(CAP_UNFOCUSED_FPS_SCRIPT, null)
+        webView.evaluateJavascript(ENTER_BACKGROUND_SCRIPT, null)
     }
 
     /**
@@ -40,8 +55,7 @@ object MemoryOptimizer {
     fun onResume(webView: WebView?) {
         webView ?: return
 
-        // Restore normal game FPS
-        webView.evaluateJavascript(RESTORE_UNFOCUSED_FPS_SCRIPT, null)
+        webView.evaluateJavascript(RESTORE_FOREGROUND_SCRIPT, null)
     }
 
     /**

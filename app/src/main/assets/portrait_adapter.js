@@ -154,6 +154,7 @@
 
     // 3. Dynamic layout observer and canvas scaler (centers in portrait and landscape)
     function adjustCanvasLayout() {
+        if (window._bcIsBackground) return;
         const portraitActive = isExternalPortraitActive();
         updateZoomState(portraitActive);
 
@@ -261,6 +262,7 @@
 
     // 4. Intercept and adapt desktop-proportioned banners, alerts, and recovery prompts
     function adaptPromptDialogs() {
+        if (window._bcIsBackground) return;
         const candidates = document.querySelectorAll(
             'body > div, body > table, div[style*="fixed"], div[style*="absolute"], div[class*="dialog"], div[class*="modal"]'
         );
@@ -335,6 +337,7 @@
 
     let layoutPending = false;
     function scheduleLayoutUpdate() {
+        if (window._bcIsBackground) return;
         if (layoutPending) return;
         layoutPending = true;
         requestAnimationFrame(function() {
@@ -371,8 +374,9 @@
 
     // Continuous safety heartbeat: ensures prompt adaptation and layout state stay in sync
     setInterval(function() {
+        if (window._bcIsBackground) return;
         adjustCanvasLayout();
         adaptPromptDialogs();
-    }, 500);
+    }, 2500);
 
 })();

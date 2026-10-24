@@ -381,9 +381,6 @@ class MainActivity : AppCompatActivity() {
                 """
                 (()=>{
                     try {
-                        if (window._bcAudioCtx && window._bcAudioCtx.state === 'suspended') {
-                            window._bcAudioCtx.resume();
-                        }
                         if (window.ServerSocket) {
                             if (window.ServerSocket.connected) {
                                 window.ServerSocket.emit('Ping');

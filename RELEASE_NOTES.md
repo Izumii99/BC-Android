@@ -1,9 +1,9 @@
 ### Fixes & Improvements:
 
-- **Improvement (Memory & Performance):** Integrated automated texture cache maintenance directly into the Android bridge. Assets and textures browsed in the Wardrobe are gently pruned after 90 seconds, dramatically reducing memory pressure on mobile Unified Memory (RAM/VRAM).
-- **Improvement (Anti-Crash & Post-Wardrobe Cleanup):** Added a 12-second safe delay after leaving Wardrobe before discarding unused clothing textures, completely preventing silent app terminations caused by the Android Low Memory Killer (LMK).
-- **Fix (Rendering Stability):** WebGL canvas context and active character rendering loops are fully protected during room transitions without lockups or visual artifacts.
-- **Feature (Ecosystem Parity):** Synchronized texture retention and memory lifecycle directly with BC-Desktop v7.3.
+- **Battery & CPU/GPU (Zero-Render Background):** Completely pauses canvas rendering and throttles frame updates to 1 FPS when minimized, keeping your device cool and drastically extending battery life during idle sessions.
+- **Battery & Network (Connection Keeper Overhaul):** Relaxed background pulse intervals and eliminated redundant radio locks so your phone can sleep deeper while maintaining active room socket connections.
+- **Hardware Power Savings (Audio Deactivation):** Deactivated background silent audio hardware loops to avoid unnecessary battery drain from device sound processors.
+- **Performance & Background Throttling:** Added smart background pauses to viewport layout calculations and addon visibility checks, preventing background CPU overhead.
 
 ### How to Keep the App Connected in Background:
 

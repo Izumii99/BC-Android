@@ -33,7 +33,7 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
 - **Native "Open with" System App Chooser:** Tapping external links (GitHub addon repositories, Discord links, guides, bug trackers) or scripts triggering `window.open` launches Android's native system app picker, allowing you to view external content in Chrome, Firefox, or official apps without ever disrupting your active game room session.
 - **Smart Back Navigation & Double-Tap Protection:** Intelligently navigates back from external web pages to the game canvas, while reserving the double-tap exit confirmation strictly for the active game room to prevent accidental disconnections.
 - **Aggressive Memory & Battery Optimization:**
-  - Redraws automatically throttle down to **15 FPS** when the app is paused or screen is locked.
+  - Redraws automatically throttle down to **1 FPS** and canvas rendering is completely bypassed when the app is paused or screen is locked.
   - Active memory pruning via Android `onTrimMemory` hooks clears non-essential cache buffers during long sessions without disconnecting WebSocket connections.
 - **Auto-Detects Latest Game Version:** Probes server endpoints concurrently on startup to launch the newest live game release (`R132+`). Supports manual version override or locking via a local `version.txt` file (e.g. `133:lock`).
 - **Instant In-App Updates & Auto-Clean Cache:** Automatically detects new APK releases on launch and provides seamless 1-tap in-app download and direct package installation. Downloaded APKs are stored in private internal sandbox cache and automatically cleaned up on startup, keeping your device's Downloads folder completely clutter-free.
@@ -89,7 +89,7 @@ Quick-access floating draggable menu providing convenient shortcuts and utilitie
 | **RAM Footprint (Idle)** | ~400 MB – 700 MB | **~40 MB – 80 MB** (Aggressive trim hooks) |
 | **Background Room Retention** | Disconnects after 1–3 minutes | **24/7 Persistent** (Foreground keeper service) |
 | **Screen Real Estate** | Cluttered by URL bar & navigation bars | **100% Immersive Zero-Bar** edge-to-edge |
-| **Background Battery Drain** | Burns full 60 FPS in background | **15 FPS Throttle** on minimize / screen-off |
+| **Background Battery Drain** | Burns full 60 FPS in background | **1 FPS & Zero-Render Throttle** on minimize / screen-off |
 | **External Links** | Hijacks game tab and drops room | **Native "Open with" Chooser** in external apps |
 | **Accidental Exits** | Swipes easily exit or reload room | **Double-Tap Back Guard** & Smart Navigation |
 
