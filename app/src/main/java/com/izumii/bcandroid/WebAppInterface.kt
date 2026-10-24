@@ -45,6 +45,54 @@ class WebAppInterface(
     }
 
     @JavascriptInterface
+    fun getClipboardText(): String {
+        return try {
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                readClipboardInternal()
+            } else {
+                var result = ""
+                val latch = java.util.concurrent.CountDownLatch(1)
+                mainHandler.post {
+                    try {
+                        result = readClipboardInternal()
+                    } catch (ignored: Exception) {
+                    } finally {
+                        latch.countDown()
+                    }
+                }
+                latch.await(1500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                result
+            }
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    @JavascriptInterface
+    fun readText(): String {
+        return getClipboardText()
+    }
+
+    private fun readClipboardInternal(): String {
+        return try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return ""
+            if (!clipboard.hasPrimaryClip()) return ""
+            val clip = clipboard.primaryClip ?: return ""
+            if (clip.itemCount > 0) {
+                val item = clip.getItemAt(0)
+                val text = item.text?.toString()
+                if (!text.isNullOrEmpty()) {
+                    return text
+                }
+                return item.coerceToText(context)?.toString() ?: ""
+            }
+            ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    @JavascriptInterface
     fun loadOfflineAddons() {
         mainHandler.post {
             onOfflineAddonsRequested?.invoke()

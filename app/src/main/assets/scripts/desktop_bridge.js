@@ -16,14 +16,31 @@
     const origClipboard = navigator.clipboard;
     const mockClipboard = {
         writeText: function(text) {
-            if (window.AndroidBridge && window.AndroidBridge.copyText) {
+            if (window.AndroidBridge && typeof window.AndroidBridge.copyText === 'function') {
                 window.AndroidBridge.copyText(text);
             }
             return Promise.resolve();
         },
         readText: function() {
-            if (origClipboard && origClipboard.readText) {
-                return origClipboard.readText();
+            if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
+                try {
+                    const text = window.AndroidBridge.getClipboardText();
+                    return Promise.resolve(text || '');
+                } catch (e) {
+                    console.error("AndroidBridge.getClipboardText failed", e);
+                }
+            } else if (window.AndroidBridge && typeof window.AndroidBridge.readText === 'function') {
+                try {
+                    const text = window.AndroidBridge.readText();
+                    return Promise.resolve(text || '');
+                } catch (e) {
+                    console.error("AndroidBridge.readText failed", e);
+                }
+            }
+            if (origClipboard && typeof origClipboard.readText === 'function') {
+                return origClipboard.readText().catch(function() {
+                    return '';
+                });
             }
             return Promise.resolve('');
         }
@@ -32,7 +49,8 @@
     try {
         Object.defineProperty(navigator, 'clipboard', {
             value: mockClipboard,
-            configurable: true
+            configurable: true,
+            writable: true
         });
     } catch (e) {}
 
@@ -57,9 +75,63 @@
             if (text && window.AndroidBridge && window.AndroidBridge.copyText) {
                 window.AndroidBridge.copyText(text);
             }
+        } else if (commandId && commandId.toLowerCase() === 'paste') {
+            if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
+                try {
+                    const text = window.AndroidBridge.getClipboardText();
+                    if (text) {
+                        const activeEl = document.activeElement;
+                        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                            const start = typeof activeEl.selectionStart === 'number' ? activeEl.selectionStart : activeEl.value.length;
+                            const end = typeof activeEl.selectionEnd === 'number' ? activeEl.selectionEnd : activeEl.value.length;
+                            const val = activeEl.value || '';
+                            activeEl.value = val.substring(0, start) + text + val.substring(end);
+                            activeEl.selectionStart = activeEl.selectionEnd = start + text.length;
+                            activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            activeEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            return true;
+                        } else {
+                            try {
+                                const dt = new DataTransfer();
+                                dt.setData('text/plain', text);
+                                const pasteEvt = new ClipboardEvent('paste', {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    clipboardData: dt
+                                });
+                                (activeEl || document).dispatchEvent(pasteEvt);
+                                return true;
+                            } catch (e) {}
+                        }
+                    }
+                } catch (e) {}
+            }
         }
         return originalExecCommand.apply(this, arguments);
     };
+
+    // Keyboard Ctrl+V / Cmd+V listener to dispatch paste ClipboardEvent across the canvas and active screen
+    window.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V' || e.code === 'KeyV')) {
+            const activeEl = document.activeElement;
+            const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+            if (!isInput && window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
+                try {
+                    const text = window.AndroidBridge.getClipboardText();
+                    if (text) {
+                        const dt = new DataTransfer();
+                        dt.setData('text/plain', text);
+                        const pasteEvt = new ClipboardEvent('paste', {
+                            bubbles: true,
+                            cancelable: true,
+                            clipboardData: dt
+                        });
+                        (activeEl || document).dispatchEvent(pasteEvt);
+                    }
+                } catch (e) {}
+            }
+        }
+    }, true);
 
     // Helper to identify Bondage Club internal game domains
     function isGameDomain(url) {

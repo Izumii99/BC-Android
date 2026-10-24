@@ -109,4 +109,19 @@ class ScriptDistributionTest {
         assertTrue("Must call safe GLDrawImageCache.purge", content.contains("GLDrawImageCache.purge"))
         assertTrue("Must call safe DrawImageCache.purge", content.contains("DrawImageCache.purge"))
     }
+
+    @Test
+    fun desktopBridge_containsTwoWayClipboardAndImportSupport() {
+        val possiblePaths = listOf(
+            File("app/src/main/assets/scripts/desktop_bridge.js"),
+            File("../app/src/main/assets/scripts/desktop_bridge.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("desktop_bridge.js must exist", file != null && file.exists())
+
+        val content = file?.readText() ?: ""
+        assertTrue("Must bridge readText to AndroidBridge.getClipboardText", content.contains("AndroidBridge.getClipboardText"))
+        assertTrue("Must hook execCommand paste", content.contains("commandId.toLowerCase() === 'paste'"))
+        assertTrue("Must dispatch paste ClipboardEvent on Ctrl+V", content.contains("new ClipboardEvent('paste'") && content.contains("KeyV"))
+    }
 }

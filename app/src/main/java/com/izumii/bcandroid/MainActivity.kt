@@ -262,6 +262,63 @@ class MainActivity : AppCompatActivity() {
                     ConnectionKeeperService.updateBadgeCount(this@MainActivity, count)
                 }
             }
+
+            override fun onJsAlert(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                result: android.webkit.JsResult?
+            ): Boolean {
+                if (isFinishing || isDestroyed) return false
+                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                    .setMessage(message ?: "")
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
+            }
+
+            override fun onJsConfirm(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                result: android.webkit.JsResult?
+            ): Boolean {
+                if (isFinishing || isDestroyed) return false
+                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                    .setMessage(message ?: "")
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
+            }
+
+            override fun onJsPrompt(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                defaultValue: String?,
+                result: android.webkit.JsPromptResult?
+            ): Boolean {
+                if (isFinishing || isDestroyed) return false
+                val input = android.widget.EditText(this@MainActivity).apply {
+                    setText(defaultValue ?: "")
+                    setSelection(text.length)
+                }
+                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                    .setMessage(message ?: "")
+                    .setView(input)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        result?.confirm(input.text.toString())
+                    }
+                    .setNegativeButton(android.R.string.cancel) { _, _ ->
+                        result?.cancel()
+                    }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
+            }
         }
 
         v.webViewClient = object : WebViewClient() {

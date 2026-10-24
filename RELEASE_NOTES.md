@@ -4,6 +4,7 @@
 - **Battery & Network (Connection Keeper Overhaul):** Relaxed background pulse intervals and eliminated redundant radio locks so your phone can sleep deeper while maintaining active room socket connections.
 - **Hardware Power Savings (Audio Deactivation):** Deactivated background silent audio hardware loops to avoid unnecessary battery drain from device sound processors.
 - **Performance & Background Throttling:** Added smart background pauses to viewport layout calculations and addon visibility checks, preventing background CPU overhead.
+- **Clipboard & Outfit Import:** Fixed an issue where importing outfits, wardrobe presets, and addon configurations from your clipboard failed, restoring seamless 1-tap clipboard import across all screens.
 
 ### How to Keep the App Connected in Background:
 
