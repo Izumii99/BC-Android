@@ -19,6 +19,7 @@ object MemoryOptimizer {
         "window._bcOrigDrawProcess=window.DrawProcess;" +
         "window.DrawProcess=function(...args){if(window._bcIsBackground)return;return window._bcOrigDrawProcess.apply(this,args);};" +
         "}" +
+        "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='none';" +
         "if(window.bcFocusMemory&&!window.bcFocusMemory.isConnected)window.bcFocusMemory=null;" +
         "if(window.bcLastMousedown&&!window.bcLastMousedown.isConnected)window.bcLastMousedown=null;" +
         "if(window.bcLastFocusedLayer&&!window.bcLastFocusedLayer.isConnected)window.bcLastFocusedLayer=null;" +
@@ -36,6 +37,7 @@ object MemoryOptimizer {
         "window.DrawProcess=window._bcOrigDrawProcess;" +
         "window._bcOrigDrawProcess=null;" +
         "}" +
+        "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='';" +
         "})();"
 
     /**
