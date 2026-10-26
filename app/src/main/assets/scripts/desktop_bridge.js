@@ -433,7 +433,7 @@
             }
         }
 
-        // 1. Periodically prune expired textures (tetap berjalan aman di Wardrobe untuk tekstur >90 detik saat foreground)
+        // 1. Periodically prune expired textures (safely runs in Wardrobe for textures >90s in foreground)
         setInterval(function() {
             try {
                 if (window._bcIsBackground) return;
