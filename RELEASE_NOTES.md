@@ -1,14 +1,11 @@
 ### Fixes & Improvements:
 
-- **Improvement (Wardrobe Memory & Texture Purging):** Overhauled image cache management to prevent out-of-memory crashes during extended Wardrobe and outfit creation sessions. Introduced a dynamic 90-second purge delay in Appearance mode and an automatic gentle cache flush 12 seconds after exiting back to the room.
-- **Improvement (Battery & Background Optimization):** Texture purging and layout polling routines automatically sleep when the app is in the background or minimized, ensuring zero idle CPU and battery drain.
-- **Improvement (Addon Synchronization):** Synchronized latest addon enhancements, focus guards, and hot-path CPU optimizations from upstream BC-Desktop.
-- **Battery & CPU/GPU (Zero-Render Background):** Completely pauses canvas rendering and throttles frame updates to 1 FPS when minimized, keeping your device cool and drastically extending battery life during idle sessions.
-- **Battery & Network (Connection Keeper Overhaul):** Relaxed background pulse intervals and eliminated redundant radio locks so your phone can sleep deeper while maintaining active room socket connections.
-- **Hardware Power Savings (Audio Deactivation):** Deactivated background silent audio hardware loops to avoid unnecessary battery drain from device sound processors.
-- **Performance & Background Throttling:** Added smart background pauses to viewport layout calculations and addon visibility checks, preventing background CPU overhead.
-- **Clipboard & Outfit Import:** Fixed an issue where importing outfits, wardrobe presets, and addon configurations from your clipboard failed, restoring seamless 1-tap clipboard import across all screens.
-- **Chat Text Selection (Blocking):** Restored native touch-and-drag text selection (blocking) and highlight handles across chat logs and messages, allowing seamless copying and quoting.
+- **Battery & CPU (Ultra-Low Background Power Profile):** Extended background frame interval to 4 seconds (0.25 FPS) and cut CPU wake time down to 500ms with streamlined 1-byte connection keepalives, allowing your phone to remain in deep sleep during long idle sessions.
+- **Battery & GPU (DOM & Canvas Freezing):** Suspended canvas composition and layout calculation on incoming chat logs while minimized, keeping your device cool and preventing battery drain even in active, fast-moving chat rooms.
+- **Background Resource Management:** Automatically disconnects DOM mutation observers and background interval timers when minimized, eliminating background JavaScript wakeups until you resume the app.
+- **Notification Throttling & Silent Mode:** Chat message counters are batched with a 10-second debounce and delivered silently, preventing notification spam and CPU wakeups during busy room conversations.
+- **Wardrobe Memory & Texture Management:** Safely prunes stale texture caches after extended appearance editing sessions to prevent out-of-memory crashes on devices with tight RAM budgets.
+- **Clipboard & Import Reliability:** Seamless 1-tap clipboard import across all screens for wardrobe presets, outfits, and configuration strings.
 
 ### How to Keep the App Connected in Background:
 

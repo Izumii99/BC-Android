@@ -59,6 +59,8 @@ class MainActivity : AppCompatActivity() {
 
     private var currentLoadedUrl: String = VersionDetector.DEFAULT_FALLBACK_URL
     private var isAppInForeground = true
+    private var lastBadgeUpdateTime = 0L
+    private var lastBadgeCount = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -261,7 +263,12 @@ class MainActivity : AppCompatActivity() {
                         val match = Regex("""^\((\d+)\)""").find(it)
                         match?.groupValues?.get(1)?.toIntOrNull()
                     } ?: 0
-                    ConnectionKeeperService.updateBadgeCount(this@MainActivity, count)
+                    val now = System.currentTimeMillis()
+                    if (count != lastBadgeCount && (count == 0 || now - lastBadgeUpdateTime >= 10_000L)) {
+                        lastBadgeCount = count
+                        lastBadgeUpdateTime = now
+                        ConnectionKeeperService.updateBadgeCount(this@MainActivity, count)
+                    }
                 }
             }
 
@@ -412,6 +419,8 @@ class MainActivity : AppCompatActivity() {
         MemoryOptimizer.onResume(webView)
         ConnectionKeeperService.onPulseListener = null
         ConnectionKeeperService.stop(this)
+        lastBadgeCount = 0
+        lastBadgeUpdateTime = 0L
         ConnectionKeeperService.updateBadgeCount(this, 0)
 
         // Check if an update was downloaded and waiting for install permission
@@ -442,9 +451,10 @@ class MainActivity : AppCompatActivity() {
                     try {
                         if (window.ServerSocket) {
                             if (window.ServerSocket.connected) {
-                                window.ServerSocket.emit('Ping');
                                 if (window.ServerSocket.io && window.ServerSocket.io.engine) {
                                     window.ServerSocket.io.engine.write('2');
+                                } else {
+                                    window.ServerSocket.emit('Ping');
                                 }
                             } else if (typeof window.ServerInit === 'function') {
                                 window.ServerInit();

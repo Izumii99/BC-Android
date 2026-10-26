@@ -351,8 +351,10 @@
             if (hookAttempts > 30) clearInterval(hookInterval);
         }, 500);
 
-        setInterval(function() {
+        let relogInterval = null;
+        function checkAutoRelog() {
             try {
+                if (window._bcIsBackground) return;
                 if (window.CurrentScreen === 'Relog' && !window._bcRelogActive) {
                     const raw = sessionStorage.getItem('_bc_session_creds');
                     if (raw) {
@@ -375,7 +377,30 @@
                     }
                 }
             } catch (e) {}
-        }, 1000);
+        }
+
+        function startRelogWatcher() {
+            if (!relogInterval) {
+                relogInterval = setInterval(checkAutoRelog, 1000);
+            }
+        }
+
+        function stopRelogWatcher() {
+            if (relogInterval) {
+                clearInterval(relogInterval);
+                relogInterval = null;
+            }
+        }
+
+        startRelogWatcher();
+
+        window.addEventListener('bc:visibility', function(e) {
+            if (e.detail && e.detail.background) {
+                stopRelogWatcher();
+            } else {
+                startRelogWatcher();
+            }
+        });
     }
     hookAutoRelogin();
 
@@ -400,15 +425,19 @@
 
     // Suppress native Bondage Club fullscreen button (unnecessary in edge-to-edge immersive app)
     let suppressFullscreenInterval = null;
+    let suppressFullscreenAttempts = 0;
     function suppressFullscreenButton() {
+        suppressFullscreenAttempts++;
         try {
             if (window.Fullscreen && typeof window.Fullscreen.UpdateButton === 'function') {
                 window.Fullscreen.Init = function() {};
             }
             const btn = document.getElementById('bc-fullscreen-button') || document.querySelector('.bc-fullscreen-button');
-            if (btn) {
-                btn.style.setProperty('display', 'none', 'important');
-                btn.remove();
+            if (btn || suppressFullscreenAttempts > 15) {
+                if (btn) {
+                    btn.style.setProperty('display', 'none', 'important');
+                    btn.remove();
+                }
                 if (suppressFullscreenInterval) {
                     clearInterval(suppressFullscreenInterval);
                     suppressFullscreenInterval = null;
@@ -433,8 +462,12 @@
             }
         }
 
-        // 1. Periodically prune expired textures (safely runs in Wardrobe for textures >90s in foreground)
-        setInterval(function() {
+        let vramPruneInterval = null;
+        let screenMonitorInterval = null;
+        let lastScreen = null;
+        let screenTimer = null;
+
+        function pruneVram() {
             try {
                 if (window._bcIsBackground) return;
                 applyPurgeDelay();
@@ -449,12 +482,9 @@
                     try { window.gc(); } catch (e) {}
                 }
             } catch (e) {}
-        }, 45 * 1000);
+        }
 
-        // 2. Safe gentle prune 12s after leaving Wardrobe (Appearance) once new room assets have safely loaded
-        let lastScreen = null;
-        let screenTimer = null;
-        setInterval(function() {
+        function monitorScreenTransitions() {
             try {
                 if (window._bcIsBackground) return;
                 applyPurgeDelay();
@@ -478,7 +508,41 @@
                     lastScreen = window.CurrentScreen;
                 }
             } catch (e) {}
-        }, 1000);
+        }
+
+        function startVramWatchers() {
+            if (!vramPruneInterval) {
+                vramPruneInterval = setInterval(pruneVram, 45 * 1000);
+            }
+            if (!screenMonitorInterval) {
+                screenMonitorInterval = setInterval(monitorScreenTransitions, 1000);
+            }
+        }
+
+        function stopVramWatchers() {
+            if (vramPruneInterval) {
+                clearInterval(vramPruneInterval);
+                vramPruneInterval = null;
+            }
+            if (screenMonitorInterval) {
+                clearInterval(screenMonitorInterval);
+                screenMonitorInterval = null;
+            }
+            if (screenTimer) {
+                clearTimeout(screenTimer);
+                screenTimer = null;
+            }
+        }
+
+        startVramWatchers();
+
+        window.addEventListener('bc:visibility', function(e) {
+            if (e.detail && e.detail.background) {
+                stopVramWatchers();
+            } else {
+                startVramWatchers();
+            }
+        });
     })();
 })();
 

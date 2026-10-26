@@ -393,16 +393,41 @@
     const domObserver = new MutationObserver(function() {
         scheduleLayoutUpdate();
     });
-    const targetNode = document.documentElement || document.body;
-    if (targetNode) {
-        domObserver.observe(targetNode, { childList: true, subtree: true });
+
+    let safetyInterval = null;
+
+    function startForegroundWatchers() {
+        const targetNode = document.documentElement || document.body;
+        if (targetNode) {
+            try {
+                domObserver.observe(targetNode, { childList: true, subtree: true });
+            } catch (e) {}
+        }
+        if (!safetyInterval) {
+            safetyInterval = setInterval(function() {
+                if (window._bcIsBackground) return;
+                adjustCanvasLayout();
+                adaptPromptDialogs();
+            }, 2500);
+        }
     }
 
-    // Continuous safety heartbeat: ensures prompt adaptation and layout state stay in sync
-    setInterval(function() {
-        if (window._bcIsBackground) return;
-        adjustCanvasLayout();
-        adaptPromptDialogs();
-    }, 2500);
+    function stopForegroundWatchers() {
+        domObserver.disconnect();
+        if (safetyInterval) {
+            clearInterval(safetyInterval);
+            safetyInterval = null;
+        }
+    }
 
+    window.addEventListener('bc:visibility', function(e) {
+        if (e.detail && e.detail.background) {
+            stopForegroundWatchers();
+        } else {
+            startForegroundWatchers();
+            scheduleLayoutUpdate();
+        }
+    });
+
+    startForegroundWatchers();
 })();

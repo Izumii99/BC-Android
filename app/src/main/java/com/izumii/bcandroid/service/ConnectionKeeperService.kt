@@ -64,7 +64,8 @@ class ConnectionKeeperService : Service() {
                 .setContentText(text)
                 .setSmallIcon(icon)
                 .setOngoing(true)
-                .setPriority(if (unreadCount > 0) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSilent(true)
                 .setContentIntent(pendingIntent)
                 .apply {
                     if (unreadCount > 0) setNumber(unreadCount)
@@ -118,14 +119,14 @@ class ConnectionKeeperService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Trigger active socket keepalive pulse every 25 seconds with a brief 1.5s pulse guard
-        // CPU sleeps 94% of the time (deep sleep), briefly waking up for 1.5s to ensure ping transmission
+        // Trigger active socket keepalive pulse every 28 seconds with a brief 500ms pulse guard
+        // CPU sleeps >98% of the time, briefly waking up for 500ms to ensure keepalive transmission
         pulseJob?.cancel()
         pulseJob = serviceScope.launch {
             while (isActive) {
-                delay(25_000L)
+                delay(28_000L)
                 try {
-                    wakeLock?.acquire(1_500L)
+                    wakeLock?.acquire(500L)
                     onPulseListener?.invoke()
                 } catch (ignored: Exception) {
                 }
