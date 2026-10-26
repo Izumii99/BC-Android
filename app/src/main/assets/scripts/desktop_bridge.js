@@ -422,20 +422,22 @@
 
     // Safe VRAM & texture optimization via BC's native ImageCache
     (function setupSafeVramOptimization() {
-        const PURGE_DELAY = 3 * 60 * 1000;
+        const NORMAL_PURGE_DELAY = 3 * 60 * 1000;
+        const WARDROBE_PURGE_DELAY = 90 * 1000;
 
         function applyPurgeDelay() {
             if (typeof window.ImageCachePurgeDelay !== 'undefined') {
-                window.ImageCachePurgeDelay = PURGE_DELAY;
+                window.ImageCachePurgeDelay = (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance')
+                    ? WARDROBE_PURGE_DELAY
+                    : NORMAL_PURGE_DELAY;
             }
         }
 
-        // 1. Periodically prune expired textures (safely handles GLDrawImageCache & DrawImageCache)
+        // 1. Periodically prune expired textures (tetap berjalan aman di Wardrobe untuk tekstur >90 detik saat foreground)
         setInterval(function() {
             try {
                 if (window._bcIsBackground) return;
                 applyPurgeDelay();
-                if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') return;
 
                 if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
                     window.GLDrawImageCache.purge(false);
@@ -443,10 +445,13 @@
                 if (typeof window.DrawImageCache !== 'undefined' && window.DrawImageCache && typeof window.DrawImageCache.purge === 'function') {
                     window.DrawImageCache.purge(false);
                 }
+                if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance' && typeof window.gc === 'function') {
+                    try { window.gc(); } catch (e) {}
+                }
             } catch (e) {}
         }, 45 * 1000);
 
-        // 2. Safe gentle prune after leaving Wardrobe (Appearance) once new room assets have safely loaded
+        // 2. Safe gentle prune 12s after leaving Wardrobe (Appearance) once new room assets have safely loaded
         let lastScreen = null;
         let screenTimer = null;
         setInterval(function() {
@@ -464,6 +469,9 @@
                             }
                             if (typeof window.DrawImageCache !== 'undefined' && window.DrawImageCache && typeof window.DrawImageCache.purge === 'function') {
                                 window.DrawImageCache.purge(true);
+                            }
+                            if (typeof window.gc === 'function') {
+                                try { window.gc(); } catch (e) {}
                             }
                         }, 12000);
                     }

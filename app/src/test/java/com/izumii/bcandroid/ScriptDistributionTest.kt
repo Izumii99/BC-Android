@@ -106,6 +106,8 @@ class ScriptDistributionTest {
         val content = file?.readText() ?: ""
         assertTrue("Must define setupSafeVramOptimization", content.contains("setupSafeVramOptimization"))
         assertTrue("Must tune ImageCachePurgeDelay", content.contains("ImageCachePurgeDelay"))
+        assertTrue("Must define WARDROBE_PURGE_DELAY", content.contains("WARDROBE_PURGE_DELAY"))
+        assertTrue("Must define NORMAL_PURGE_DELAY", content.contains("NORMAL_PURGE_DELAY"))
         assertTrue("Must call safe GLDrawImageCache.purge", content.contains("GLDrawImageCache.purge"))
         assertTrue("Must call safe DrawImageCache.purge", content.contains("DrawImageCache.purge"))
     }
