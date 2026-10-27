@@ -386,11 +386,11 @@ object VersionDetector {
             when {
                 trimmed.startsWith("- **") -> {
                     val cleaned = trimmed.removePrefix("- ").trim()
-                    val match = Regex("""\*\*([^*]+)\*\*:\s*(.*)""").matchEntire(cleaned)
+                    val match = Regex("""\*\*([^*:]+?)(?:\*\*:|:\*\*|\*?:)\s*(.*)""").matchEntire(cleaned)
                     if (match != null) {
-                        "• ${match.groupValues[1]}: ${match.groupValues[2]}"
+                        "• ${match.groupValues[1]}: ${match.groupValues[2].replace("`", "")}"
                     } else {
-                        "• " + cleaned.replace("**", "")
+                        "• " + cleaned.replace("**", "").replace("`", "")
                     }
                 }
                 trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ") -> {
