@@ -8,14 +8,14 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 2.0.1)'
+        description: 'Release version / tag (e.g., 2.0.2)'
         required: false
-        default: '2.0.1'
+        default: '2.0.2'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Unobtrusive Startup, Native Canvas & Background Optimization'
+        default: 'Hardened Background Canvas Lifecycle & Multi-Instance Stability'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'

@@ -140,4 +140,19 @@ class ScriptDistributionTest {
         assertTrue("Must include pidx guard", content.contains("window.pidx"))
         assertTrue("Must include clipboard bridge", content.contains("navigator.clipboard"))
     }
+
+    @Test
+    fun memoryOptimizer_containsHardenedHooksAndGcCooldown() {
+        val possiblePaths = listOf(
+            File("app/src/main/java/com/izumii/bcandroid/memory/MemoryOptimizer.kt"),
+            File("../app/src/main/java/com/izumii/bcandroid/memory/MemoryOptimizer.kt")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("MemoryOptimizer.kt must exist", file != null && file.exists())
+
+        val content = file?.readText() ?: ""
+        assertTrue("Must intercept document.hasFocus", content.contains("__bcFocusOverridden"))
+        assertTrue("Must use idempotent permanent DrawProcess hook", content.contains("__bcDrawHooked"))
+        assertTrue("Must enforce GC cooldown", content.contains("_bcLastGc") && content.contains("60000"))
+    }
 }

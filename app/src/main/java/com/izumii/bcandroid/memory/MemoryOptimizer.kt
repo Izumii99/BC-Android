@@ -12,13 +12,19 @@ object MemoryOptimizer {
         "(()=>{" +
         "window._bcIsBackground=true;" +
         "window.dispatchEvent(new CustomEvent('bc:visibility',{detail:{background:true}}));" +
+        "if(!window.__bcFocusOverridden){" +
+        "window.__bcFocusOverridden=true;" +
+        "const _origHasFocus=document.hasFocus.bind(document);" +
+        "document.hasFocus=function(){return !window._bcIsBackground&&_origHasFocus();};" +
+        "}" +
         "if(!window._bcOrigRAF){" +
         "window._bcOrigRAF=window.requestAnimationFrame;" +
         "window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(performance.now());},4000);};" +
         "}" +
-        "if(!window._bcOrigDrawProcess&&typeof window.DrawProcess==='function'){" +
-        "window._bcOrigDrawProcess=window.DrawProcess;" +
-        "window.DrawProcess=function(...args){if(window._bcIsBackground)return;return window._bcOrigDrawProcess.apply(this,args);};" +
+        "if(!window.__bcDrawHooked&&typeof window.DrawProcess==='function'){" +
+        "window.__bcDrawHooked=true;" +
+        "const _wrappedDraw=window.DrawProcess;" +
+        "window.DrawProcess=function(...args){if(window._bcIsBackground)return;return _wrappedDraw.apply(this,args);};" +
         "}" +
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='hidden';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='hidden';" +
@@ -26,7 +32,7 @@ object MemoryOptimizer {
         "if(window.bcFocusMemory&&!window.bcFocusMemory.isConnected)window.bcFocusMemory=null;" +
         "if(window.bcLastMousedown&&!window.bcLastMousedown.isConnected)window.bcLastMousedown=null;" +
         "if(window.bcLastFocusedLayer&&!window.bcLastFocusedLayer.isConnected)window.bcLastFocusedLayer=null;" +
-        "if(typeof window.gc==='function'){try{window.gc();}catch(e){}}" +
+        "if(typeof window.gc==='function'){try{const now=performance.now();if(!window._bcLastGc||now-window._bcLastGc>60000){window._bcLastGc=now;window.gc();}}catch(e){}}" +
         "})();"
 
     private const val RESTORE_FOREGROUND_SCRIPT =
@@ -36,10 +42,6 @@ object MemoryOptimizer {
         "if(window._bcOrigRAF){" +
         "window.requestAnimationFrame=window._bcOrigRAF;" +
         "window._bcOrigRAF=null;" +
-        "}" +
-        "if(window._bcOrigDrawProcess){" +
-        "window.DrawProcess=window._bcOrigDrawProcess;" +
-        "window._bcOrigDrawProcess=null;" +
         "}" +
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='';" +
