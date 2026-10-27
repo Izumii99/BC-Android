@@ -354,7 +354,6 @@
         let relogInterval = null;
         function checkAutoRelog() {
             try {
-                if (window._bcIsBackground) return;
                 if (window.CurrentScreen === 'Relog' && !window._bcRelogActive) {
                     const raw = sessionStorage.getItem('_bc_session_creds');
                     if (raw) {
@@ -379,26 +378,21 @@
             } catch (e) {}
         }
 
-        function startRelogWatcher() {
-            if (!relogInterval) {
-                relogInterval = setInterval(checkAutoRelog, 1000);
-            }
+        // Expose globally for Android pulse invocations
+        window._bcCheckAutoRelog = checkAutoRelog;
+
+        function startRelogWatcher(intervalMs) {
+            if (relogInterval) clearInterval(relogInterval);
+            relogInterval = setInterval(checkAutoRelog, intervalMs || 1000);
         }
 
-        function stopRelogWatcher() {
-            if (relogInterval) {
-                clearInterval(relogInterval);
-                relogInterval = null;
-            }
-        }
-
-        startRelogWatcher();
+        startRelogWatcher(1000);
 
         window.addEventListener('bc:visibility', function(e) {
             if (e.detail && e.detail.background) {
-                stopRelogWatcher();
+                startRelogWatcher(15000);
             } else {
-                startRelogWatcher();
+                startRelogWatcher(1000);
             }
         });
     }

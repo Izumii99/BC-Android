@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 class ConnectionKeeperService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
     private var pulseJob: Job? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
@@ -109,6 +110,21 @@ class ConnectionKeeperService : Service() {
         wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BCAndroid:ConnectionKeeperWakeLock")?.apply {
             setReferenceCounted(false)
         }
+
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+        val lockType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            android.net.wifi.WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+        } else {
+            @Suppress("DEPRECATION")
+            android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF
+        }
+        wifiLock = wifiManager?.createWifiLock(lockType, "BCAndroid:ConnectionKeeperWifiLock")?.apply {
+            setReferenceCounted(false)
+        }
+        try {
+            wifiLock?.acquire()
+        } catch (ignored: Exception) {
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -119,14 +135,14 @@ class ConnectionKeeperService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Trigger active socket keepalive pulse every 28 seconds with a brief 500ms pulse guard
-        // CPU sleeps >98% of the time, briefly waking up for 500ms to ensure keepalive transmission
+        // Trigger active socket keepalive pulse every 28 seconds with a 1.2s pulse guard
+        // Allows cellular radio to transition from idle (RRC) and transmit TCP frames reliably
         pulseJob?.cancel()
         pulseJob = serviceScope.launch {
             while (isActive) {
                 delay(28_000L)
                 try {
-                    wakeLock?.acquire(500L)
+                    wakeLock?.acquire(1_200L)
                     onPulseListener?.invoke()
                 } catch (ignored: Exception) {
                 }
@@ -162,6 +178,13 @@ class ConnectionKeeperService : Service() {
         } catch (ignored: Exception) {
         }
         wakeLock = null
+        if (wifiLock?.isHeld == true) {
+            try {
+                wifiLock?.release()
+            } catch (ignored: Exception) {
+            }
+        }
+        wifiLock = null
         super.onDestroy()
     }
 

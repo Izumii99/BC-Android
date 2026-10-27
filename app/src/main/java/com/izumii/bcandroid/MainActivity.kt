@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
         setupImmersiveFullscreen()
         setupDoubleTapBackToExit()
         setupWebView()
+        requestBatteryOptimizationExemption()
 
         // Clean any leftover APK update files from previous sessions
         VersionDetector.cleanCachedApks(this)
@@ -92,6 +93,22 @@ class MainActivity : AppCompatActivity() {
             val updateInfo = VersionDetector.checkForAppUpdate(BuildConfig.VERSION_NAME, BuildConfig.FLAVOR)
             if (updateInfo.hasUpdate) {
                 showUpdateDialog(updateInfo)
+            }
+        }
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(POWER_SERVICE) as? android.os.PowerManager
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+                try {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (ignored: Exception) {
+                }
             }
         }
     }
@@ -434,7 +451,7 @@ class MainActivity : AppCompatActivity() {
 
         // Seamless resume check: auto-restore if socket disconnected or dropped while backgrounded
         webView?.evaluateJavascript(
-            "(()=>{try{if(window.CurrentScreen==='Relog'&&typeof window.RelogSend==='function'){window.RelogSend();}else if(window.ServerSocket&&!window.ServerSocket.connected&&typeof window.ServerInit==='function'){window.ServerInit();}}catch(e){}})();",
+            "(()=>{try{if(typeof window._bcCheckAutoRelog==='function'){window._bcCheckAutoRelog();}else if(window.CurrentScreen==='Relog'&&typeof window.RelogSend==='function'){window.RelogSend();}else if(window.ServerSocket&&!window.ServerSocket.connected&&typeof window.ServerInit==='function'){window.ServerInit();}}catch(e){}})();",
             null
         )
     }
@@ -449,19 +466,17 @@ class MainActivity : AppCompatActivity() {
                 """
                 (()=>{
                     try {
+                        if (typeof window._bcCheckAutoRelog === 'function') {
+                            window._bcCheckAutoRelog();
+                        }
                         if (window.ServerSocket) {
                             if (window.ServerSocket.connected) {
-                                if (window.ServerSocket.io && window.ServerSocket.io.engine) {
-                                    window.ServerSocket.io.engine.write('2');
-                                } else {
-                                    window.ServerSocket.emit('Ping');
+                                if (window.ServerSocket.io && window.ServerSocket.io.engine && typeof window.ServerSocket.io.engine.sendPacket === 'function') {
+                                    window.ServerSocket.io.engine.sendPacket('ping');
                                 }
                             } else if (typeof window.ServerInit === 'function') {
                                 window.ServerInit();
                             }
-                        }
-                        if (window.CurrentScreen === 'Relog' && typeof window.RelogSend === 'function') {
-                            window.RelogSend();
                         }
                     } catch(e) {}
                 })();
