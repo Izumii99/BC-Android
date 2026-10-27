@@ -76,13 +76,8 @@ object ScriptLoader {
                 JSONObject()
             }
 
-            val defaultDisabled = setOf(
-                "FUSAM",
-                "LikoPlugin",
-                "fusam-liko-loader.js",
-                "neko-dark.js",
-                "translate.js",
-                "cheat-menu.js"
+            val defaultEnabled = setOf(
+                "chat-qol.js"
             )
 
             // Ordered scripts without deprecated wardrobe-pagination.js
@@ -112,8 +107,7 @@ object ScriptLoader {
                     }
 
                     if (!hasExplicitConfig) {
-                        val isDefaultDisabled = configKeys.any { defaultDisabled.contains(it) }
-                        isEnabled = !isDefaultDisabled
+                        isEnabled = configKeys.any { defaultEnabled.contains(it) }
                     }
 
                     if (isEnabled) {
