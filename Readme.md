@@ -150,24 +150,38 @@ To run the automated unit test suite locally:
 
 ```text
 BC-Android/
+├── .github/
+│   └── workflows/
+│       ├── checks.yml                        — CI unit test runner & lint verification
+│       └── release.yml                       — Automated multi-flavor APK builder & release
 ├── app/
 │   ├── src/main/
 │   │   ├── java/com/izumii/bcandroid/
-│   │   │   ├── MainActivity.kt               — WebView host, file chooser, and link interceptors
-│   │   │   ├── WebAppInterface.kt            — JavaScript bridge (clipboard, toasts, link chooser)
-│   │   │   ├── memory/MemoryOptimizer.kt     — Low-memory trim callbacks & 15 FPS throttle
-│   │   │   ├── service/                      — Foreground connection keeper service
-│   │   │   ├── updater/VersionDetector.kt    — Game server auto-detection & in-app APK updater
-│   │   │   └── scripts/ScriptLoader.kt       — Offline fallback addon injection
+│   │   │   ├── MainActivity.kt               — WebView host, immersive mode, file chooser & lifecycle
+│   │   │   ├── WebAppInterface.kt            — JavaScript bridge (clipboard, downloads, haptics)
+│   │   │   ├── memory/
+│   │   │   │   └── MemoryOptimizer.kt        — Low-memory trim callbacks, cache pruning & FPS throttle
+│   │   │   ├── service/
+│   │   │   │   └── ConnectionKeeperService.kt — 24/7 silent background keep-alive (WifiLock & WakeLock)
+│   │   │   ├── updater/
+│   │   │   │   └── VersionDetector.kt        — Dynamic server detection & in-app APK updater
+│   │   │   └── scripts/
+│   │   │       └── ScriptLoader.kt           — Offline fallback addon injection
 │   │   ├── assets/
-│   │   │   ├── addons/                       — Offline fallback scripts (synced from BC-Desktop)
+│   │   │   ├── addons/                       — Offline fallback addon bundle (synced from BC-Desktop)
 │   │   │   ├── scripts/                      — Desktop bridge & remote loader scripts
 │   │   │   └── portrait_adapter.js           — Dynamic 2:1 canvas scaling & zoom controller
-│   │   └── res/                              — App layouts, drawables, FileProvider XML, and launcher icons
-│   └── src/test/                             — Automated unit tests (JUnit)
-├── Assets/                                   — Readme showcase screenshots & launcher branding
-├── publish/                                  — Compiled output release APKs
-└── .github/workflows/                        — CI/CD test checks & release workflows
+│   │   ├── res/                              — App layouts, drawables, launcher icons & themes
+│   │   └── AndroidManifest.xml               — Permissions (WakeLock, WifiLock, Battery Exempt)
+│   ├── src/test/                             — Automated JUnit test suite
+│   │   ├── ScriptDistributionTest.kt         — Addon hub & fallback integrity tests
+│   │   └── VersionDetectorTest.kt            — SemVer tag comparison & calendar formula tests
+│   └── build.gradle.kts                      — Android app configuration (SDK 34, flavors, SemVer)
+├── Assets/                                   — Readme screenshots, banner & launcher branding
+├── build_all.ps1                             — Release APK compile & packaging script
+├── build-local.ps1                           — Fast local debug build & adb push tool
+├── RELEASE_NOTES.md                          — User-facing changelog & release details
+└── settings.gradle.kts                       — Gradle project root settings
 ```
 
 ---
