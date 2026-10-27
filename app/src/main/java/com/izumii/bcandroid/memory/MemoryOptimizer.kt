@@ -16,9 +16,11 @@ object MemoryOptimizer {
         "const _origHasFocus=document.hasFocus.bind(document);" +
         "document.hasFocus=function(){return !window._bcIsBackground&&_origHasFocus();};" +
         "}" +
-        "if(!window.__bcDrawHooked&&typeof window.DrawProcess==='function'){" +
+        "const _attachDrawHook=()=>{" +
+        "if(window.__bcDrawHooked)return true;" +
+        "if(typeof window.DrawProcess!=='function')return false;" +
         "window.__bcDrawHooked=true;" +
-        "const _wrappedDraw=window.DrawProcess;" +
+        "const _origDraw=window.DrawProcess;" +
         "let _lastBgDrawTime=0;" +
         "window.DrawProcess=function(...args){" +
         "if(window._bcIsMinimized)return;" +
@@ -27,8 +29,14 @@ object MemoryOptimizer {
         "if(now-_lastBgDrawTime<66)return;" +
         "_lastBgDrawTime=now;" +
         "}" +
-        "return _wrappedDraw.apply(this,args);" +
+        "return _origDraw.apply(this,args);" +
         "};" +
+        "return true;" +
+        "};" +
+        "if(!_attachDrawHook()&&!window._bcDrawHookTimer){" +
+        "window._bcDrawHookTimer=setInterval(()=>{" +
+        "if(_attachDrawHook()){clearInterval(window._bcDrawHookTimer);window._bcDrawHookTimer=null;}" +
+        "},200);" +
         "}" +
         "if(window.bcFocusMemory&&!window.bcFocusMemory.isConnected)window.bcFocusMemory=null;" +
         "if(window.bcLastMousedown&&!window.bcLastMousedown.isConnected)window.bcLastMousedown=null;" +

@@ -1,27 +1,25 @@
 ### Fixes & Improvements:
 
-- **Seamless Split-Screen Dual-Account Experience:** Implemented a two-tier lifecycle architecture. When running two accounts side-by-side in split-screen or floating pop-up mode, the unfocused window is throttled to ~15 FPS without hiding its canvas or chat log. Players can now read incoming messages and view characters on both accounts simultaneously without the inactive screen blacking out.
-- **True Background Minimization (0 FPS):** Full canvas hiding and 0 FPS graphics loop deactivation is now accurately scoped to `onStop()` (when the app is truly off-screen, at home screen, or screen locked), saving 100% GPU and CPU render overhead while backgrounded.
-- **Hardened Canvas Lifecycle & Addon Hook Safety:** Refactored background render interception to use an idempotent closure guard, preventing third-party addon hooks on `DrawProcess` from being clobbered during application pause and resume cycles.
-- **Background Focus Isolation:** Intercepted `document.hasFocus()` while backgrounded or running in split-screen/multi-window, ensuring game canvas animations and addon tick loops properly idle when unfocused.
-- **Garbage Collector Throttling:** Added a 60-second cooldown on background JavaScript garbage collection invocations to eliminate CPU spikes during rapid app-switching.
-- **UX & Clean Startup:** Eliminated system battery optimization prompts on application startup, allowing players to launch and enter rooms immediately without unwanted menu redirects.
-- **Continuous 24/7 Socket Keep-Alive:** Implemented full hardware `WifiLock` (preventing Wi-Fi chip DTIM power-saving drops) and tuned the CPU WakeLock guard to 1.2 seconds, ensuring cellular 4G/5G radio transitions have sufficient time to transmit packets before the device sleeps.
-- **Rendering & Portrait Compatibility:** Synchronized clean native canvas rendering and clipboard bridging, ensuring full compatibility with portrait layout addons (BC-LCE) and smooth wardrobe asset loading.
-- **Seamless Silent Background Session:** Completely silenced the background keep-alive notification and eliminated status bar clutter ("BC session is active" / "Active room session running in background"), maintaining a clean, distraction-free notification shade.
-- **Interactive Post-Update Changelog:** The app now automatically displays an in-app "What's New" release notes dialog after updating so players immediately see new features and changes.
-- **Background Auto-Relogin:** Unblocked and exposed automatic relogin handlers in the background, enabling the client to automatically reconnect and re-enter rooms without requiring manual screen unlocking.
-- **Socket.IO Protocol Compliance:** Upgraded keep-alive pulses to utilize native `sendPacket('ping')` frames, ensuring full compatibility with Socket.IO v4 servers without sending malformed event packets.
-- **Ultra-Low Background Power Profile:** Throttled the game tick loop to 0.25 FPS (4-second intervals), froze active chat log DOM styling via `content-visibility: hidden`, and deactivated canvas compositing to eliminate GPU and CPU overhead while minimized.
+- **Seamless Multi-Window & Floating Pop-Up Experience:** Both accounts in split-screen or floating pop-up windows now remain fully visible and responsive. The inactive window automatically throttles to ~15 FPS upon launch without blacking out the canvas or hiding chat logs, allowing players to read messages and observe rooms on both accounts simultaneously with minimal battery drain.
+- **Zero-Drain True Background Minimization:** When the app is minimized to the home screen or the device is locked, game rendering is completely paused (0 FPS) and canvas resources are cleared, eliminating background CPU and GPU power drain.
+- **Addon Stability & Hook Protection:** Reinforced the game rendering pipeline to prevent third-party mods and visual addons from losing their hooks during app switching, split-screen transitions, or window resizing.
+- **Unfocused Resource Optimization:** Window focus is properly isolated during multi-window play, allowing background canvas animations and addon tick loops to sleep smoothly when an account is not actively being touched.
+- **Garbage Collection Throttling:** Regulated internal memory cleanup cycles to prevent micro-stutters during rapid multitasking and app-switching.
+- **Streamlined Startup:** Removed automatic system battery optimization prompts on launch so players can jump straight into rooms without unnecessary dialogs.
+- **24/7 Persistent Socket Keep-Alive:** Enhanced Wi-Fi and mobile data radio management, preventing socket dropouts when switching between Wi-Fi and cellular networks or during prolonged background idling.
+- **Silent Background Session:** Eliminated status bar notification clutter for background keep-alive, keeping your notification shade clean and distraction-free.
+- **Portrait Layout Compatibility:** Synchronized rendering buffers to ensure smooth performance with portrait-mode UI mods (such as BC-LCE) and wardrobe asset loading.
+- **In-App What's New Dialog:** Players are now automatically presented with the latest release notes directly inside the app after updating.
 
 ### How to Keep the App Connected in Background:
 
 For the best background room experience without Android terminating your connection:
-1. **Battery Setting (Optional):** If your device aggressive battery saver drops background network sockets, go to **App Info > Battery** -> Choose **Unrestricted** (or *Don't optimize*).
+1. **Battery Setting (Optional):** If your device's aggressive battery saver drops background network sockets, go to **App Info > Battery** -> Choose **Unrestricted** (or *Don't optimize*).
 2. **Lock in Recent Apps (Samsung, Xiaomi, Oppo, Vivo):** Open your recent apps switcher and lock the app so the OS memory cleaner never kills it.
 3. **Allow Background Activity:** Enable *Autostart* or *Run in background* if prompted by your phone brand.
 
 ### Downloads:
 
-- **BC-Android-Standard-Release.apk (~0.9MB):** Official client package with full app icon and branding.
-- **BC-Android-Discreet-Release.apk (~0.9MB):** Stealth build featuring minimal "BC" app name and completely transparent icon for discrete homescreen placement.
+- **BC-Android-Standard-Release.apk (~0.95MB):** Official client package with full app icon and branding.
+- **BC-Android-Discreet-Release.apk (~0.95MB):** Stealth build featuring minimal "BC" app name and completely transparent icon for discrete homescreen placement.
+
