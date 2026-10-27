@@ -12,6 +12,7 @@ object ScriptLoader {
     // Remote loader pointing to Izumii99/BC-Desktop GitHub Pages
     const val REMOTE_MANAGER_URL = "https://izumii99.github.io/BC-Desktop/Scripts/addon-manager.js"
 
+    @Suppress("TooGenericExceptionCaught")
     private fun readAsset(context: Context, assetPath: String): String? {
         return try {
             context.assets.open(assetPath).use { stream ->
@@ -48,6 +49,7 @@ object ScriptLoader {
      * Fallback offline injector: loads embedded assets/addons if the remote CDN cannot be reached.
      * Respects user addon preferences saved in localStorage (BCDesktop_Addons_Config).
      */
+    @Suppress("TooGenericExceptionCaught")
     fun injectLocalAddons(context: Context, webView: WebView?) {
         webView ?: return
 

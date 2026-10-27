@@ -154,6 +154,7 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun openExternalChooser(url: String): Boolean {
         return try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
