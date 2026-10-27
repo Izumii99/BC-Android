@@ -153,6 +153,8 @@ class ScriptDistributionTest {
         val content = file?.readText() ?: ""
         assertTrue("Must intercept document.hasFocus", content.contains("__bcFocusOverridden"))
         assertTrue("Must use idempotent permanent DrawProcess hook", content.contains("__bcDrawHooked"))
+        assertTrue("Must support 15 FPS split-screen background throttling", content.contains("_lastBgDrawTime") && content.contains("<66"))
+        assertTrue("Must support complete 0 FPS minimization guard", content.contains("window._bcIsMinimized"))
         assertTrue("Must enforce GC cooldown", content.contains("_bcLastGc") && content.contains("60000"))
     }
 }

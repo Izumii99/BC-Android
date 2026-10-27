@@ -491,6 +491,11 @@ class MainActivity : AppCompatActivity() {
         ConnectionKeeperService.start(this)
     }
 
+    override fun onStop() {
+        super.onStop()
+        MemoryOptimizer.onStop(webView)
+    }
+
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         MemoryOptimizer.onTrimMemory(webView, level)

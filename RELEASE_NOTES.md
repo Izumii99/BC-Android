@@ -1,5 +1,7 @@
 ### Fixes & Improvements:
 
+- **Seamless Split-Screen Dual-Account Experience:** Implemented a two-tier lifecycle architecture. When running two accounts side-by-side in split-screen or floating pop-up mode, the unfocused window is throttled to ~15 FPS without hiding its canvas or chat log. Players can now read incoming messages and view characters on both accounts simultaneously without the inactive screen blacking out.
+- **True Background Minimization (0 FPS):** Full canvas hiding and 0 FPS graphics loop deactivation is now accurately scoped to `onStop()` (when the app is truly off-screen, at home screen, or screen locked), saving 100% GPU and CPU render overhead while backgrounded.
 - **Hardened Canvas Lifecycle & Addon Hook Safety:** Refactored background render interception to use an idempotent closure guard, preventing third-party addon hooks on `DrawProcess` from being clobbered during application pause and resume cycles.
 - **Background Focus Isolation:** Intercepted `document.hasFocus()` while backgrounded or running in split-screen/multi-window, ensuring game canvas animations and addon tick loops properly idle when unfocused.
 - **Garbage Collector Throttling:** Added a 60-second cooldown on background JavaScript garbage collection invocations to eliminate CPU spikes during rapid app-switching.
