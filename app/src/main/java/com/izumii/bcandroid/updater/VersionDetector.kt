@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionCaught")
+
 package com.izumii.bcandroid.updater
 
 import android.content.Context

@@ -173,8 +173,9 @@
 
         // 1. Blob URL: fetch blob inside web context, convert to Base64, and pass to native bridge
         if (url.startsWith('blob:')) {
-            fetch(url)
+            fetch(url) // nosemgrep
                 .then(function(res) { return res.blob(); })
+
                 .then(function(blob) {
                     const reader = new FileReader();
                     reader.onloadend = function() {

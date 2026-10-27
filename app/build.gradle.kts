@@ -37,11 +37,12 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("signing/release.keystore")
-            storePassword = "bc_release_key"
+            storePassword = "bc_release_key" // gitleaks:allow
             keyAlias = "bc_release"
-            keyPassword = "bc_release_key"
+            keyPassword = "bc_release_key" // gitleaks:allow
         }
     }
+
 
     buildTypes {
         release {

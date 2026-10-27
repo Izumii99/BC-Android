@@ -213,8 +213,9 @@
                     const minChatH = 180;
                     charSize = Math.min(vw, Math.max(120, vh - minChatH));
                 } else {
-                    charSize = Math.min(vw, Math.round(vh * 0.50));
+                    charSize = Math.min(vw, Math.round(vh * 0.5));
                 }
+
 
                 const scale = charSize / 1000;
                 const width = Math.round(2000 * scale);
