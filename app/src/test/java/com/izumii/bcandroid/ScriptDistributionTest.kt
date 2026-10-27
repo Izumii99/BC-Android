@@ -141,5 +141,7 @@ class ScriptDistributionTest {
         assertTrue("Must define smart adaptive frame pacer", content.contains("setupMobileFramePacer"))
         assertTrue("Must handle mobile touch events for frame pacing", content.contains("touchstart") && content.contains("touchmove"))
         assertTrue("Must throttle to 30 FPS when idle >2s", content.contains("2000") && content.contains("30"))
+        assertTrue("Must allow all callbacks on same VSync timestamp to avoid starvation", content.contains("timestamp !== lastFrameTime"))
+        assertTrue("Must synchronize with background RAF state", content.contains("window._bcOrigRAF"))
     }
 }

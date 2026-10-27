@@ -42,12 +42,15 @@
             window.addEventListener(evt, markActive, { capture: true, passive: true });
         });
 
-        const origRAF = window.requestAnimationFrame.bind(window);
+        // Ambil native RAF yang asli meskipun script disuntikkan saat kondisi background
+        const nativeRAF = (window._bcOrigRAF || window.requestAnimationFrame).bind(window);
         let lastFrameTime = 0;
 
-        window.requestAnimationFrame = function(callback) {
-            return origRAF(function pacedLoop(timestamp) {
-                // Respect background throttle (0.25 FPS) when minimized
+        const pacedRAF = function(callback) {
+            if (window._bcIsBackground) {
+                return setTimeout(function() { callback(performance.now()); }, 4000);
+            }
+            return nativeRAF(function pacedLoop(timestamp) {
                 if (window._bcIsBackground) {
                     callback(timestamp);
                     return;
@@ -60,14 +63,21 @@
                 const targetFps = userCap > 0 ? userCap : (isIdle ? 30 : 60);
                 const minDelta = (1000 / targetFps) - 1.2;
 
-                if (timestamp - lastFrameTime < minDelta) {
-                    origRAF(pacedLoop);
+                // Izinkan callback lain di frame VSync yang sama (timestamp === lastFrameTime) agar tidak deadlock
+                if (timestamp !== lastFrameTime && (timestamp - lastFrameTime) < minDelta) {
+                    nativeRAF(pacedLoop);
                     return;
                 }
                 lastFrameTime = timestamp;
                 callback(timestamp);
             });
         };
+
+        if (window._bcOrigRAF) {
+            window._bcOrigRAF = pacedRAF;
+        } else {
+            window.requestAnimationFrame = pacedRAF;
+        }
     })();
 
     // Clipboard bridge to Android native ClipboardManager
