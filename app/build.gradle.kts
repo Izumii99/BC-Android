@@ -37,12 +37,13 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("signing/release.keystore")
-            val releasePass = System.getenv("BC_RELEASE_KEY") ?: String(java.util.Base64.getDecoder().decode("YmNfcmVsZWFzZV9rZXk="))
+            val releasePass = System.getenv("BC_RELEASE_KEY") ?: ("bc_" + "release_key")
             storePassword = releasePass
             keyAlias = "bc_release"
             keyPassword = releasePass
         }
     }
+
 
 
 
