@@ -1,6 +1,6 @@
 ### Fixes & Improvements:
 
-- **Battery & Deep Doze Exemption:** Added an automatic one-time system battery optimization prompt (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), preventing Android Deep Doze and OEM background managers (HyperOS/MIUI, OneUI, ColorOS) from severing network sockets after 60 minutes.
+- **UX & Clean Startup:** Eliminated system battery optimization prompts on application startup, allowing players to launch and enter rooms immediately without unwanted menu redirects.
 - **Continuous 24/7 Socket Keep-Alive:** Implemented full hardware `WifiLock` (preventing Wi-Fi chip DTIM power-saving drops) and tuned the CPU WakeLock guard to 1.2 seconds, ensuring cellular 4G/5G radio transitions have sufficient time to transmit packets before the device sleeps.
 - **Rendering & Portrait Compatibility:** Synchronized clean native canvas rendering and clipboard bridging, ensuring full compatibility with portrait layout addons (BC-LCE) and smooth wardrobe asset loading.
 - **Seamless Silent Background Session:** Completely silenced the background keep-alive notification and eliminated status bar clutter ("BC session is active" / "Active room session running in background"), maintaining a clean, distraction-free notification shade.
@@ -12,7 +12,7 @@
 ### How to Keep the App Connected in Background:
 
 For the best background room experience without Android terminating your connection:
-1. **Battery Setting:** Accept the prompt on startup or go to **App Info > Battery** -> Choose **Unrestricted** (or *Don't optimize*).
+1. **Battery Setting (Optional):** If your device aggressive battery saver drops background network sockets, go to **App Info > Battery** -> Choose **Unrestricted** (or *Don't optimize*).
 2. **Lock in Recent Apps (Samsung, Xiaomi, Oppo, Vivo):** Open your recent apps switcher and lock the app so the OS memory cleaner never kills it.
 3. **Allow Background Activity:** Enable *Autostart* or *Run in background* if prompted by your phone brand.
 

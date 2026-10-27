@@ -356,7 +356,7 @@ object VersionDetector {
         }
     }
 
-    const val FALLBACK_RELEASE_NOTES = """• Battery & Deep Doze Exemption: Automatically prevents Android battery managers from freezing background room sessions.
+    const val FALLBACK_RELEASE_NOTES = """• UX & Clean Startup: Eliminated system battery optimization prompts on startup for seamless instant game access.
 • Continuous 24/7 Socket Keep-Alive: Hardware WifiLock and CPU WakeLock keep active room connections alive 24/7.
 • Adaptive Frame Pacing & Opaque Canvas: Smart differential frame pacing (60/30 FPS) and opaque canvas composition for extended battery life.
 • Seamless Silent Background Session: Silenced background keep-alive notification to keep status bar clean.
