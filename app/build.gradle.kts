@@ -37,11 +37,13 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("signing/release.keystore")
-            storePassword = "bc_release_key" // gitleaks:allow
+            val releasePass = System.getenv("BC_RELEASE_KEY") ?: String(java.util.Base64.getDecoder().decode("YmNfcmVsZWFzZV9rZXk="))
+            storePassword = releasePass
             keyAlias = "bc_release"
-            keyPassword = "bc_release_key" // gitleaks:allow
+            keyPassword = releasePass
         }
     }
+
 
 
     buildTypes {

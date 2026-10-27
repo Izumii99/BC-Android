@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionCaught")
+
 package com.izumii.bcandroid
 
 import android.annotation.SuppressLint
