@@ -78,7 +78,6 @@ class MainActivity : AppCompatActivity() {
         setupImmersiveFullscreen()
         setupDoubleTapBackToExit()
         setupWebView()
-        requestBatteryOptimizationExemption()
 
         // Clean any leftover APK update files from previous sessions
         VersionDetector.cleanCachedApks(this)
@@ -522,23 +521,33 @@ class MainActivity : AppCompatActivity() {
         val lastSeen = prefs.getString("last_seen_app_version", null)
         val currentVersion = BuildConfig.VERSION_NAME
 
-        if (lastSeen != null && VersionDetector.isNewerVersion(currentVersion, lastSeen)) {
-            showChangelogDialog(currentVersion)
-        }
+        val shouldShowChangelog = lastSeen != null && VersionDetector.isNewerVersion(currentVersion, lastSeen)
         prefs.edit().putString("last_seen_app_version", currentVersion).apply()
+
+        if (shouldShowChangelog) {
+            lifecycleScope.launch {
+                val notes = VersionDetector.fetchLatestReleaseNotes()
+                showChangelogDialog(currentVersion, notes) {
+                    requestBatteryOptimizationExemption()
+                }
+            }
+        } else {
+            requestBatteryOptimizationExemption()
+        }
     }
 
-    private fun showChangelogDialog(version: String) {
+    private fun showChangelogDialog(
+        version: String,
+        notes: String = VersionDetector.FALLBACK_RELEASE_NOTES,
+        onDismiss: (() -> Unit)? = null
+    ) {
+        if (isFinishing || isDestroyed) {
+            onDismiss?.invoke()
+            return
+        }
+
         val isDiscreet = packageName.contains("discreet")
         val title = if (isDiscreet) "What's New (v$version)" else "What's New in Bondage Club (v$version)"
-        val notes = """
-• 24/7 Socket Keep-Alive: Full hardware WifiLock and CPU WakeLock guard keep active room connections alive 24/7.
-• Deep Doze Exemption: Automatically prevents Android battery managers from freezing background room sessions.
-• Background Auto-Relogin: Reconnects seamlessly in background without requiring manual screen unlock.
-• Silent & Seamless Session: Completely silenced background notifications to keep your status bar clean.
-• Ultra-Low Power Profile: Minimizes CPU and GPU power draw with 0.25 FPS throttling while minimized.
-• Interactive Update Changelog: In-app release notes now automatically pop up after every update.
-        """.trimIndent()
 
         val messageView = android.widget.TextView(this).apply {
             text = notes
@@ -552,10 +561,23 @@ class MainActivity : AppCompatActivity() {
             addView(messageView)
         }
 
+        var handled = false
+        val triggerDismiss = {
+            if (!handled) {
+                handled = true
+                onDismiss?.invoke()
+            }
+        }
+
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(title)
             .setView(scrollView)
-            .setPositiveButton("Got It!", null)
+            .setPositiveButton("Got It!") { _, _ ->
+                triggerDismiss()
+            }
+            .setOnDismissListener {
+                triggerDismiss()
+            }
             .show()
     }
 

@@ -354,6 +354,79 @@ object VersionDetector {
         }
     }
 
+    const val FALLBACK_RELEASE_NOTES = """• Battery & Deep Doze Exemption: Automatically prevents Android battery managers from freezing background room sessions.
+• Continuous 24/7 Socket Keep-Alive: Hardware WifiLock and CPU WakeLock keep active room connections alive 24/7.
+• Seamless Silent Background Session: Silenced background keep-alive notification to keep status bar clean.
+• Interactive Post-Update Changelog: In-app release notes dialog automatically introduces newly released features after each update.
+• Background Auto-Relogin: Automatically reconnects and re-enters rooms without requiring manual screen unlock.
+• Ultra-Low Background Power Profile: Throttles to 0.25 FPS with canvas deactivation to eliminate battery overhead while minimized."""
+
+    fun formatReleaseNotesForDisplay(raw: String?): String {
+        if (raw.isNullOrBlank()) return FALLBACK_RELEASE_NOTES
+        var text = raw
+
+        val fixesIdx = text.indexOf("### Fixes & Improvements:", ignoreCase = true)
+        if (fixesIdx >= 0) {
+            text = text.substring(fixesIdx + "### Fixes & Improvements:".length)
+        }
+
+        val howToIdx = text.indexOf("### How to", ignoreCase = true)
+        if (howToIdx >= 0) {
+            text = text.substring(0, howToIdx)
+        } else {
+            val downloadsIdx = text.indexOf("### Downloads:", ignoreCase = true)
+            if (downloadsIdx >= 0) {
+                text = text.substring(0, downloadsIdx)
+            }
+        }
+
+        val formattedLines = text.lines().mapNotNull { line ->
+            val trimmed = line.trim()
+            when {
+                trimmed.startsWith("- **") -> {
+                    val cleaned = trimmed.removePrefix("- ").trim()
+                    val match = Regex("""\*\*([^*]+)\*\*:\s*(.*)""").matchEntire(cleaned)
+                    if (match != null) {
+                        "• ${match.groupValues[1]}: ${match.groupValues[2]}"
+                    } else {
+                        "• " + cleaned.replace("**", "")
+                    }
+                }
+                trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ") -> {
+                    "• " + trimmed.substring(2).trim()
+                }
+                else -> null
+            }
+        }
+
+        return if (formattedLines.isNotEmpty()) {
+            formattedLines.joinToString("\n\n")
+        } else {
+            FALLBACK_RELEASE_NOTES
+        }
+    }
+
+    suspend fun fetchLatestReleaseNotes(client: OkHttpClient = httpClient): String = withContext(Dispatchers.IO) {
+        try {
+            val cdnUrl = "https://cdn.jsdelivr.net/gh/$GITHUB_REPO@main/RELEASE_NOTES.md"
+            val req = Request.Builder()
+                .url(cdnUrl)
+                .header("User-Agent", "BC-Android-Client")
+                .build()
+
+            client.newCall(req).execute().use { response ->
+                if (response.isSuccessful) {
+                    val raw = response.body?.string()
+                    if (!raw.isNullOrBlank()) {
+                        return@withContext formatReleaseNotesForDisplay(raw)
+                    }
+                }
+            }
+        } catch (ignored: Exception) {
+        }
+        FALLBACK_RELEASE_NOTES
+    }
+
     fun cleanCachedApks(context: Context) {
         try {
             val updatesDir = java.io.File(context.cacheDir, "updates")

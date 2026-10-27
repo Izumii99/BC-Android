@@ -211,4 +211,32 @@ class VersionDetectorTest {
     fun baseGameUrl_formatsCorrectly() {
         assertEquals("https://www.bondage-asia.com/club/R133/", String.format(VersionDetector.BASE_GAME_URL, 133))
     }
+
+    @Test
+    fun formatReleaseNotesForDisplay_formatsMarkdownBulletsProperly() {
+        val rawMarkdown = """
+            ### Fixes & Improvements:
+
+            - **Battery & Deep Doze Exemption:** Added an automatic one-time system battery optimization prompt.
+            - **Continuous 24/7 Socket Keep-Alive:** Implemented full hardware WifiLock and tuned WakeLock.
+
+            ### Downloads:
+
+            - **BC-Android-Standard-Release.apk:** Full client package.
+        """.trimIndent()
+
+        val formatted = VersionDetector.formatReleaseNotesForDisplay(rawMarkdown)
+        assertTrue(formatted.contains("• Battery & Deep Doze Exemption: Added an automatic one-time system battery optimization prompt."))
+        assertTrue(formatted.contains("• Continuous 24/7 Socket Keep-Alive: Implemented full hardware WifiLock and tuned WakeLock."))
+        assertFalse(formatted.contains("### Downloads:"))
+        assertFalse(formatted.contains("BC-Android-Standard-Release.apk"))
+    }
+
+    @Test
+    fun formatReleaseNotesForDisplay_fallsBackOnNullOrEmpty() {
+        val fallbackNull = VersionDetector.formatReleaseNotesForDisplay(null)
+        val fallbackEmpty = VersionDetector.formatReleaseNotesForDisplay("   ")
+        assertEquals(VersionDetector.FALLBACK_RELEASE_NOTES, fallbackNull)
+        assertEquals(VersionDetector.FALLBACK_RELEASE_NOTES, fallbackEmpty)
+    }
 }

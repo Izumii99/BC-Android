@@ -52,19 +52,17 @@ class ConnectionKeeperService : Service() {
 
             val isDiscreet = context.packageName.contains("discreet")
             val baseTitle = if (isDiscreet) "BC" else "Bondage Club"
-            val title = if (unreadCount > 0) "$baseTitle ($unreadCount)" else ""
+            val title = if (unreadCount > 0) "$baseTitle ($unreadCount)" else "\u200B"
             val text = if (unreadCount > 0) {
                 if (isDiscreet) "$unreadCount new message${if (unreadCount > 1) "s" else ""}" else "$unreadCount new chat message${if (unreadCount > 1) "s" else ""}"
             } else {
-                ""
+                "\u200B"
             }
-            val icon = if (isDiscreet) R.drawable.ic_transparent else R.drawable.ic_rope_logo
+            val icon = if (unreadCount > 0 && !isDiscreet) R.drawable.ic_rope_logo else R.drawable.ic_transparent
 
             return NotificationCompat.Builder(context, CHANNEL_ID)
-                .apply {
-                    if (title.isNotEmpty()) setContentTitle(title)
-                    if (text.isNotEmpty()) setContentText(text)
-                }
+                .setContentTitle(title)
+                .setContentText(text)
                 .setSmallIcon(icon)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_MIN)
@@ -124,10 +122,6 @@ class ConnectionKeeperService : Service() {
         wifiLock = wifiManager?.createWifiLock(lockType, "BCAndroid:ConnectionKeeperWifiLock")?.apply {
             setReferenceCounted(false)
         }
-        try {
-            wifiLock?.acquire()
-        } catch (ignored: Exception) {
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -136,6 +130,13 @@ class ConnectionKeeperService : Service() {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             startForeground(NOTIFICATION_ID, notification)
+        }
+
+        try {
+            if (wifiLock?.isHeld != true) {
+                wifiLock?.acquire()
+            }
+        } catch (ignored: Exception) {
         }
 
         // Trigger active socket keepalive pulse every 28 seconds with a 1.2s pulse guard
