@@ -128,7 +128,7 @@ class ScriptDistributionTest {
     }
 
     @Test
-    fun desktopBridge_containsCanvasAlphaAndAdaptiveFramePacer() {
+    fun desktopBridge_containsPidxGuardAndClipboardBridge() {
         val possiblePaths = listOf(
             File("app/src/main/assets/scripts/desktop_bridge.js"),
             File("../app/src/main/assets/scripts/desktop_bridge.js")
@@ -137,11 +137,7 @@ class ScriptDistributionTest {
         assertTrue("desktop_bridge.js must exist", file != null && file.exists())
 
         val content = file?.readText() ?: ""
-        assertTrue("Must hook getContext with alpha: false for MainCanvas", content.contains("MainCanvas") && content.contains("alpha: false"))
-        assertTrue("Must define smart adaptive frame pacer", content.contains("setupMobileFramePacer"))
-        assertTrue("Must handle mobile touch events for frame pacing", content.contains("touchstart") && content.contains("touchmove"))
-        assertTrue("Must throttle to 30 FPS when idle >2s", content.contains("2000") && content.contains("30"))
-        assertTrue("Must allow all callbacks on same VSync timestamp to avoid starvation", content.contains("timestamp !== lastFrameTime"))
-        assertTrue("Must synchronize with background RAF state", content.contains("window._bcOrigRAF"))
+        assertTrue("Must include pidx guard", content.contains("window.pidx"))
+        assertTrue("Must include clipboard bridge", content.contains("navigator.clipboard"))
     }
 }

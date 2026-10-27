@@ -205,21 +205,9 @@ class MainActivity : AppCompatActivity() {
 
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             val startScript = """
-                (function() {
-                    if (typeof window.pidx === 'undefined') {
-                        try { Object.defineProperty(window, 'pidx', { get: () => 0, set: () => {}, configurable: true }); } catch (e) {}
-                    }
-                    if (!window._bcCanvasAlphaPatched) {
-                        window._bcCanvasAlphaPatched = true;
-                        const origGetContext = HTMLCanvasElement.prototype.getContext;
-                        HTMLCanvasElement.prototype.getContext = function(type, attrs) {
-                            if (type === '2d' && this.id === 'MainCanvas') {
-                                attrs = Object.assign({}, attrs, { alpha: false });
-                            }
-                            return origGetContext.call(this, type, attrs);
-                        };
-                    }
-                })();
+                if (typeof window.pidx === 'undefined') {
+                    try { Object.defineProperty(window, 'pidx', { get: () => 0, set: () => {}, configurable: true }); } catch (e) {}
+                }
             """.trimIndent()
             try {
                 WebViewCompat.addDocumentStartJavaScript(v, startScript, setOf("*"))
