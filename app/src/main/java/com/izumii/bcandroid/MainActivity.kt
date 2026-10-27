@@ -103,21 +103,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("BatteryLife")
-    private fun requestBatteryOptimizationExemption() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val pm = getSystemService(POWER_SERVICE) as? android.os.PowerManager
-            if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
-                try {
-                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
-                    startActivity(intent)
-                } catch (ignored: Exception) {
-                }
-            }
-        }
-    }
 
     private fun setupImmersiveFullscreen() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -544,12 +529,8 @@ class MainActivity : AppCompatActivity() {
         if (shouldShowChangelog) {
             lifecycleScope.launch {
                 val notes = VersionDetector.fetchLatestReleaseNotes()
-                showChangelogDialog(currentVersion, notes) {
-                    requestBatteryOptimizationExemption()
-                }
+                showChangelogDialog(currentVersion, notes)
             }
-        } else {
-            requestBatteryOptimizationExemption()
         }
     }
 
