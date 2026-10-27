@@ -1,0 +1,61 @@
+---
+exclude_paths:
+  - "publish/**"
+  - "build/**"
+  - "app/build/**"
+  - ".gradle/**"
+  - "state/**"
+  - "Assets/**"
+  - "**.min.js"
+
+engines:
+  eslint:
+    enabled: true
+    config: .eslintrc.json
+    exclude_paths:
+      - "publish/**"
+      - "build/**"
+      - "app/build/**"
+      - ".gradle/**"
+      - "state/**"
+      - "Assets/**"
+      - "app/src/main/assets/addons/**"
+      - "**.min.js"
+  duplication:
+    exclude_paths:
+      - "publish/**"
+      - "build/**"
+      - "app/build/**"
+      - ".gradle/**"
+      - "state/**"
+      - "Assets/**"
+      - "app/src/main/assets/addons/**"
+      - "**.min.js"
+  metric:
+    exclude_paths:
+      - "publish/**"
+      - "build/**"
+      - "app/build/**"
+      - ".gradle/**"
+      - "state/**"
+      - "Assets/**"
+      - "app/src/main/assets/addons/**"
+      - "**.min.js"
+
+languages:
+  javascript:
+    exclude_paths:
+      - "publish/**"
+      - "build/**"
+      - "app/build/**"
+      - ".gradle/**"
+      - "state/**"
+      - "Assets/**"
+      - "app/src/main/assets/addons/**"
+      - "**.min.js"
+  kotlin:
+    exclude_paths:
+      - "publish/**"
+      - "build/**"
+      - "app/build/**"
+      - ".gradle/**"
