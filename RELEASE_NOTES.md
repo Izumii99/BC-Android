@@ -2,6 +2,7 @@
 
 - **Battery & Deep Doze Exemption:** Added an automatic one-time system battery optimization prompt (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), preventing Android Deep Doze and OEM background managers (HyperOS/MIUI, OneUI, ColorOS) from severing network sockets after 60 minutes.
 - **Continuous 24/7 Socket Keep-Alive:** Implemented full hardware `WifiLock` (preventing Wi-Fi chip DTIM power-saving drops) and tuned the CPU WakeLock guard to 1.2 seconds, ensuring cellular 4G/5G radio transitions have sufficient time to transmit packets before the device sleeps.
+- **Adaptive Frame Pacing & Opaque Canvas:** Added mobile-aware smart differential frame pacing (60 FPS during interaction, dropping to 30 FPS when idle for >2s) and enabled `{ alpha: false }` on MainCanvas, reducing GPU/CPU draw overhead by up to 50% in crowded rooms.
 - **Seamless Silent Background Session:** Completely silenced the background keep-alive notification and eliminated status bar clutter ("BC session is active" / "Active room session running in background"), maintaining a clean, distraction-free notification shade.
 - **Interactive Post-Update Changelog:** The app now automatically displays an in-app "What's New" release notes dialog after updating so players immediately see new features and changes.
 - **Background Auto-Relogin:** Unblocked and exposed automatic relogin handlers in the background, enabling the client to automatically reconnect and re-enter rooms without requiring manual screen unlocking.

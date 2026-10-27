@@ -356,6 +356,7 @@ object VersionDetector {
 
     const val FALLBACK_RELEASE_NOTES = """• Battery & Deep Doze Exemption: Automatically prevents Android battery managers from freezing background room sessions.
 • Continuous 24/7 Socket Keep-Alive: Hardware WifiLock and CPU WakeLock keep active room connections alive 24/7.
+• Adaptive Frame Pacing & Opaque Canvas: Smart differential frame pacing (60/30 FPS) and opaque canvas composition for extended battery life.
 • Seamless Silent Background Session: Silenced background keep-alive notification to keep status bar clean.
 • Interactive Post-Update Changelog: In-app release notes dialog automatically introduces newly released features after each update.
 • Background Auto-Relogin: Automatically reconnects and re-enters rooms without requiring manual screen unlock.

@@ -12,6 +12,64 @@
         } catch (e) {}
     }
 
+    // 1. MainCanvas Opaque Compositing Optimization (alpha: false)
+    if (!window._bcCanvasAlphaPatched) {
+        window._bcCanvasAlphaPatched = true;
+        const origGetContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+            if (type === '2d' && this.id === 'MainCanvas') {
+                attrs = Object.assign({}, attrs, { alpha: false });
+            }
+            return origGetContext.call(this, type, attrs);
+        };
+    }
+
+    // 2. Mobile-Aware Smart Adaptive Frame Pacer (60 FPS during interaction, 30 FPS when idle >2s)
+    (function setupMobileFramePacer() {
+        if (window._bcFramePacerInstalled || typeof window.requestAnimationFrame !== 'function') return;
+        window._bcFramePacerInstalled = true;
+
+        let lastInputTime = performance.now();
+        const markActive = () => { lastInputTime = performance.now(); };
+        window._bcMarkActive = markActive;
+
+        // Mobile touch, keyboard, mouse, wheel, and pointer events
+        const inputEvents = [
+            'touchstart', 'touchmove', 'touchend', 'touchcancel',
+            'keydown', 'mousedown', 'mousemove', 'wheel', 'pointerdown'
+        ];
+        inputEvents.forEach(evt => {
+            window.addEventListener(evt, markActive, { capture: true, passive: true });
+        });
+
+        const origRAF = window.requestAnimationFrame.bind(window);
+        let lastFrameTime = 0;
+
+        window.requestAnimationFrame = function(callback) {
+            return origRAF(function pacedLoop(timestamp) {
+                // Respect background throttle (0.25 FPS) when minimized
+                if (window._bcIsBackground) {
+                    callback(timestamp);
+                    return;
+                }
+
+                const userCap = (window.Player && window.Player.GraphicsSettings && window.Player.GraphicsSettings.MaxFPS > 0)
+                    ? window.Player.GraphicsSettings.MaxFPS
+                    : 0;
+                const isIdle = (timestamp - lastInputTime) > 2000;
+                const targetFps = userCap > 0 ? userCap : (isIdle ? 30 : 60);
+                const minDelta = (1000 / targetFps) - 1.2;
+
+                if (timestamp - lastFrameTime < minDelta) {
+                    origRAF(pacedLoop);
+                    return;
+                }
+                lastFrameTime = timestamp;
+                callback(timestamp);
+            });
+        };
+    })();
+
     // Clipboard bridge to Android native ClipboardManager
     const origClipboard = navigator.clipboard;
     const mockClipboard = {

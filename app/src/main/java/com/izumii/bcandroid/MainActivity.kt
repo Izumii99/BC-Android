@@ -28,6 +28,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.izumii.bcandroid.memory.MemoryOptimizer
 import com.izumii.bcandroid.scripts.ScriptLoader
 import com.izumii.bcandroid.service.ConnectionKeeperService
@@ -200,6 +202,30 @@ class MainActivity : AppCompatActivity() {
         settings.builtInZoomControls = true
         settings.displayZoomControls = false
         settings.allowFileAccess = true
+
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            val startScript = """
+                (function() {
+                    if (typeof window.pidx === 'undefined') {
+                        try { Object.defineProperty(window, 'pidx', { get: () => 0, set: () => {}, configurable: true }); } catch (e) {}
+                    }
+                    if (!window._bcCanvasAlphaPatched) {
+                        window._bcCanvasAlphaPatched = true;
+                        const origGetContext = HTMLCanvasElement.prototype.getContext;
+                        HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+                            if (type === '2d' && this.id === 'MainCanvas') {
+                                attrs = Object.assign({}, attrs, { alpha: false });
+                            }
+                            return origGetContext.call(this, type, attrs);
+                        };
+                    }
+                })();
+            """.trimIndent()
+            try {
+                WebViewCompat.addDocumentStartJavaScript(v, startScript, setOf("*"))
+            } catch (ignored: Exception) {
+            }
+        }
 
         val bridge = WebAppInterface(
             context = this,

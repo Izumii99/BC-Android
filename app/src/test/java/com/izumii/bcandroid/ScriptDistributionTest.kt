@@ -126,4 +126,20 @@ class ScriptDistributionTest {
         assertTrue("Must hook execCommand paste", content.contains("commandId.toLowerCase() === 'paste'"))
         assertTrue("Must dispatch paste ClipboardEvent on Ctrl+V", content.contains("new ClipboardEvent('paste'") && content.contains("KeyV"))
     }
+
+    @Test
+    fun desktopBridge_containsCanvasAlphaAndAdaptiveFramePacer() {
+        val possiblePaths = listOf(
+            File("app/src/main/assets/scripts/desktop_bridge.js"),
+            File("../app/src/main/assets/scripts/desktop_bridge.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("desktop_bridge.js must exist", file != null && file.exists())
+
+        val content = file?.readText() ?: ""
+        assertTrue("Must hook getContext with alpha: false for MainCanvas", content.contains("MainCanvas") && content.contains("alpha: false"))
+        assertTrue("Must define smart adaptive frame pacer", content.contains("setupMobileFramePacer"))
+        assertTrue("Must handle mobile touch events for frame pacing", content.contains("touchstart") && content.contains("touchmove"))
+        assertTrue("Must throttle to 30 FPS when idle >2s", content.contains("2000") && content.contains("30"))
+    }
 }
