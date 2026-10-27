@@ -34,7 +34,7 @@ class ConnectionKeeperService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
     companion object {
-        private const val CHANNEL_ID = "bc_connection_keeper"
+        private const val CHANNEL_ID = "bc_connection_keeper_silent"
         private const val NOTIFICATION_ID = 1001
 
         var onPulseListener: (() -> Unit)? = null
@@ -52,20 +52,23 @@ class ConnectionKeeperService : Service() {
 
             val isDiscreet = context.packageName.contains("discreet")
             val baseTitle = if (isDiscreet) "BC" else "Bondage Club"
-            val title = if (unreadCount > 0) "$baseTitle ($unreadCount)" else baseTitle
+            val title = if (unreadCount > 0) "$baseTitle ($unreadCount)" else ""
             val text = if (unreadCount > 0) {
                 if (isDiscreet) "$unreadCount new message${if (unreadCount > 1) "s" else ""}" else "$unreadCount new chat message${if (unreadCount > 1) "s" else ""}"
             } else {
-                if (isDiscreet) "Active session" else "Active room session running in background"
+                ""
             }
             val icon = if (isDiscreet) R.drawable.ic_transparent else R.drawable.ic_rope_logo
 
             return NotificationCompat.Builder(context, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
+                .apply {
+                    if (title.isNotEmpty()) setContentTitle(title)
+                    if (text.isNotEmpty()) setContentText(text)
+                }
                 .setSmallIcon(icon)
                 .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
                 .setSilent(true)
                 .setContentIntent(pendingIntent)
                 .apply {
@@ -154,15 +157,21 @@ class ConnectionKeeperService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            try {
+                manager?.deleteNotificationChannel("bc_connection_keeper")
+            } catch (ignored: Exception) {
+            }
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Room Session Keep-Alive",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_MIN
             ).apply {
-                description = "Maintains room connection while the app is in the background"
+                description = "Silent background keep-alive for active room connections"
                 setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
-            val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
     }

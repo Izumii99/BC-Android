@@ -89,6 +89,9 @@ class MainActivity : AppCompatActivity() {
             currentLoadedUrl = targetUrl
             webView?.loadUrl(targetUrl)
 
+            // Show post-update changelog dialog if the app was updated
+            checkPostUpdateChangelog()
+
             // Interactive update checker for newer APK releases
             val updateInfo = VersionDetector.checkForAppUpdate(BuildConfig.VERSION_NAME, BuildConfig.FLAVOR)
             if (updateInfo.hasUpdate) {
@@ -514,12 +517,64 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    private fun checkPostUpdateChangelog() {
+        val prefs = getSharedPreferences("BCVersionPrefs", MODE_PRIVATE)
+        val lastSeen = prefs.getString("last_seen_app_version", null)
+        val currentVersion = BuildConfig.VERSION_NAME
+
+        if (lastSeen != null && VersionDetector.isNewerVersion(currentVersion, lastSeen)) {
+            showChangelogDialog(currentVersion)
+        }
+        prefs.edit().putString("last_seen_app_version", currentVersion).apply()
+    }
+
+    private fun showChangelogDialog(version: String) {
+        val isDiscreet = packageName.contains("discreet")
+        val title = if (isDiscreet) "What's New (v$version)" else "What's New in Bondage Club (v$version)"
+        val notes = """
+• 24/7 Socket Keep-Alive: Full hardware WifiLock and CPU WakeLock guard keep active room connections alive 24/7.
+• Deep Doze Exemption: Automatically prevents Android battery managers from freezing background room sessions.
+• Background Auto-Relogin: Reconnects seamlessly in background without requiring manual screen unlock.
+• Silent & Seamless Session: Completely silenced background notifications to keep your status bar clean.
+• Ultra-Low Power Profile: Minimizes CPU and GPU power draw with 0.25 FPS throttling while minimized.
+• Interactive Update Changelog: In-app release notes now automatically pop up after every update.
+        """.trimIndent()
+
+        val messageView = android.widget.TextView(this).apply {
+            text = notes
+            setPadding(60, 40, 60, 20)
+            textSize = 14f
+            setTextColor(Color.parseColor("#E0E0E0"))
+            setLineSpacing(6f, 1.2f)
+        }
+
+        val scrollView = android.widget.ScrollView(this).apply {
+            addView(messageView)
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(scrollView)
+            .setPositiveButton("Got It!", null)
+            .show()
+    }
+
     private fun showUpdateDialog(updateInfo: VersionDetector.AppReleaseInfo) {
         val hasDirectApk = !updateInfo.apkDownloadUrl.isNullOrEmpty()
-        val message = if (hasDirectApk) {
-            "A new version of BC Android (${updateInfo.latestTag}) is available. Would you like to download and install it now?"
+        val baseMsg = if (hasDirectApk) {
+            "A new version of BC Android (${updateInfo.latestTag}) is available."
         } else {
             "A new version of BC Android (${updateInfo.latestTag}) is available. Would you like to view the release page?"
+        }
+
+        val message = if (updateInfo.releaseNotes.isNotBlank()) {
+            val lines = updateInfo.releaseNotes.lines()
+                .filter { it.startsWith("-") || it.startsWith("•") || it.startsWith("*") }
+                .take(4)
+                .joinToString("\n")
+            if (lines.isNotBlank()) "$baseMsg\n\nHighlights:\n$lines" else baseMsg
+        } else {
+            baseMsg
         }
 
         val builder = androidx.appcompat.app.AlertDialog.Builder(this)

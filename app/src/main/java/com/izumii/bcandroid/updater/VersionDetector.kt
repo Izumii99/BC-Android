@@ -225,7 +225,8 @@ object VersionDetector {
         val latestTag: String,
         val downloadUrl: String,
         val apkDownloadUrl: String? = null,
-        val apkSize: Long = 0L
+        val apkSize: Long = 0L,
+        val releaseNotes: String = ""
     )
 
     fun parseApkAssetUrl(json: JSONObject, flavor: String = ""): Pair<String?, Long> {
@@ -273,10 +274,11 @@ object VersionDetector {
 
                 val tagName = json.optString("tag_name", "")
                 val htmlUrl = json.optString("html_url", "https://github.com/$GITHUB_REPO/releases/latest")
+                val releaseNotes = json.optString("body", "")
                 val (apkUrl, apkSize) = parseApkAssetUrl(json, flavor)
 
                 if (tagName.isNotEmpty() && isNewerVersion(tagName, currentVersion)) {
-                    return@withContext AppReleaseInfo(true, tagName, htmlUrl, apkUrl, apkSize)
+                    return@withContext AppReleaseInfo(true, tagName, htmlUrl, apkUrl, apkSize, releaseNotes)
                 }
             }
         } catch (ignored: Exception) {

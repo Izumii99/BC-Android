@@ -2,10 +2,11 @@
 
 - **Battery & Deep Doze Exemption:** Added an automatic one-time system battery optimization prompt (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), preventing Android Deep Doze and OEM background managers (HyperOS/MIUI, OneUI, ColorOS) from severing network sockets after 60 minutes.
 - **Continuous 24/7 Socket Keep-Alive:** Implemented full hardware `WifiLock` (preventing Wi-Fi chip DTIM power-saving drops) and tuned the CPU WakeLock guard to 1.2 seconds, ensuring cellular 4G/5G radio transitions have sufficient time to transmit packets before the device sleeps.
+- **Seamless Silent Background Session:** Completely silenced the background keep-alive notification and eliminated status bar clutter ("BC session is active" / "Active room session running in background"), maintaining a clean, distraction-free notification shade.
+- **Interactive Post-Update Changelog:** The app now automatically displays an in-app "What's New" release notes dialog after updating so players immediately see new features and changes.
 - **Background Auto-Relogin:** Unblocked and exposed automatic relogin handlers in the background, enabling the client to automatically reconnect and re-enter rooms without requiring manual screen unlocking.
 - **Socket.IO Protocol Compliance:** Upgraded keep-alive pulses to utilize native `sendPacket('ping')` frames, ensuring full compatibility with Socket.IO v4 servers without sending malformed event packets.
 - **Ultra-Low Background Power Profile:** Throttled the game tick loop to 0.25 FPS (4-second intervals), froze active chat log DOM styling via `content-visibility: hidden`, and deactivated canvas compositing to eliminate GPU and CPU overhead while minimized.
-- **Silent Debounced Notifications:** Batched chat message counter updates with a 10-second debounce window and low-priority silent delivery, preventing system notification interruptions and audio hardware wakeups.
 
 ### How to Keep the App Connected in Background:
 
