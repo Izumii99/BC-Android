@@ -17,8 +17,7 @@ object MemoryOptimizer {
         "document.hasFocus=function(){return !window._bcIsBackground&&_origHasFocus();};" +
         "}" +
         "const _attachDrawHook=()=>{" +
-        "if(window.__bcDrawHooked)return true;" +
-        "if(typeof window.DrawProcess!=='function')return false;" +
+        "if(!window.__bcDrawHooked&&typeof window.DrawProcess==='function'){" +
         "window.__bcDrawHooked=true;" +
         "const _origDraw=window.DrawProcess;" +
         "let _lastBgDrawTime=0;" +
@@ -31,6 +30,27 @@ object MemoryOptimizer {
         "}" +
         "return _origDraw.apply(this,args);" +
         "};" +
+        "}" +
+        "if(!window.__bcLoadCanvasHooked&&typeof window.CharacterLoadCanvas==='function'){" +
+        "window.__bcLoadCanvasHooked=true;" +
+        "const _origLoad=window.CharacterLoadCanvas;" +
+        "window.CharacterLoadCanvas=function(C){" +
+        "if(window._bcIsMinimized||window._bcIsBackground){" +
+        "if(C)C._bcPendingCanvasBuild=true;" +
+        "return;" +
+        "}" +
+        "if(C&&C!==window.Player&&C!==window.CurrentCharacter&&C.Canvas&&C.CanvasBlink&&window.CurrentScreen==='ChatRoom'){" +
+        "const now=performance.now();" +
+        "const elapsed=now-(C._bcLastCanvasBuild||0);" +
+        "if(elapsed<150){" +
+        "if(!C._bcBuildTimer){C._bcBuildTimer=setTimeout(()=>{C._bcBuildTimer=null;if(typeof window.CharacterLoadCanvas==='function')window.CharacterLoadCanvas(C);},150-elapsed);}" +
+        "return;" +
+        "}" +
+        "C._bcLastCanvasBuild=now;" +
+        "}" +
+        "return _origLoad.apply(this,arguments);" +
+        "};" +
+        "}" +
         "if(!window.__bcBuildCanvasHooked&&typeof window.CharacterAppearanceBuildCanvas==='function'){" +
         "window.__bcBuildCanvasHooked=true;" +
         "const _origBuild=window.CharacterAppearanceBuildCanvas;" +
@@ -42,7 +62,7 @@ object MemoryOptimizer {
         "return _origBuild.apply(this,arguments);" +
         "};" +
         "}" +
-        "return true;" +
+        "return Boolean(window.__bcDrawHooked&&window.__bcLoadCanvasHooked&&window.__bcBuildCanvasHooked);" +
         "};" +
         "if(!_attachDrawHook()&&!window._bcDrawHookTimer){" +
         "window._bcDrawHookTimer=setInterval(()=>{" +
@@ -78,13 +98,16 @@ object MemoryOptimizer {
         "window.requestAnimationFrame=window._bcOrigRAF;" +
         "window._bcOrigRAF=null;" +
         "}" +
+        "const now=typeof window.CommonTime==='function'?window.CommonTime():Date.now();if(window.DrawImageCache)window.DrawImageCache.lastPurge=now;if(window.GLDrawImageCache)window.GLDrawImageCache.lastPurge=now;" +
         "const chars=(Array.isArray(window.ChatRoomCharacter)?window.ChatRoomCharacter.slice():[]);" +
         "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);" +
         "for(let i=0;i<chars.length;i++){" +
         "const c=chars[i];" +
         "if(c&&c._bcPendingCanvasBuild){" +
         "delete c._bcPendingCanvasBuild;" +
-        "if(typeof window.CharacterAppearanceBuildCanvas==='function'){" +
+        "if(typeof window.CharacterLoadCanvas==='function'){" +
+        "try{window.CharacterLoadCanvas(c);}catch(e){}" +
+        "}else if(typeof window.CharacterAppearanceBuildCanvas==='function'){" +
         "try{window.CharacterAppearanceBuildCanvas(c);}catch(e){}" +
         "}" +
         "}" +

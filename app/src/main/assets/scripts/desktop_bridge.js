@@ -446,7 +446,7 @@
 
     // Safe VRAM & texture optimization via BC's native ImageCache
     (function setupSafeVramOptimization() {
-        const NORMAL_PURGE_DELAY = 3 * 60 * 1000;
+        const NORMAL_PURGE_DELAY = 6 * 60 * 1000;
         const WARDROBE_PURGE_DELAY = 90 * 1000;
 
         function applyPurgeDelay() {
@@ -460,6 +460,10 @@
         function cleanUpDepartedCharacter(targetChar) {
             if (!targetChar || targetChar === window.Player || (targetChar.IsPlayer && targetChar.IsPlayer())) return;
             try {
+                if (targetChar._bcBuildTimer) {
+                    clearTimeout(targetChar._bcBuildTimer);
+                    targetChar._bcBuildTimer = null;
+                }
                 const memberNum = targetChar.MemberNumber;
                 if (window.CurrentCharacter === targetChar) {
                     if (typeof window.DialogLeave === 'function') {
@@ -537,6 +541,28 @@
                 if (window._bcIsBackground) return;
                 attachRoomHooks();
                 applyPurgeDelay();
+                const chars = [];
+                if (window.Player) chars.push(window.Player);
+                if (window.CurrentCharacter && window.CurrentCharacter !== window.Player) chars.push(window.CurrentCharacter);
+                if (Array.isArray(window.ChatRoomCharacter)) {
+                    for (let i = 0; i < window.ChatRoomCharacter.length; i++) {
+                        if (window.ChatRoomCharacter[i]) chars.push(window.ChatRoomCharacter[i]);
+                    }
+                }
+                const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
+                const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
+                const glMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
+                for (let i = 0; i < chars.length; i++) {
+                    const drawn = chars[i] && chars[i].DrawnAssets;
+                    if (drawn && typeof drawn.forEach === 'function') {
+                        drawn.forEach(url => {
+                            const dImg = drawMap && typeof drawMap.get === 'function' ? drawMap.get(url) : null;
+                            if (dImg) dImg.lastUsed = now;
+                            const gImg = glMap && typeof glMap.get === 'function' ? glMap.get(url) : null;
+                            if (gImg) gImg.lastUsed = now;
+                        });
+                    }
+                }
 
                 // Scavenger: remove any orphaned ghost characters in window.Character who are not in the room
                 if (Array.isArray(window.Character)) {
@@ -595,10 +621,10 @@
                             if (window._bcIsBackground) return;
                             if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') return;
                             if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
-                                window.GLDrawImageCache.purge(true);
+                                window.GLDrawImageCache.purge(false);
                             }
                             if (typeof window.DrawImageCache !== 'undefined' && window.DrawImageCache && typeof window.DrawImageCache.purge === 'function') {
-                                window.DrawImageCache.purge(true);
+                                window.DrawImageCache.purge(false);
                             }
                             if (typeof window.gc === 'function') {
                                 try { window.gc(); } catch (e) {}
