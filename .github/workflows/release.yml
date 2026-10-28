@@ -8,9 +8,9 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 2.0.2)'
+        description: 'Release version / tag (e.g., 2.0.5)'
         required: false
-        default: '2.0.2'
+        default: '2.0.5'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
@@ -80,7 +80,7 @@ jobs:
           else
             REF_TAG=""
           fi
-          VER="${INPUT_VER:-${REF_TAG:-2.0.1}}"
+          VER="${INPUT_VER:-${REF_TAG:-2.0.5}}"
 
           TITLE="${INPUT_TITLE:-Unobtrusive Startup, Native Canvas & Background Optimization}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"

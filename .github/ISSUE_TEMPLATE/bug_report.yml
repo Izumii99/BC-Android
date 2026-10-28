@@ -21,8 +21,8 @@ body:
     id: version
     attributes:
       label: App Version
-      description: What version are you using (e.g. v1.0)?
-      placeholder: v1.0
+      description: What version are you using (e.g. v2.0.5)?
+      placeholder: v2.0.5
     validations:
       required: true
   - type: dropdown
