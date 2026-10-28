@@ -31,6 +31,17 @@ object MemoryOptimizer {
         "}" +
         "return _origDraw.apply(this,args);" +
         "};" +
+        "if(!window.__bcBuildCanvasHooked&&typeof window.CharacterAppearanceBuildCanvas==='function'){" +
+        "window.__bcBuildCanvasHooked=true;" +
+        "const _origBuild=window.CharacterAppearanceBuildCanvas;" +
+        "window.CharacterAppearanceBuildCanvas=function(C){" +
+        "if(window._bcIsMinimized||window._bcIsBackground){" +
+        "if(C)C._bcPendingCanvasBuild=true;" +
+        "return;" +
+        "}" +
+        "return _origBuild.apply(this,arguments);" +
+        "};" +
+        "}" +
         "return true;" +
         "};" +
         "if(!_attachDrawHook()&&!window._bcDrawHookTimer){" +
@@ -66,6 +77,17 @@ object MemoryOptimizer {
         "if(window._bcOrigRAF){" +
         "window.requestAnimationFrame=window._bcOrigRAF;" +
         "window._bcOrigRAF=null;" +
+        "}" +
+        "const chars=(Array.isArray(window.ChatRoomCharacter)?window.ChatRoomCharacter.slice():[]);" +
+        "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);" +
+        "for(let i=0;i<chars.length;i++){" +
+        "const c=chars[i];" +
+        "if(c&&c._bcPendingCanvasBuild){" +
+        "delete c._bcPendingCanvasBuild;" +
+        "if(typeof window.CharacterAppearanceBuildCanvas==='function'){" +
+        "try{window.CharacterAppearanceBuildCanvas(c);}catch(e){}" +
+        "}" +
+        "}" +
         "}" +
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='';" +

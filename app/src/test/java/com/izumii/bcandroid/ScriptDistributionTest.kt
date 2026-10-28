@@ -156,6 +156,7 @@ class ScriptDistributionTest {
         assertTrue("Must watch and auto-attach hook during background/pop-up boot without leaking timers", content.contains("_attachDrawHook") && content.contains("_bcDrawHookTimer"))
         assertTrue("Must support 15 FPS split-screen background throttling", content.contains("_lastBgDrawTime") && content.contains("<66"))
         assertTrue("Must support complete 0 FPS minimization guard", content.contains("window._bcIsMinimized"))
+        assertTrue("Must defer CharacterAppearanceBuildCanvas during background and stopped states", content.contains("__bcBuildCanvasHooked") && content.contains("_bcPendingCanvasBuild"))
         assertTrue("Must enforce GC cooldown", content.contains("_bcLastGc") && content.contains("60000"))
     }
 }

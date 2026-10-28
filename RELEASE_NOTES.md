@@ -1,5 +1,6 @@
 ### Fixes & Improvements:
 
+- **Procedural Canvas Deferral:** Deferred heavy multi-layer character canvas recomposition (`CharacterAppearanceBuildCanvas`) while in split-screen background or stopped states, eliminating CPU and battery spikes caused by continuous mod animations (e.g., tail wagging) and automatic room activities.
 - **Seamless Multi-Window & Floating Pop-Up Experience:** Both accounts in split-screen or floating pop-up windows now remain fully visible and responsive. The inactive window automatically throttles to ~15 FPS upon launch without blacking out the canvas or hiding chat logs, allowing players to read messages and observe rooms on both accounts simultaneously with minimal battery drain.
 - **Zero-Drain True Background Minimization:** When the app is minimized to the home screen or the device is locked, game rendering is completely paused (0 FPS) and canvas resources are cleared, eliminating background CPU and GPU power drain.
 - **Addon Stability & Hook Protection:** Reinforced the game rendering pipeline to prevent third-party mods and visual addons from losing their hooks during app switching, split-screen transitions, or window resizing.
