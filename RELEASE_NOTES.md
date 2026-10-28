@@ -1,16 +1,10 @@
 ### Fixes & Improvements:
 
-- **Procedural Canvas Deferral:** Deferred heavy multi-layer character canvas recomposition (`CharacterAppearanceBuildCanvas`) while in split-screen background or stopped states, eliminating CPU and battery spikes caused by continuous mod animations (e.g., tail wagging) and automatic room activities.
-- **Seamless Multi-Window & Floating Pop-Up Experience:** Both accounts in split-screen or floating pop-up windows now remain fully visible and responsive. The inactive window automatically throttles to ~15 FPS upon launch without blacking out the canvas or hiding chat logs, allowing players to read messages and observe rooms on both accounts simultaneously with minimal battery drain.
-- **Zero-Drain True Background Minimization:** When the app is minimized to the home screen or the device is locked, game rendering is completely paused (0 FPS) and canvas resources are cleared, eliminating background CPU and GPU power drain.
-- **Addon Stability & Hook Protection:** Reinforced the game rendering pipeline to prevent third-party mods and visual addons from losing their hooks during app switching, split-screen transitions, or window resizing.
-- **Unfocused Resource Optimization:** Window focus is properly isolated during multi-window play, allowing background canvas animations and addon tick loops to sleep smoothly when an account is not actively being touched.
-- **Garbage Collection Throttling:** Regulated internal memory cleanup cycles to prevent micro-stutters during rapid multitasking and app-switching.
-- **Streamlined Startup:** Removed automatic system battery optimization prompts on launch so players can jump straight into rooms without unnecessary dialogs.
-- **24/7 Persistent Socket Keep-Alive:** Enhanced Wi-Fi and mobile data radio management, preventing socket dropouts when switching between Wi-Fi and cellular networks or during prolonged background idling.
-- **Silent Background Session:** Eliminated status bar notification clutter for background keep-alive, keeping your notification shade clean and distraction-free.
-- **Portrait Layout Compatibility:** Synchronized rendering buffers to ensure smooth performance with portrait-mode UI mods (such as BC-LCE) and wardrobe asset loading.
-- **In-App What's New Dialog:** Players are now automatically presented with the latest release notes directly inside the app after updating.
+- **Battery & Background Optimization:** Visual rendering and heavy canvas updates now pause cleanly whenever the app is minimized or the device is locked, eliminating background battery and CPU drain while keeping multiplayer room connections fully alive.
+- **Smart Texture & Memory Lifecycle:** Safeguarded active room character textures against reload pauses and flickering, and tuned cache cleanups so memory from departed characters is swiftly freed without visual hitches.
+- **Enhanced Split-Screen & Pop-Up Play:** Inactive split-screen windows now throttle rendering smoothly to conserve power while keeping chat and room characters visible and responsive.
+- **Addon Stability & Visual Sync:** Hardened mod hook protection during app transitions and prevented background animation timers from running while unfocused.
+- **Persistent Network Keep-Alive:** Maintained robust Wi-Fi and mobile data socket continuity to prevent accidental room disconnections during app switching.
 
 ### How to Keep the App Connected in Background:
 
@@ -23,4 +17,3 @@ For the best background room experience without Android terminating your connect
 
 - **BC-Android-Standard-Release.apk (~0.95MB):** Official client package with full app icon and branding.
 - **BC-Android-Discreet-Release.apk (~0.95MB):** Stealth build featuring minimal "BC" app name and completely transparent icon for discrete homescreen placement.
-
