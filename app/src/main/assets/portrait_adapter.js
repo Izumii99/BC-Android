@@ -103,6 +103,14 @@
             font-size: 16px !important; /* Prevents auto-zoom on iOS/Android WebViews */
         }
 
+        /* Lightweight theme chat log virtualization: skips off-screen message layout & paint */
+        #TextAreaChatLog > .ChatMessage,
+        #TextAreaChatLog > div {
+            content-visibility: auto;
+            contain-intrinsic-size: auto 42px;
+            contain: layout style paint;
+        }
+
         /* Suppress redundant fullscreen button overlay on Android zero-bar immersive display */
         #bc-fullscreen-button,
         .bc-fullscreen-button,
@@ -179,6 +187,7 @@
     }
 
     // 3. Dynamic layout observer and canvas scaler (centers in portrait and landscape)
+    let lastLayoutSig = '';
     function adjustCanvasLayout() {
         if (window._bcIsBackground) return;
         const portraitActive = isExternalPortraitActive();
@@ -186,6 +195,15 @@
 
         const canvas = document.getElementById('MainCanvas');
         if (!canvas) return;
+
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const isLceCr = Boolean(portraitActive && (document.getElementById('lce-v-cr') || (window.Liko?.LCE?.Vertical?.getState?.()?.mode === 'chatroom')));
+        const sig = `${vw}x${vh}:${portraitActive ? 1 : 0}:${isLceCr ? 1 : 0}`;
+        if (sig === lastLayoutSig && (portraitActive ? !canvas.dataset.bcAdapterActive : canvas.dataset.bcAdapterActive === 'true')) {
+            return;
+        }
+        lastLayoutSig = sig;
 
         // Never restrict width with max-width: it breaks portrait addons that use 2000px canvas with clip-path
         canvas.style.removeProperty('max-width');
@@ -200,11 +218,7 @@
             canvas.style.removeProperty('object-fit');
 
             // If BC-LCE vertical chatroom is active, guarantee responsive edge-to-edge scaling
-            const isLceCr = document.getElementById('lce-v-cr') || (window.Liko?.LCE?.Vertical?.getState?.()?.mode === 'chatroom');
             if (isLceCr) {
-                const vw = window.innerWidth;
-                const vh = window.innerHeight;
-
                 // When in portrait orientation (fullscreen phone or tall floating window):
                 // Ensure the 1:1 character canvas dynamically expands to 100% width (no side black bars/pillarboxing),
                 // while preserving at least minChatH for the chatroom controls and log below.
@@ -215,7 +229,6 @@
                 } else {
                     charSize = Math.min(vw, Math.round(vh * 0.5));
                 }
-
 
                 const scale = charSize / 1000;
                 const width = Math.round(2000 * scale);
@@ -262,8 +275,8 @@
         canvas.style.setProperty('display', 'block', 'important');
         canvas.style.setProperty('object-fit', 'contain', 'important');
 
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
+        const screenWidth = vw;
+        const screenHeight = vh;
         const nativeAspect = 2.0; // Bondage Club native 2:1 aspect ratio
 
         let targetWidth, targetHeight;
@@ -290,11 +303,14 @@
     // 4. Intercept and adapt desktop-proportioned banners, alerts, and recovery prompts
     function adaptPromptDialogs() {
         if (window._bcIsBackground) return;
-        const candidates = document.querySelectorAll(
-            'body > div, body > table, div[style*="fixed"], div[style*="absolute"], div[class*="dialog"], div[class*="modal"]'
-        );
+        if (window.CurrentScreen && window.CurrentScreen !== 'Login') return;
+        const candidates = document.querySelectorAll('body > div, body > table');
         candidates.forEach(function(el) {
-            if (el.id === 'MainCanvas' || el.id === 'chat-room-div' || el.id === 'chat-room-main' || el.id === 'bc-android-portrait-style') return;
+            if (el._bcPromptChecked) return;
+            if (el.id === 'MainCanvas' || el.id === 'chat-room-div' || el.id === 'chat-room-main' || el.id === 'bc-android-portrait-style') {
+                el._bcPromptChecked = true;
+                return;
+            }
 
             const text = (el.textContent || '').trim();
             const isErrorOrSkipPrompt = text.includes('skip loading addons') ||
@@ -302,6 +318,7 @@
                 (text.includes('Previous session') && text.includes('error'));
 
             if (isErrorOrSkipPrompt) {
+                el._bcPromptChecked = true;
                 el.style.setProperty('position', 'fixed', 'important');
                 el.style.setProperty('top', '24px', 'important');
                 el.style.setProperty('left', '0', 'important');
@@ -390,18 +407,26 @@
         });
     }
 
-    // Watch for dynamic DOM modals, error alerts, and addon style injections
-    const domObserver = new MutationObserver(function() {
-        scheduleLayoutUpdate();
+    // Watch for top-level DOM changes (ignoring high-frequency chat log mutations)
+    const domObserver = new MutationObserver(function(mutations) {
+        if (window._bcIsBackground) return;
+        let relevant = false;
+        for (let i = 0; i < mutations.length; i++) {
+            const t = mutations[i].target;
+            if (!t || t.id === 'TextAreaChatLog' || t.id === 'bcn-soft-paws') continue;
+            relevant = true;
+            break;
+        }
+        if (relevant) scheduleLayoutUpdate();
     });
 
     let safetyInterval = null;
 
     function startForegroundWatchers() {
-        const targetNode = document.documentElement || document.body;
+        const targetNode = document.body || document.documentElement;
         if (targetNode) {
             try {
-                domObserver.observe(targetNode, { childList: true, subtree: true });
+                domObserver.observe(targetNode, { childList: true });
             } catch (e) {}
         }
         if (!safetyInterval) {
@@ -409,7 +434,7 @@
                 if (window._bcIsBackground) return;
                 adjustCanvasLayout();
                 adaptPromptDialogs();
-            }, 2500);
+            }, 4000);
         }
     }
 
@@ -425,6 +450,7 @@
         if (e.detail && e.detail.background) {
             stopForegroundWatchers();
         } else {
+            lastLayoutSig = '';
             startForegroundWatchers();
             scheduleLayoutUpdate();
         }

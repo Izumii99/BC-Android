@@ -1,7 +1,9 @@
 ### Fixes & Improvements:
 
-- **Performance (Fix R133 ImageCache Per-Frame Error Allocations):** Integrated a fast-path cache guard for Bondage Club R133's image cache engine (`ImageCache.prototype.get`), eliminating over 1,500 redundant `new Error()` stack-trace captures and Promise allocations per second on already-cached assets during 2D canvas drawing.
-- **Performance (Fix R133 Top Menu DOM Attribute Thrashing):** Bypassed redundant `img.src` attribute writes in `ElementButton.SetImage` during per-frame chatroom top-menu visual sync (`ChatRoomTopMenuSync`), preventing WebView Chromium Blink from re-parsing identical icon URLs and allocating Oilpan/CppGC objects 480 times per second.
+- **Adaptive Foreground Low-Power Mode (30/15 FPS):** Automatically paces canvas rendering to 30 FPS during active touch or dialog interactions and steps down to 15 FPS while reading or typing chat, significantly lowering battery consumption and device temperature while the app is open.
+- **Lightweight Theme Chat Virtualization & DOM Optimization:** Added CSS chat log virtualization (`content-visibility: auto`) and eliminated redundant layout recalculations during active room conversations so the default lightweight theme stays fast and power-efficient.
+- **Hardened Energy Saver Background Keep-Alive:** Upgraded background connectivity with persistent high-performance Wi-Fi locks, instant network-switch socket recovery, and zero-reflow background chat buffering so accounts stay connected in online rooms even when Android's "Energy Saver (Recommended)" mode is active.
+- **Login Screen Notification Control (Off by Default):** System notifications, unread status bar badges, and vibrations are now completely disabled by default without startup permission prompts, with a dedicated Notification Settings button in the bottom-left corner of the Login screen to toggle alerts ON or OFF at any time.
 
 ### How to Keep the App Connected in Background:
 

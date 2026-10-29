@@ -72,8 +72,8 @@ class MainActivity : AppCompatActivity() {
 
         rootContainer = findViewById(R.id.rootContainer)
 
-        // Request runtime notification permission on Android 13+ (API 33+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Request runtime notification permission on Android 13+ only if user explicitly enabled notifications
+        if (ConnectionKeeperService.isNotificationsEnabled(this) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
             }
@@ -114,6 +114,9 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        window.attributes = window.attributes.apply {
+            preferredRefreshRate = 60f
         }
     }
 
@@ -216,6 +219,19 @@ class MainActivity : AppCompatActivity() {
                         wv.scrollTo(0, 0)
                     }
                 }
+            },
+            onNotificationStateChanged = { enabled ->
+                if (enabled) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) {
+                        requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+                    }
+                } else {
+                    lastBadgeCount = 0
+                    lastBadgeUpdateTime = 0L
+                    ConnectionKeeperService.updateBadgeCount(this@MainActivity, 0)
+                }
             }
         )
         v.addJavascriptInterface(bridge, "AndroidBridge")
@@ -279,7 +295,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onReceivedTitle(view: WebView?, title: String?) {
                 super.onReceivedTitle(view, title)
-                if (!isAppInForeground) {
+                if (!isAppInForeground && ConnectionKeeperService.isNotificationsEnabled(this@MainActivity)) {
                     val count = title?.let {
                         val match = Regex("""^\((\d+)\)""").find(it)
                         match?.groupValues?.get(1)?.toIntOrNull()
@@ -455,7 +471,7 @@ class MainActivity : AppCompatActivity() {
 
         // Seamless resume check: auto-restore if socket disconnected or dropped while backgrounded
         webView?.evaluateJavascript(
-            "(()=>{try{if(typeof window._bcCheckAutoRelog==='function'){window._bcCheckAutoRelog();}else if(window.CurrentScreen==='Relog'&&typeof window.RelogSend==='function'){window.RelogSend();}else if(window.ServerSocket&&!window.ServerSocket.connected&&typeof window.ServerInit==='function'){window.ServerInit();}}catch(e){}})();",
+            "(()=>{try{if(typeof window._bcCheckAutoRelog==='function'){window._bcCheckAutoRelog();}else if(window.CurrentScreen==='Relog'&&typeof window.RelogSend==='function'){window.RelogSend();}else if(window.ServerSocket&&!window.ServerSocket.connected){if(typeof window.ServerSocket.connect==='function')window.ServerSocket.connect();else if(typeof window.ServerInit==='function')window.ServerInit();}}catch(e){}})();",
             null
         )
     }
@@ -478,6 +494,8 @@ class MainActivity : AppCompatActivity() {
                                 if (window.ServerSocket.io && window.ServerSocket.io.engine && typeof window.ServerSocket.io.engine.sendPacket === 'function') {
                                     window.ServerSocket.io.engine.sendPacket('ping');
                                 }
+                            } else if (typeof window.ServerSocket.connect === 'function') {
+                                window.ServerSocket.connect();
                             } else if (typeof window.ServerInit === 'function') {
                                 window.ServerInit();
                             }

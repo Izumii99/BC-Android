@@ -157,6 +157,38 @@ class ScriptDistributionTest {
         assertTrue("Must support 15 FPS split-screen background throttling", content.contains("_lastBgDrawTime") && content.contains("<66"))
         assertTrue("Must support complete 0 FPS minimization guard", content.contains("window._bcIsMinimized"))
         assertTrue("Must defer CharacterLoadCanvas and CharacterAppearanceBuildCanvas during background and stopped states", content.contains("__bcLoadCanvasHooked") && content.contains("__bcBuildCanvasHooked") && content.contains("_bcPendingCanvasBuild"))
+        assertTrue("Must support adaptive foreground 30/15 FPS frame pacing", content.contains("_bcLastFgDrawTime") && content.contains("_bcLastInputTime") && content.contains("idle?66:32"))
+        assertTrue("Must guard ElementScrollToEnd against background DOM reflows", content.contains("__bcScrollHooked") && content.contains("_bcNeedsChatScroll"))
         assertTrue("Must enforce GC cooldown", content.contains("_bcLastGc") && content.contains("60000"))
+    }
+
+    @Test
+    fun desktopBridge_containsAdaptiveFramePacingAndLoginNotificationSettings() {
+        val possiblePaths = listOf(
+            File("app/src/main/assets/scripts/desktop_bridge.js"),
+            File("../app/src/main/assets/scripts/desktop_bridge.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("desktop_bridge.js must exist", file != null && file.exists())
+
+        val content = file?.readText() ?: ""
+        assertTrue("Must attach adaptive foreground frame pacing at startup", content.contains("setupAdaptiveFramePacing") && content.contains("_bcLastFgDrawTime"))
+        assertTrue("Must include Login screen notification settings UI", content.contains("setupNotificationSettingsUi") && content.contains("bc-notif-btn") && content.contains("bc-notif-modal"))
+        assertTrue("Must bridge notification state to AndroidBridge", content.contains("setNotificationsEnabled") && content.contains("BC_Notifications_Enabled"))
+        assertTrue("Must strict-check Login screen for notification button visibility", content.contains("window.CurrentScreen === 'Login'"))
+    }
+
+    @Test
+    fun portraitAdapter_containsChatVirtualizationAndDirtyCheck() {
+        val possiblePaths = listOf(
+            File("app/src/main/assets/portrait_adapter.js"),
+            File("../app/src/main/assets/portrait_adapter.js")
+        )
+        val file = possiblePaths.firstOrNull { it.exists() }
+        assertTrue("portrait_adapter.js must exist", file != null && file.exists())
+
+        val content = file?.readText() ?: ""
+        assertTrue("Must virtualize lightweight chat log messages", content.contains("content-visibility: auto"))
+        assertTrue("Must dirty-check layout signature before DOM style writes", content.contains("lastLayoutSig"))
     }
 }

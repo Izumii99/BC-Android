@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -30,16 +32,40 @@ class ConnectionKeeperService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var pulseJob: Job? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
     companion object {
         private const val CHANNEL_ID = "bc_connection_keeper_silent"
         private const val NOTIFICATION_ID = 1001
+        private const val PREFS_NAME = "BCVersionPrefs"
+        private const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
 
         var onPulseListener: (() -> Unit)? = null
 
+        fun isNotificationsEnabled(context: Context): Boolean {
+            return try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, false)
+            } catch (ignored: Exception) {
+                false
+            }
+        }
+
+        fun setNotificationsEnabled(context: Context, enabled: Boolean) {
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putBoolean(KEY_NOTIFICATIONS_ENABLED, enabled).apply()
+                if (!enabled) {
+                    updateBadgeCount(context, 0)
+                }
+            } catch (ignored: Exception) {
+            }
+        }
+
         fun buildNotification(context: Context, unreadCount: Int = 0): Notification {
+            val effectiveCount = if (isNotificationsEnabled(context)) unreadCount else 0
             val launchIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
@@ -52,13 +78,13 @@ class ConnectionKeeperService : Service() {
 
             val isDiscreet = context.packageName.contains("discreet")
             val baseTitle = if (isDiscreet) "BC" else "Bondage Club"
-            val title = if (unreadCount > 0) "$baseTitle ($unreadCount)" else "\u200B"
-            val text = if (unreadCount > 0) {
-                if (isDiscreet) "$unreadCount new message${if (unreadCount > 1) "s" else ""}" else "$unreadCount new chat message${if (unreadCount > 1) "s" else ""}"
+            val title = if (effectiveCount > 0) "$baseTitle ($effectiveCount)" else "\u200B"
+            val text = if (effectiveCount > 0) {
+                if (isDiscreet) "$effectiveCount new message${if (effectiveCount > 1) "s" else ""}" else "$effectiveCount new chat message${if (effectiveCount > 1) "s" else ""}"
             } else {
                 "\u200B"
             }
-            val icon = if (unreadCount > 0 && !isDiscreet) R.drawable.ic_rope_logo else R.drawable.ic_transparent
+            val icon = if (effectiveCount > 0 && !isDiscreet) R.drawable.ic_rope_logo else R.drawable.ic_transparent
 
             return NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)
@@ -70,12 +96,13 @@ class ConnectionKeeperService : Service() {
                 .setSilent(true)
                 .setContentIntent(pendingIntent)
                 .apply {
-                    if (unreadCount > 0) setNumber(unreadCount)
+                    if (effectiveCount > 0) setNumber(effectiveCount)
                 }
                 .build()
         }
 
         fun updateBadgeCount(context: Context, count: Int) {
+            if (count > 0 && !isNotificationsEnabled(context)) return
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
             try {
                 manager.notify(NOTIFICATION_ID, buildNotification(context, count))
@@ -112,15 +139,31 @@ class ConnectionKeeperService : Service() {
             setReferenceCounted(false)
         }
 
+        // ponytail: WIFI_MODE_FULL_HIGH_PERF stays active in background while allowing DTIM power save,
+        // whereas WIFI_MODE_FULL_LOW_LATENCY is ignored by Android 10+ when backgrounded and drains more battery.
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
-        val lockType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            android.net.wifi.WifiManager.WIFI_MODE_FULL_LOW_LATENCY
-        } else {
-            @Suppress("DEPRECATION")
-            android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF
-        }
+        @Suppress("DEPRECATION")
+        val lockType = android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF
         wifiLock = wifiManager?.createWifiLock(lockType, "BCAndroid:ConnectionKeeperWifiLock")?.apply {
             setReferenceCounted(false)
+        }
+
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val cb = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    serviceScope.launch {
+                        try {
+                            wakeLock?.acquire(600L)
+                            onPulseListener?.invoke()
+                        } catch (ignored: Exception) {
+                        }
+                    }
+                }
+            }
+            cm?.registerDefaultNetworkCallback(cb)
+            networkCallback = cb
+        } catch (ignored: Exception) {
         }
     }
 
@@ -139,14 +182,13 @@ class ConnectionKeeperService : Service() {
         } catch (ignored: Exception) {
         }
 
-        // Trigger active socket keepalive pulse every 28 seconds with a 1.2s pulse guard
-        // Allows cellular radio to transition from idle (RRC) and transmit TCP frames reliably
+        // Trigger active socket keepalive pulse every 28 seconds with a lightweight 600ms pulse guard
         pulseJob?.cancel()
         pulseJob = serviceScope.launch {
             while (isActive) {
                 delay(28_000L)
                 try {
-                    wakeLock?.acquire(1_200L)
+                    wakeLock?.acquire(600L)
                     onPulseListener?.invoke()
                 } catch (ignored: Exception) {
                 }
@@ -178,6 +220,12 @@ class ConnectionKeeperService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            networkCallback?.let { cm?.unregisterNetworkCallback(it) }
+        } catch (ignored: Exception) {
+        }
+        networkCallback = null
         try {
             pulseJob?.cancel()
             pulseJob = null

@@ -21,6 +21,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.MimeTypeMap
 import android.webkit.URLUtil
 import android.widget.Toast
+import com.izumii.bcandroid.service.ConnectionKeeperService
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLDecoder
@@ -28,7 +29,8 @@ import java.net.URLDecoder
 class WebAppInterface(
     private val context: Context,
     private val onOfflineAddonsRequested: (() -> Unit)? = null,
-    private val onZoomStateChanged: ((Boolean) -> Unit)? = null
+    private val onZoomStateChanged: ((Boolean) -> Unit)? = null,
+    private val onNotificationStateChanged: ((Boolean) -> Unit)? = null
 ) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -112,6 +114,19 @@ class WebAppInterface(
     fun setZoomEnabled(enabled: Boolean) {
         mainHandler.post {
             onZoomStateChanged?.invoke(enabled)
+        }
+    }
+
+    @JavascriptInterface
+    fun isNotificationsEnabled(): Boolean {
+        return ConnectionKeeperService.isNotificationsEnabled(context)
+    }
+
+    @JavascriptInterface
+    fun setNotificationsEnabled(enabled: Boolean) {
+        mainHandler.post {
+            ConnectionKeeperService.setNotificationsEnabled(context, enabled)
+            onNotificationStateChanged?.invoke(enabled)
         }
     }
 

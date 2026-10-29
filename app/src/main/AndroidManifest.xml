@@ -22,8 +22,6 @@
         android:largeHeap="true"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:appCategory="game"
-        android:isGame="true"
         android:theme="@style/Theme.BCAndroid.Fullscreen">
 
         <activity

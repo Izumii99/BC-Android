@@ -23,12 +23,24 @@ object MemoryOptimizer {
         "let _lastBgDrawTime=0;" +
         "window.DrawProcess=function(...args){" +
         "if(window._bcIsMinimized)return;" +
-        "if(window._bcIsBackground){" +
         "const now=performance.now();" +
+        "if(window._bcIsBackground){" +
         "if(now-_lastBgDrawTime<66)return;" +
         "_lastBgDrawTime=now;" +
+        "}else{" +
+        "const idle=(now-(window._bcLastInputTime||0))>2500&&!window.CurrentCharacter&&!(typeof window.StruggleProgress==='number'&&window.StruggleProgress>=0);" +
+        "if(now-(window._bcLastFgDrawTime||0)<(idle?66:32))return;" +
+        "window._bcLastFgDrawTime=now;" +
         "}" +
         "return _origDraw.apply(this,args);" +
+        "};" +
+        "}" +
+        "if(!window.__bcScrollHooked&&typeof window.ElementScrollToEnd==='function'){" +
+        "window.__bcScrollHooked=true;" +
+        "const _origScroll=window.ElementScrollToEnd;" +
+        "window.ElementScrollToEnd=function(id){" +
+        "if(window._bcIsMinimized){window._bcNeedsChatScroll=true;return;}" +
+        "return _origScroll.apply(this,arguments);" +
         "};" +
         "}" +
         "if(!window.__bcLoadCanvasHooked&&typeof window.CharacterLoadCanvas==='function'){" +
@@ -82,7 +94,7 @@ object MemoryOptimizer {
         "window.dispatchEvent(new CustomEvent('bc:visibility',{detail:{background:true,minimized:true}}));" +
         "if(!window._bcOrigRAF){" +
         "window._bcOrigRAF=window.requestAnimationFrame;" +
-        "window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(performance.now());},4000);};" +
+        "window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(performance.now());},10000);};" +
         "}" +
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='hidden';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='hidden';" +
@@ -93,6 +105,8 @@ object MemoryOptimizer {
         "(()=>{" +
         "window._bcIsBackground=false;" +
         "window._bcIsMinimized=false;" +
+        "window._bcLastInputTime=performance.now();" +
+        "window._bcLastFgDrawTime=0;" +
         "window.dispatchEvent(new CustomEvent('bc:visibility',{detail:{background:false,minimized:false}}));" +
         "if(window._bcOrigRAF){" +
         "window.requestAnimationFrame=window._bcOrigRAF;" +
@@ -115,6 +129,7 @@ object MemoryOptimizer {
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='';" +
         "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='';" +
+        "if(window._bcNeedsChatScroll){window._bcNeedsChatScroll=false;if(typeof window.ElementScrollToEnd==='function'){try{window.ElementScrollToEnd('TextAreaChatLog');}catch(e){}}}" +
         "})();"
 
     /**
