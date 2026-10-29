@@ -435,6 +435,12 @@
                 const _origHasFocus = document.hasFocus.bind(document);
                 document.hasFocus = function() { return !window._bcIsBackground && _origHasFocus(); };
             }
+            if (!window._bcRequestBgBurst) {
+                window._bcRequestBgBurst = function(ms) {
+                    const t = performance.now() + (ms || 2500);
+                    if (t > (window._bcBgBurstUntil || 0)) window._bcBgBurstUntil = t;
+                };
+            }
             if (!window.__bcDrawHooked && typeof window.DrawProcess === 'function') {
                 window.__bcDrawHooked = true;
                 const _origDraw = window.DrawProcess;
@@ -443,7 +449,8 @@
                     if (window._bcIsMinimized) return;
                     const now = performance.now();
                     if (window._bcIsBackground) {
-                        if (now - _lastBgDrawTime < 66) return;
+                        const isBurst = now < (window._bcBgBurstUntil || 0);
+                        if (isBurst ? (now - _lastBgDrawTime < 66) : (now - _lastBgDrawTime < 1000)) return;
                         _lastBgDrawTime = now;
                     } else {
                         const idle = (now - (window._bcLastInputTime || 0)) > 2500 &&
@@ -470,19 +477,21 @@
                 window.__bcLoadCanvasHooked = true;
                 const _origLoad = window.CharacterLoadCanvas;
                 window.CharacterLoadCanvas = function(C) {
-                    if (window._bcIsMinimized || window._bcIsBackground) {
+                    if (window._bcIsMinimized) {
                         if (C) C._bcPendingCanvasBuild = true;
                         return;
                     }
-                    if (C && C !== window.Player && C !== window.CurrentCharacter && C.Canvas && C.CanvasBlink && window.CurrentScreen === 'ChatRoom') {
+                    if (window._bcIsBackground && window._bcRequestBgBurst) window._bcRequestBgBurst(2500);
+                    if (C && C !== window.CurrentCharacter && C.Canvas && C.CanvasBlink && window.CurrentScreen === 'ChatRoom') {
+                        const minInterval = window._bcIsBackground ? 120 : (C === window.Player ? 16 : 32);
                         const now = performance.now();
                         const elapsed = now - (C._bcLastCanvasBuild || 0);
-                        if (elapsed < 150) {
+                        if (elapsed < minInterval) {
                             if (!C._bcBuildTimer) {
                                 C._bcBuildTimer = setTimeout(function() {
                                     C._bcBuildTimer = null;
                                     if (typeof window.CharacterLoadCanvas === 'function') window.CharacterLoadCanvas(C);
-                                }, 150 - elapsed);
+                                }, minInterval - elapsed);
                             }
                             return;
                         }
@@ -495,10 +504,11 @@
                 window.__bcBuildCanvasHooked = true;
                 const _origBuild = window.CharacterAppearanceBuildCanvas;
                 window.CharacterAppearanceBuildCanvas = function(C) {
-                    if (window._bcIsMinimized || window._bcIsBackground) {
+                    if (window._bcIsMinimized) {
                         if (C) C._bcPendingCanvasBuild = true;
                         return;
                     }
+                    if (window._bcIsBackground && window._bcRequestBgBurst) window._bcRequestBgBurst(2500);
                     return _origBuild.apply(this, arguments);
                 };
             }
@@ -981,6 +991,26 @@
                     return _origSetImage.apply(this, arguments);
                 };
             }
+            if (typeof window.ChatRoomMessage === 'function' && !window.__bcMsgBurstHooked) {
+                window.__bcMsgBurstHooked = true;
+                const _origMsg = window.ChatRoomMessage;
+                window.ChatRoomMessage = function(data) {
+                    if (window._bcIsBackground && !window._bcIsMinimized && window._bcRequestBgBurst) {
+                        window._bcRequestBgBurst(2500);
+                    }
+                    return _origMsg.apply(this, arguments);
+                };
+            }
+            if (typeof window.ServerSend === 'function' && !window.__bcSendBurstHooked) {
+                window.__bcSendBurstHooked = true;
+                const _origSend = window.ServerSend;
+                window.ServerSend = function(msg, data) {
+                    if (window._bcIsBackground && !window._bcIsMinimized && window._bcRequestBgBurst) {
+                        window._bcRequestBgBurst(2500);
+                    }
+                    return _origSend.apply(this, arguments);
+                };
+            }
         }
         attachRoomHooks();
 
@@ -991,7 +1021,7 @@
 
         function pruneVram() {
             try {
-                if (window._bcIsBackground) return;
+                if (window._bcIsMinimized) return;
                 attachRoomHooks();
                 applyPurgeDelay();
                 const chars = [];

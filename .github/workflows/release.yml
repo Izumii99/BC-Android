@@ -15,7 +15,7 @@ name: 'Build and Release APK'
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Adaptive Foreground Low-Power Mode, Energy Saver Keep-Alive & Login Notification Toggle'
+        default: 'Smart Background Render Burst, Character Pre-Loading & Animation Fluidity'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -82,7 +82,7 @@ jobs:
           fi
           VER="${INPUT_VER:-${REF_TAG:-2.0.6}}"
 
-          TITLE="${INPUT_TITLE:-Adaptive Foreground Low-Power Mode, Energy Saver Keep-Alive & Login Notification Toggle}"
+          TITLE="${INPUT_TITLE:-Smart Background Render Burst, Character Pre-Loading & Animation Fluidity}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"
