@@ -1,8 +1,10 @@
 ### Fixes & Improvements:
 
-- **Feature (Smart Split-Screen & Unfocused Character Pre-Loading):** Players joining or changing outfits in a room now load and build their character appearance while in split-screen or unfocused mode, ensuring characters are already visible without pop-in delays.
-- **Improvement (Activity-Aware Background Animation Burst):** Automatic and manual JSON-driven animations from `BCAR`, `BC-LCE`, and `BC-HSC` now wake the unfocused renderer into a temporary ~15 FPS burst only while active and automatically return to 1 FPS deep-idle mode afterward, preserving low RAM, CPU, and GPU usage with full anti-leak protection.
-- **Improvement (Smoother Foreground Animations):** Raised foreground character canvas animation responsiveness to 30+ FPS for fluid multi-slot expressions and poses.
+- **Adaptive Foreground Low-Power Mode (30/15 FPS):** Automatically paces canvas rendering to 30 FPS during active touch or dialog interactions and steps down to 15 FPS while reading or typing chat, significantly lowering battery consumption and device temperature while the app is open.
+- **Lightweight Theme Chat Virtualization & DOM Optimization:** Added CSS chat log virtualization (`content-visibility: auto`) and eliminated redundant layout recalculations during active room conversations so the default lightweight theme stays fast and power-efficient.
+- **Hardened Energy Saver Background Keep-Alive:** Upgraded background connectivity with persistent high-performance Wi-Fi locks, instant network-switch socket recovery, and zero-reflow background chat buffering so accounts stay connected in online rooms even when Android's "Energy Saver (Recommended)" mode is active.
+- **Login Screen Notification Control (Off by Default):** System notifications, unread status bar badges, and vibrations are now completely disabled by default without startup permission prompts, with a dedicated Notification Settings button in the bottom-left corner of the Login screen to toggle alerts ON or OFF at any time.
+- **Smart Split-Screen & Activity-Aware Background Burst:** Players joining or changing outfits in a room now pre-load character appearances in split-screen or unfocused mode, with activity-aware animation bursts (BCAR, BC-LCE, BC-HSC) that automatically return to a 1 FPS deep-idle state when quiet to preserve battery and memory.
 
 ### How to Keep the App Connected in Background:
 
