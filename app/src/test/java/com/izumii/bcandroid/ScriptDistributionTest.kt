@@ -160,6 +160,8 @@ class ScriptDistributionTest {
         assertTrue("Must support adaptive foreground 30/15 FPS frame pacing", content.contains("_bcLastFgDrawTime") && content.contains("_bcLastInputTime") && content.contains("idle?66:32"))
         assertTrue("Must guard ElementScrollToEnd against background DOM reflows", content.contains("__bcScrollHooked") && content.contains("_bcNeedsChatScroll"))
         assertTrue("Must enforce GC cooldown", content.contains("_bcLastGc") && content.contains("60000"))
+        assertTrue("Must flush queued RAF callbacks on resume so the render loop never stays stuck", content.contains("_bcRafQ") && content.contains("raf.call(window,e.cb)"))
+        assertTrue("Must recover a lost WebGL context on resume", content.contains("isContextLost") && content.contains("GLDrawResetCanvas"))
     }
 
     @Test

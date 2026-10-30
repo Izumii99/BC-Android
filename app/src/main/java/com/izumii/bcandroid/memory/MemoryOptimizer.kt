@@ -101,8 +101,10 @@ object MemoryOptimizer {
         "window.dispatchEvent(new CustomEvent('bc:visibility',{detail:{background:true,minimized:true}}));" +
         "if(!window._bcOrigRAF){" +
         "window._bcOrigRAF=window.requestAnimationFrame;" +
-        "window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(performance.now());},10000);};" +
+        "window._bcRafQ=new Map();" +
+        "window.requestAnimationFrame=function(cb){const q=window._bcRafQ;const id=-(q.size+1+Math.floor(Math.random()*1e6));const t=setTimeout(function(){q.delete(id);cb(performance.now());},10000);q.set(id,{t:t,cb:cb});return id;};" +
         "}" +
+        "try{const gl=typeof GLDrawCanvas!=='undefined'&&GLDrawCanvas&&(GLDrawCanvas.getContext('webgl2')||GLDrawCanvas.getContext('webgl'));if(gl&&!gl.isContextLost())window._bcLoseCtx=gl.getExtension('WEBGL_lose_context');}catch(e){}" +
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='hidden';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='hidden';" +
         "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='none';" +
@@ -116,9 +118,18 @@ object MemoryOptimizer {
         "window._bcLastFgDrawTime=0;" +
         "window.dispatchEvent(new CustomEvent('bc:visibility',{detail:{background:false,minimized:false}}));" +
         "if(window._bcOrigRAF){" +
-        "window.requestAnimationFrame=window._bcOrigRAF;" +
+        "const raf=window._bcOrigRAF;" +
+        "window.requestAnimationFrame=raf;" +
         "window._bcOrigRAF=null;" +
+        "const q=window._bcRafQ;window._bcRafQ=null;" +
+        "if(q)q.forEach(function(e){clearTimeout(e.t);raf.call(window,e.cb);});" +
         "}" +
+        "setTimeout(function(){try{" +
+        "const gl=typeof GLDrawCanvas!=='undefined'&&GLDrawCanvas&&(GLDrawCanvas.getContext('webgl2')||GLDrawCanvas.getContext('webgl'));" +
+        "if(!gl||!gl.isContextLost())return;" +
+        "if(window._bcLoseCtx){try{window._bcLoseCtx.restoreContext();}catch(e){}}" +
+        "setTimeout(function(){try{if(gl.isContextLost()&&typeof window.GLDrawResetCanvas==='function')window.GLDrawResetCanvas();}catch(e){}},2000);" +
+        "}catch(e){}},500);" +
         "const now=typeof window.CommonTime==='function'?window.CommonTime():Date.now();if(window.DrawImageCache)window.DrawImageCache.lastPurge=now;if(window.GLDrawImageCache)window.GLDrawImageCache.lastPurge=now;" +
         "const chars=(Array.isArray(window.ChatRoomCharacter)?window.ChatRoomCharacter.slice():[]);" +
         "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);" +
