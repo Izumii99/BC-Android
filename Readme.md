@@ -6,7 +6,6 @@
   <p>
     <a href="https://github.com/Izumii99/BC-Android/releases"><img src="https://img.shields.io/github/v/release/Izumii99/BC-Android?color=A855F7&style=for-the-badge&logo=github" alt="Latest Release" /></a>
     <a href="https://github.com/Izumii99/BC-Android/releases"><img src="https://img.shields.io/github/downloads/Izumii99/BC-Android/total?color=A855F7&style=for-the-badge&logo=github" alt="Total Downloads" /></a>
-    <a href="https://sociabuzz.com/izumi99/tribe" target="_blank"><img src="https://img.shields.io/badge/SociaBuzz-Support%20Me-48C02B?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Support on SociaBuzz" /></a>
   </p>
   <p>
     <img src="https://img.shields.io/badge/Android-8.0+_(API_26+)-brightgreen?logo=android" alt="Android 8.0+" />
@@ -19,6 +18,24 @@
 ---
 
 A minimal native Android wrapper for BC, built with **Kotlin** and **Android WebView**. Designed specifically to replace bloated mobile browsers by leveraging the OS-native WebKit engine with aggressive memory management, zero browser chrome, portrait-first canvas scaling, and continuous background session retention.
+
+---
+
+<div align="center">
+  <h3>☕ Support the Project / Traktir Kopi</h3>
+  <p>A little coffee fuels late-night coding sessions and keeps updates rolling! ✨</p>
+  <p>
+    <a href="https://sociabuzz.com/izumi99/tribe" target="_blank">
+      <img src="https://img.shields.io/badge/SociaBuzz-Treat_Warm_Coffee_><-48C02B?style=for-the-badge&logo=buymeacoffee&logoColor=white" height="36" alt="Treat Warm Coffee on SociaBuzz" />
+    </a>
+    &nbsp;
+    <a href="https://sociabuzz.com/izumi99/support" target="_blank">
+      <img src="https://img.shields.io/badge/Give_a_Tip-Direct_Support-22c55e?style=for-the-badge&logo=heart&logoColor=white" height="36" alt="Direct Support on SociaBuzz" />
+    </a>
+  </p>
+</div>
+
+---
 
 ## Features
 
