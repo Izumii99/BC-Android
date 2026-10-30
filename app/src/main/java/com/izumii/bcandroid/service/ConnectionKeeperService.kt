@@ -64,8 +64,24 @@ class ConnectionKeeperService : Service() {
             }
         }
 
+        private fun formatNotificationText(effectiveCount: Int, isDiscreet: Boolean): String {
+            if (effectiveCount <= 0) {
+                return "\u200B"
+            }
+            val suffix = if (effectiveCount > 1) "s" else ""
+            return if (isDiscreet) {
+                "$effectiveCount new message$suffix"
+            } else {
+                "$effectiveCount new chat message$suffix"
+            }
+        }
+
         fun buildNotification(context: Context, unreadCount: Int = 0): Notification {
-            val effectiveCount = if (isNotificationsEnabled(context)) unreadCount else 0
+            val effectiveCount = if (isNotificationsEnabled(context)) {
+                unreadCount
+            } else {
+                0
+            }
             val launchIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
@@ -79,11 +95,7 @@ class ConnectionKeeperService : Service() {
             val isDiscreet = context.packageName.contains("discreet")
             val baseTitle = if (isDiscreet) "BC" else "Bondage Club"
             val title = if (effectiveCount > 0) "$baseTitle ($effectiveCount)" else "\u200B"
-            val text = if (effectiveCount > 0) {
-                if (isDiscreet) "$effectiveCount new message${if (effectiveCount > 1) "s" else ""}" else "$effectiveCount new chat message${if (effectiveCount > 1) "s" else ""}"
-            } else {
-                "\u200B"
-            }
+            val text = formatNotificationText(effectiveCount, isDiscreet)
             val icon = if (effectiveCount > 0 && !isDiscreet) R.drawable.ic_rope_logo else R.drawable.ic_transparent
 
             return NotificationCompat.Builder(context, CHANNEL_ID)
@@ -96,13 +108,17 @@ class ConnectionKeeperService : Service() {
                 .setSilent(true)
                 .setContentIntent(pendingIntent)
                 .apply {
-                    if (effectiveCount > 0) setNumber(effectiveCount)
+                    if (effectiveCount > 0) {
+                        setNumber(effectiveCount)
+                    }
                 }
                 .build()
         }
 
         fun updateBadgeCount(context: Context, count: Int) {
-            if (count > 0 && !isNotificationsEnabled(context)) return
+            if (count > 0 && !isNotificationsEnabled(context)) {
+                return
+            }
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
             try {
                 manager.notify(NOTIFICATION_ID, buildNotification(context, count))

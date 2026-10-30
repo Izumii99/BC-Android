@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.RenderProcessGoneDetail
@@ -25,6 +24,7 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -72,13 +72,7 @@ class MainActivity : AppCompatActivity() {
 
         rootContainer = findViewById(R.id.rootContainer)
 
-        // Request runtime notification permission on Android 13+ only if user explicitly enabled notifications
-        if (ConnectionKeeperService.isNotificationsEnabled(this) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
-            }
-        }
-
+        checkNotificationPermissionOnStartup()
         setupImmersiveFullscreen()
         setupDoubleTapBackToExit()
         setupWebView()
@@ -86,6 +80,19 @@ class MainActivity : AppCompatActivity() {
         // Clean any leftover APK update files from previous sessions
         VersionDetector.cleanCachedApks(this)
 
+        initializeGameSession()
+    }
+
+    private fun checkNotificationPermissionOnStartup() {
+        if (!ConnectionKeeperService.isNotificationsEnabled(this) || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return
+        }
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+        }
+    }
+
+    private fun initializeGameSession() {
         // Asynchronously probe and detect the newest game release URL
         lifecycleScope.launch {
             val targetUrl = VersionDetector.detectLatestGameUrl(this@MainActivity)
@@ -102,7 +109,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
 
     private fun setupImmersiveFullscreen() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -123,25 +129,29 @@ class MainActivity : AppCompatActivity() {
     private fun setupDoubleTapBackToExit() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                val wv = webView
-                val currentUrl = wv?.url
-
-                // If currently viewing an external or non-game link, and can navigate back in history:
-                if (wv != null && wv.canGoBack() && !VersionDetector.isGameUrl(currentUrl)) {
-                    wv.goBack()
-                    return
-                }
-
-                // If already at the main game canvas or no previous page exists, require double-tap to exit
-                val now = System.currentTimeMillis()
-                if (now - backPressedTime < 2000) {
-                    finish()
-                } else {
-                    backPressedTime = now
-                    Toast.makeText(this@MainActivity, R.string.exit_prompt, Toast.LENGTH_SHORT).show()
-                }
+                handleBackPressedAction()
             }
         })
+    }
+
+    private fun handleBackPressedAction() {
+        val wv = webView
+        val currentUrl = wv?.url
+
+        // If currently viewing an external or non-game link, and can navigate back in history:
+        if (wv != null && wv.canGoBack() && !VersionDetector.isGameUrl(currentUrl)) {
+            wv.goBack()
+            return
+        }
+
+        // If already at the main game canvas or no previous page exists, require double-tap to exit
+        val now = System.currentTimeMillis()
+        if (now - backPressedTime < 2000) {
+            finish()
+        } else {
+            backPressedTime = now
+            Toast.makeText(this@MainActivity, R.string.exit_prompt, Toast.LENGTH_SHORT).show()
+        }
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -160,10 +170,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun setupWebView() {
+    private fun createKeepAliveWebView(): KeepAliveWebView {
         val existingView = findViewById<KeepAliveWebView>(R.id.webView)
-        val v = existingView ?: KeepAliveWebView(this).also {
+        val view = existingView ?: KeepAliveWebView(this).also {
             rootContainer.addView(
                 it,
                 FrameLayout.LayoutParams(
@@ -172,14 +181,17 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         }
-        webView = v
 
-        v.setBackgroundColor(Color.parseColor("#0D0D0D"))
-        v.isFocusable = true
-        v.isFocusableInTouchMode = true
-        v.isLongClickable = true
-        v.isHapticFeedbackEnabled = true
+        view.setBackgroundColor(Color.parseColor("#0D0D0D"))
+        view.isFocusable = true
+        view.isFocusableInTouchMode = true
+        view.isLongClickable = true
+        view.isHapticFeedbackEnabled = true
+        return view
+    }
 
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun configureWebSettings(v: WebView) {
         val settings = v.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
@@ -193,7 +205,9 @@ class MainActivity : AppCompatActivity() {
         settings.builtInZoomControls = true
         settings.displayZoomControls = false
         settings.allowFileAccess = true
+    }
 
+    private fun setupDocumentStartScript(v: WebView) {
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             val startScript = """
                 if (typeof window.pidx === 'undefined') {
@@ -205,8 +219,10 @@ class MainActivity : AppCompatActivity() {
             } catch (ignored: Exception) {
             }
         }
+    }
 
-        val bridge = WebAppInterface(
+    private fun createBridgeInterface(): WebAppInterface {
+        return WebAppInterface(
             context = this,
             onOfflineAddonsRequested = {
                 ScriptLoader.injectLocalAddons(this@MainActivity, webView)
@@ -234,8 +250,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         )
-        v.addJavascriptInterface(bridge, "AndroidBridge")
+    }
 
+    private fun setupDownloadHandling(v: WebView, bridge: WebAppInterface) {
         v.setDownloadListener { url, _, contentDisposition, mimetype, _ ->
             val guessedName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimetype)
             if (url.startsWith("data:")) {
@@ -261,8 +278,10 @@ class MainActivity : AppCompatActivity() {
                 bridge.downloadHttpFile(url, guessedName, mimetype)
             }
         }
+    }
 
-        v.webChromeClient = object : WebChromeClient() {
+    private fun createWebChromeClient(): WebChromeClient {
+        return object : WebChromeClient() {
             override fun onShowFileChooser(
                 view: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,
@@ -315,8 +334,10 @@ class MainActivity : AppCompatActivity() {
                 message: String?,
                 result: android.webkit.JsResult?
             ): Boolean {
-                if (isFinishing || isDestroyed) return false
-                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                if (isFinishing || isDestroyed) {
+                    return false
+                }
+                AlertDialog.Builder(this@MainActivity)
                     .setMessage(message ?: "")
                     .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
                     .setOnCancelListener { result?.cancel() }
@@ -330,8 +351,10 @@ class MainActivity : AppCompatActivity() {
                 message: String?,
                 result: android.webkit.JsResult?
             ): Boolean {
-                if (isFinishing || isDestroyed) return false
-                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                if (isFinishing || isDestroyed) {
+                    return false
+                }
+                AlertDialog.Builder(this@MainActivity)
                     .setMessage(message ?: "")
                     .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
                     .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
@@ -347,12 +370,14 @@ class MainActivity : AppCompatActivity() {
                 defaultValue: String?,
                 result: android.webkit.JsPromptResult?
             ): Boolean {
-                if (isFinishing || isDestroyed) return false
+                if (isFinishing || isDestroyed) {
+                    return false
+                }
                 val input = android.widget.EditText(this@MainActivity).apply {
                     setText(defaultValue ?: "")
                     setSelection(text.length)
                 }
-                androidx.appcompat.app.AlertDialog.Builder(this@MainActivity)
+                AlertDialog.Builder(this@MainActivity)
                     .setMessage(message ?: "")
                     .setView(input)
                     .setPositiveButton(android.R.string.ok) { _, _ ->
@@ -366,13 +391,47 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         }
+    }
 
-        v.webViewClient = object : WebViewClient() {
+    private fun handleRenderProcessCrash() {
+        val now = System.currentTimeMillis()
+        if (now - lastCrashTime < 30_000) {
+            recentCrashCount++
+        } else {
+            recentCrashCount = 1
+        }
+        lastCrashTime = now
+
+        Toast.makeText(this, R.string.reloading_game, Toast.LENGTH_SHORT).show()
+
+        // Remove zombie webview and recreate cleanly
+        MemoryOptimizer.destroyWebView(webView)
+        webView = null
+
+        if (recentCrashCount <= 3) {
+            setupWebView()
+            webView?.loadUrl(currentLoadedUrl)
+        } else {
+            Toast.makeText(
+                this,
+                "Excessive crashes detected. Reverting to base version.",
+                Toast.LENGTH_LONG
+            ).show()
+            currentLoadedUrl = VersionDetector.DEFAULT_FALLBACK_URL
+            setupWebView()
+            webView?.loadUrl(VersionDetector.DEFAULT_FALLBACK_URL)
+        }
+    }
+
+    private fun createWebViewClient(): WebViewClient {
+        return object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?
             ): Boolean {
-                val url = request?.url?.toString() ?: return false
+                val url = request?.url?.toString() ?: run {
+                    return false
+                }
                 if (VersionDetector.isGameUrl(url)) {
                     return false
                 }
@@ -416,36 +475,25 @@ class MainActivity : AppCompatActivity() {
                 view: WebView?,
                 detail: RenderProcessGoneDetail?
             ): Boolean {
-                val now = System.currentTimeMillis()
-                if (now - lastCrashTime < 30_000) {
-                    recentCrashCount++
-                } else {
-                    recentCrashCount = 1
-                }
-                lastCrashTime = now
-
-                Toast.makeText(this@MainActivity, R.string.reloading_game, Toast.LENGTH_SHORT).show()
-
-                // Remove zombie webview and recreate cleanly
-                MemoryOptimizer.destroyWebView(webView)
-                webView = null
-
-                if (recentCrashCount <= 3) {
-                    setupWebView()
-                    webView?.loadUrl(currentLoadedUrl)
-                } else {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Excessive crashes detected. Reverting to base version.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    currentLoadedUrl = VersionDetector.DEFAULT_FALLBACK_URL
-                    setupWebView()
-                    webView?.loadUrl(VersionDetector.DEFAULT_FALLBACK_URL)
-                }
+                handleRenderProcessCrash()
                 return true
             }
         }
+    }
+
+    private fun setupWebView() {
+        val v = createKeepAliveWebView()
+        webView = v
+
+        configureWebSettings(v)
+        setupDocumentStartScript(v)
+
+        val bridge = createBridgeInterface()
+        v.addJavascriptInterface(bridge, "AndroidBridge")
+        setupDownloadHandling(v, bridge)
+
+        v.webChromeClient = createWebChromeClient()
+        v.webViewClient = createWebViewClient()
     }
 
     override fun onResume() {
@@ -462,11 +510,9 @@ class MainActivity : AppCompatActivity() {
 
         // Check if an update was downloaded and waiting for install permission
         val pending = pendingInstallFile
-        if (pending != null && pending.exists()) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()) {
-                pendingInstallFile = null
-                triggerApkInstall(pending)
-            }
+        if (pending != null && pending.exists() && (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls())) {
+            pendingInstallFile = null
+            triggerApkInstall(pending)
         }
 
         // Seamless resume check: auto-restore if socket disconnected or dropped while backgrounded
@@ -590,7 +636,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle(title)
             .setView(scrollView)
             .setPositiveButton("Got It!") { _, _ ->
@@ -620,7 +666,7 @@ class MainActivity : AppCompatActivity() {
             baseMsg
         }
 
-        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setTitle("Update Available (${updateInfo.latestTag})")
             .setMessage(message)
             .setPositiveButton(if (hasDirectApk) "Update Now" else "Download") { _, _ ->
@@ -643,7 +689,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startInstantUpdate(updateInfo: VersionDetector.AppReleaseInfo) {
-        val apkUrl = updateInfo.apkDownloadUrl ?: return
+        val apkUrl = updateInfo.apkDownloadUrl ?: run {
+            return
+        }
 
         val progressBar = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             isIndeterminate = false
@@ -654,7 +702,7 @@ class MainActivity : AppCompatActivity() {
 
         var downloadJob: kotlinx.coroutines.Job? = null
 
-        val progressDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+        val progressDialog = AlertDialog.Builder(this)
             .setTitle("Downloading Update")
             .setMessage("Downloading BC Android ${updateInfo.latestTag}...")
             .setView(progressBar)
@@ -688,27 +736,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun triggerApkInstall(apkFile: File) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!packageManager.canRequestPackageInstalls()) {
-                pendingInstallFile = apkFile
-                androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Permission Required")
-                    .setMessage("To install the update, please allow 'Install unknown apps' for BC Android in settings.")
-                    .setPositiveButton("Settings") { _, _ ->
-                        try {
-                            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                                data = Uri.parse("package:$packageName")
-                            }
-                            startActivity(intent)
-                        } catch (e: Exception) {
-                            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES))
-                        }
+    private fun showInstallPermissionDialog(apkFile: File) {
+        pendingInstallFile = apkFile
+        AlertDialog.Builder(this)
+            .setTitle("Permission Required")
+            .setMessage("To install the update, please allow 'Install unknown apps' for BC Android in settings.")
+            .setPositiveButton("Settings") { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:$packageName")
                     }
-                    .setNegativeButton("Cancel", null)
-                    .show()
-                return
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES))
+                }
             }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun triggerApkInstall(apkFile: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            showInstallPermissionDialog(apkFile)
+            return
         }
 
         try {

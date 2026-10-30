@@ -182,7 +182,9 @@ object MemoryOptimizer {
      * allowing the user to view both split windows without visual blackout.
      */
     fun onPause(webView: WebView?) {
-        webView ?: return
+        if (webView == null) {
+            return
+        }
 
         webView.evaluateJavascript(ENTER_UNFOCUSED_SCRIPT, null)
     }
@@ -193,7 +195,9 @@ object MemoryOptimizer {
      * and hides canvas & chat DOM for maximum battery savings.
      */
     fun onStop(webView: WebView?) {
-        webView ?: return
+        if (webView == null) {
+            return
+        }
 
         webView.evaluateJavascript(ENTER_STOPPED_SCRIPT, null)
     }
@@ -202,7 +206,9 @@ object MemoryOptimizer {
      * Called when Activity returns to foreground.
      */
     fun onResume(webView: WebView?) {
-        webView ?: return
+        if (webView == null) {
+            return
+        }
 
         webView.evaluateJavascript(RESTORE_FOREGROUND_SCRIPT, null)
     }
@@ -211,7 +217,9 @@ object MemoryOptimizer {
      * Reacts to OS memory pressure signals (ComponentCallbacks2).
      */
     fun onTrimMemory(webView: WebView?, level: Int) {
-        webView ?: return
+        if (webView == null) {
+            return
+        }
 
         when (level) {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
@@ -229,7 +237,9 @@ object MemoryOptimizer {
      * Complete teardown of WebView to avoid memory leaks.
      */
     fun destroyWebView(webView: WebView?) {
-        webView ?: return
+        if (webView == null) {
+            return
+        }
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.stopLoading()

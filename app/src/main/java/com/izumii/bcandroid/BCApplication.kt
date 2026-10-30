@@ -2,10 +2,7 @@ package com.izumii.bcandroid
 
 import android.app.Application
 import android.content.ComponentCallbacks2
-import android.content.res.Configuration
-import android.os.Build
 import android.webkit.WebView
-import com.izumii.bcandroid.memory.MemoryOptimizer
 
 class BCApplication : Application(), ComponentCallbacks2 {
 
@@ -26,9 +23,5 @@ class BCApplication : Application(), ComponentCallbacks2 {
     override fun onLowMemory() {
         super.onLowMemory()
         System.gc()
-    }
-
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
     }
 }

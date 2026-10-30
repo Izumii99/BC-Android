@@ -135,7 +135,9 @@
 
     // Helper to identify Bondage Club internal game domains
     function isGameDomain(url) {
-        if (!url || typeof url !== 'string') return false;
+        if (!url || typeof url !== 'string') {
+            return false;
+        }
         const clean = url.trim().toLowerCase();
         return clean.indexOf("bondage-asia.com") !== -1 ||
                clean.indexOf("bondageprojects.com") !== -1 ||
@@ -169,13 +171,14 @@
 
     // Intercept download requests (blob:, data:, and <a download>)
     function handleDownloadUrl(url, filename, mimeType) {
-        if (!url || typeof url !== 'string') return false;
+        if (!url || typeof url !== 'string') {
+            return false;
+        }
 
         // 1. Blob URL: fetch blob inside web context, convert to Base64, and pass to native bridge
         if (url.startsWith('blob:')) {
             fetch(url) // nosemgrep
                 .then(function(res) { return res.blob(); })
-
                 .then(function(blob) {
                     const reader = new FileReader();
                     reader.onloadend = function() {
@@ -251,7 +254,9 @@
     }, true);
 
     function isInteractive(el) {
-        if (!el) return false;
+        if (!el) {
+            return false;
+        }
         const tag = el.tagName;
         return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || el.isContentEditable;
     }
@@ -282,7 +287,9 @@
             const isLayeringInput = this.id && this.id.startsWith('layering-input-');
             const active = document.activeElement;
             const currentIsLayering = active && active.id && active.id.startsWith('layering-input-');
-            if (currentIsLayering && !isLayeringInput) return;
+            if (currentIsLayering && !isLayeringInput) {
+                return;
+            }
 
             const isUserInAnotherInput = active && isInteractive(active) && active !== this;
             if (this.id === 'InputChat' && isUserInAnotherInput && !isLayeringInput) {
@@ -349,7 +356,9 @@
                 };
                 clearInterval(hookInterval);
             }
-            if (hookAttempts > 30) clearInterval(hookInterval);
+            if (hookAttempts > 30) {
+                clearInterval(hookInterval);
+            }
         }, 500);
 
         let relogInterval = null;
@@ -363,7 +372,9 @@
                             window._bcRelogActive = true;
                             const passInput = document.getElementById('InputPassword');
                             const loginBtn = document.getElementById('relog-login');
-                            if (passInput) passInput.value = creds.pass;
+                            if (passInput) {
+                                passInput.value = creds.pass;
+                            }
                             if (loginBtn) {
                                 loginBtn.click();
                             } else if (typeof window.LoginDoLogin === 'function') {
@@ -432,15 +443,28 @@
                     const raf = window._bcOrigRAF;
                     window.requestAnimationFrame = raf;
                     window._bcOrigRAF = null;
-                    if (window._bcOrigCAF) { window.cancelAnimationFrame = window._bcOrigCAF; window._bcOrigCAF = null; }
-                    const q = window._bcRafQ; window._bcRafQ = null;
-                    if (q) q.forEach(function(e) { clearTimeout(e.t); });
-                    if (typeof window.MainRun === 'function') raf.call(window, window.MainRun);
+                    if (window._bcOrigCAF) {
+                        window.cancelAnimationFrame = window._bcOrigCAF;
+                        window._bcOrigCAF = null;
+                    }
+                    const q = window._bcRafQ;
+                    window._bcRafQ = null;
+                    if (q) {
+                        q.forEach(function(e) { clearTimeout(e.t); });
+                    }
+                    if (typeof window.MainRun === 'function') {
+                        raf.call(window, window.MainRun);
+                    }
                 }
                 const mc = document.getElementById('MainCanvas');
-                if (mc) { mc.style.visibility = ''; mc.style.opacity = ''; }
+                if (mc) {
+                    mc.style.visibility = '';
+                    mc.style.opacity = '';
+                }
                 const cl = document.getElementById('TextAreaChatLog');
-                if (cl) cl.style.contentVisibility = '';
+                if (cl) {
+                    cl.style.contentVisibility = '';
+                }
             }
         };
         window.addEventListener('pointerdown', markActiveInput, { passive: true, capture: true });
@@ -458,7 +482,9 @@
             if (!window._bcRequestBgBurst) {
                 window._bcRequestBgBurst = function(ms) {
                     const t = performance.now() + (ms || 2500);
-                    if (t > (window._bcBgBurstUntil || 0)) window._bcBgBurstUntil = t;
+                    if (t > (window._bcBgBurstUntil || 0)) {
+                        window._bcBgBurstUntil = t;
+                    }
                 };
             }
             if (!window.__bcDrawHooked && typeof window.DrawProcess === 'function') {
@@ -466,17 +492,23 @@
                 const _origDraw = window.DrawProcess;
                 let _lastBgDrawTime = 0;
                 window.DrawProcess = function(...args) {
-                    if (window._bcIsMinimized) return;
+                    if (window._bcIsMinimized) {
+                        return;
+                    }
                     const now = performance.now();
                     if (window._bcIsBackground) {
                         const isBurst = now < (window._bcBgBurstUntil || 0);
-                        if (isBurst ? (now - _lastBgDrawTime < 66) : (now - _lastBgDrawTime < 1000)) return;
+                        if (isBurst ? (now - _lastBgDrawTime < 66) : (now - _lastBgDrawTime < 1000)) {
+                            return;
+                        }
                         _lastBgDrawTime = now;
                     } else {
                         const idle = (now - (window._bcLastInputTime || 0)) > 2500 &&
                             !window.CurrentCharacter &&
                             !(typeof window.StruggleProgress === 'number' && window.StruggleProgress >= 0);
-                        if (now - (window._bcLastFgDrawTime || 0) < (idle ? 66 : 32)) return;
+                        if (now - (window._bcLastFgDrawTime || 0) < (idle ? 66 : 32)) {
+                            return;
+                        }
                         window._bcLastFgDrawTime = now;
                     }
                     return _origDraw.apply(this, args);
@@ -498,10 +530,14 @@
                 const _origLoad = window.CharacterLoadCanvas;
                 window.CharacterLoadCanvas = function(C) {
                     if (window._bcIsMinimized) {
-                        if (C) C._bcPendingCanvasBuild = true;
+                        if (C) {
+                            C._bcPendingCanvasBuild = true;
+                        }
                         return;
                     }
-                    if (window._bcIsBackground && window._bcRequestBgBurst) window._bcRequestBgBurst(2500);
+                    if (window._bcIsBackground && window._bcRequestBgBurst) {
+                        window._bcRequestBgBurst(2500);
+                    }
                     if (C && C !== window.CurrentCharacter && C.Canvas && C.CanvasBlink && window.CurrentScreen === 'ChatRoom') {
                         const minInterval = window._bcIsBackground ? 120 : (C === window.Player ? 16 : 32);
                         const now = performance.now();
@@ -510,7 +546,9 @@
                             if (!C._bcBuildTimer) {
                                 C._bcBuildTimer = setTimeout(function() {
                                     C._bcBuildTimer = null;
-                                    if (typeof window.CharacterLoadCanvas === 'function') window.CharacterLoadCanvas(C);
+                                    if (typeof window.CharacterLoadCanvas === 'function') {
+                                        window.CharacterLoadCanvas(C);
+                                    }
                                 }, minInterval - elapsed);
                             }
                             return;
@@ -525,10 +563,14 @@
                 const _origBuild = window.CharacterAppearanceBuildCanvas;
                 window.CharacterAppearanceBuildCanvas = function(C) {
                     if (window._bcIsMinimized) {
-                        if (C) C._bcPendingCanvasBuild = true;
+                        if (C) {
+                            C._bcPendingCanvasBuild = true;
+                        }
                         return;
                     }
-                    if (window._bcIsBackground && window._bcRequestBgBurst) window._bcRequestBgBurst(2500);
+                    if (window._bcIsBackground && window._bcRequestBgBurst) {
+                        window._bcRequestBgBurst(2500);
+                    }
                     return _origBuild.apply(this, arguments);
                 };
             }
@@ -593,7 +635,9 @@
         });
         MockNotification.requestPermission = function(cb) {
             if (!window._bcNotificationsEnabled) {
-                if (typeof cb === 'function') cb('denied');
+                if (typeof cb === 'function') {
+                    cb('denied');
+                }
                 return Promise.resolve('denied');
             }
             if (OrigNotification && typeof OrigNotification.requestPermission === 'function') {
@@ -609,7 +653,9 @@
             const origVibrate = navigator.vibrate.bind(navigator);
             try {
                 navigator.vibrate = function(pattern) {
-                    if (!window._bcNotificationsEnabled) return false;
+                    if (!window._bcNotificationsEnabled) {
+                        return false;
+                    }
                     return origVibrate(pattern);
                 };
             } catch (e) {}
@@ -620,7 +666,9 @@
                 window.__bcNotifRaiseHooked = true;
                 const origRaise = window.NotificationRaise;
                 window.NotificationRaise = function() {
-                    if (!window._bcNotificationsEnabled) return;
+                    if (!window._bcNotificationsEnabled) {
+                        return;
+                    }
                     return origRaise.apply(this, arguments);
                 };
             }
@@ -817,7 +865,9 @@
             notifModal.style.display = notifModal.style.display === 'flex' ? 'none' : 'flex';
         };
         notifModal.onclick = function(e) {
-            if (e.target === notifModal) notifModal.style.display = 'none';
+            if (e.target === notifModal) {
+                notifModal.style.display = 'none';
+            }
         };
 
         updateNotifUiState();
@@ -825,7 +875,9 @@
         let notifUiMounted = false;
         function checkLoginScreenVisibility() {
             try {
-                if (window._bcIsBackground) return;
+                if (window._bcIsBackground) {
+                    return;
+                }
                 hookGameNotifications();
                 if (!notifUiMounted && document.body) {
                     document.body.appendChild(notifBtn);
@@ -862,7 +914,9 @@
 
     // Silent WebAudio Keep-Alive stub (active flag stubbed to avoid activating hardware audio)
     function initSilentAudioKeepAlive() {
-        if (window._bcAudioKeepAliveActive) return;
+        if (window._bcAudioKeepAliveActive) {
+            return;
+        }
         window._bcAudioKeepAliveActive = true;
     }
 
@@ -909,13 +963,19 @@
             }
             if (window.Player && window.Player.GraphicsSettings && window.CurrentScreen !== 'Preference') {
                 const gs = window.Player.GraphicsSettings;
-                if (typeof gs.MaxFPS === 'number' && (gs.MaxFPS === 0 || gs.MaxFPS > 30)) gs.MaxFPS = 30;
-                if (typeof gs.MaxUnfocusedFPS === 'number' && (gs.MaxUnfocusedFPS === 0 || gs.MaxUnfocusedFPS > 15)) gs.MaxUnfocusedFPS = 15;
+                if (typeof gs.MaxFPS === 'number' && (gs.MaxFPS === 0 || gs.MaxFPS > 30)) {
+                    gs.MaxFPS = 30;
+                }
+                if (typeof gs.MaxUnfocusedFPS === 'number' && (gs.MaxUnfocusedFPS === 0 || gs.MaxUnfocusedFPS > 15)) {
+                    gs.MaxUnfocusedFPS = 15;
+                }
             }
         }
 
         function cleanUpDepartedCharacter(targetChar) {
-            if (!targetChar || targetChar === window.Player || (targetChar.IsPlayer && targetChar.IsPlayer())) return;
+            if (!targetChar || targetChar === window.Player || (targetChar.IsPlayer && targetChar.IsPlayer())) {
+                return;
+            }
             try {
                 if (targetChar._bcBuildTimer) {
                     clearTimeout(targetChar._bcBuildTimer);
@@ -931,7 +991,9 @@
                 if (memberNum && window._chatQol_PetsuitRemoteAnims) {
                     if (typeof window._chatQol_PetsuitRemoteAnims.delete === 'function' && window._chatQol_PetsuitRemoteAnims.has(memberNum)) {
                         const entry = window._chatQol_PetsuitRemoteAnims.get(memberNum);
-                        if (entry && entry.timer) clearTimeout(entry.timer);
+                        if (entry && entry.timer) {
+                            clearTimeout(entry.timer);
+                        }
                         window._chatQol_PetsuitRemoteAnims.delete(memberNum);
                     } else if (window._chatQol_PetsuitRemoteAnims[memberNum]) {
                         clearInterval(window._chatQol_PetsuitRemoteAnims[memberNum]);
@@ -956,7 +1018,9 @@
                     try { window.CharacterDelete(targetChar); } catch (e) {}
                 } else if (Array.isArray(window.Character)) {
                     const idx = window.Character.indexOf(targetChar);
-                    if (idx >= 0) window.Character.splice(idx, 1);
+                    if (idx >= 0) {
+                        window.Character.splice(idx, 1);
+                    }
                 }
             } catch (e) {}
         }
@@ -974,7 +1038,9 @@
                     try {
                         return _origLeave.apply(this, arguments);
                     } finally {
-                        if (char) cleanUpDepartedCharacter(char);
+                        if (char) {
+                            cleanUpDepartedCharacter(char);
+                        }
                     }
                 };
             }
@@ -991,7 +1057,9 @@
                 window.ImageCache.prototype.get = function(url) {
                     const image = this.cache && typeof this.cache.get === 'function' ? this.cache.get(url) : null;
                     if (image && ((typeof image.isDoneLoading === 'function' && image.isDoneLoading()) || (typeof image.isLoading === 'function' && image.isLoading()))) {
-                        if (typeof window.CommonTime === 'function') image.lastUsed = window.CommonTime();
+                        if (typeof window.CommonTime === 'function') {
+                            image.lastUsed = window.CommonTime();
+                        }
                         return image;
                     }
                     return _origGet.apply(this, arguments);
@@ -1041,15 +1109,23 @@
 
         function pruneVram() {
             try {
-                if (window._bcIsMinimized) return;
+                if (window._bcIsMinimized) {
+                    return;
+                }
                 attachRoomHooks();
                 applyPurgeDelay();
                 const chars = [];
-                if (window.Player) chars.push(window.Player);
-                if (window.CurrentCharacter && window.CurrentCharacter !== window.Player) chars.push(window.CurrentCharacter);
+                if (window.Player) {
+                    chars.push(window.Player);
+                }
+                if (window.CurrentCharacter && window.CurrentCharacter !== window.Player) {
+                    chars.push(window.CurrentCharacter);
+                }
                 if (Array.isArray(window.ChatRoomCharacter)) {
                     for (let i = 0; i < window.ChatRoomCharacter.length; i++) {
-                        if (window.ChatRoomCharacter[i]) chars.push(window.ChatRoomCharacter[i]);
+                        if (window.ChatRoomCharacter[i]) {
+                            chars.push(window.ChatRoomCharacter[i]);
+                        }
                     }
                 }
                 const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
@@ -1060,9 +1136,13 @@
                     if (drawn && typeof drawn.forEach === 'function') {
                         drawn.forEach(url => {
                             const dImg = drawMap && typeof drawMap.get === 'function' ? drawMap.get(url) : null;
-                            if (dImg) dImg.lastUsed = now;
+                            if (dImg) {
+                                dImg.lastUsed = now;
+                            }
                             const gImg = glMap && typeof glMap.get === 'function' ? glMap.get(url) : null;
-                            if (gImg) gImg.lastUsed = now;
+                            if (gImg) {
+                                gImg.lastUsed = now;
+                            }
                         });
                     }
                 }
@@ -1074,19 +1154,29 @@
                                        (window.ChatRoomData != null && Array.isArray(window.ChatRoomCharacter) && window.ChatRoomCharacter.length > 0);
 
                     const activeMemberNums = new Set();
-                    if (window.Player && window.Player.MemberNumber) activeMemberNums.add(window.Player.MemberNumber);
+                    if (window.Player && window.Player.MemberNumber) {
+                        activeMemberNums.add(window.Player.MemberNumber);
+                    }
                     if (Array.isArray(window.ChatRoomCharacter)) {
                         for (let i = 0; i < window.ChatRoomCharacter.length; i++) {
                             const m = window.ChatRoomCharacter[i]?.MemberNumber;
-                            if (m) activeMemberNums.add(m);
+                            if (m) {
+                                activeMemberNums.add(m);
+                            }
                         }
                     }
 
                     const ghosts = window.Character.filter(c => {
-                        if (!c || c === window.Player || (c.IsPlayer && c.IsPlayer())) return false;
-                        if (c === window.CurrentCharacter) return false;
+                        if (!c || c === window.Player || (c.IsPlayer && c.IsPlayer())) {
+                            return false;
+                        }
+                        if (c === window.CurrentCharacter) {
+                            return false;
+                        }
                         const isOnline = (c.AccountName && c.AccountName.startsWith('Online-')) || (typeof c.MemberNumber === 'number' && c.MemberNumber > 0);
-                        if (!isOnline) return false;
+                        if (!isOnline) {
+                            return false;
+                        }
                         if (inChatRoom) {
                             return !activeMemberNums.has(c.MemberNumber);
                         }
@@ -1115,14 +1205,22 @@
 
         function monitorScreenTransitions() {
             try {
-                if (window._bcIsBackground) return;
+                if (window._bcIsBackground) {
+                    return;
+                }
                 applyPurgeDelay();
                 if (typeof window.CurrentScreen !== 'undefined') {
                     if (lastScreen === 'Appearance' && window.CurrentScreen !== 'Appearance') {
-                        if (screenTimer) clearTimeout(screenTimer);
+                        if (screenTimer) {
+                            clearTimeout(screenTimer);
+                        }
                         screenTimer = setTimeout(function() {
-                            if (window._bcIsBackground) return;
-                            if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') return;
+                            if (window._bcIsBackground) {
+                                return;
+                            }
+                            if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') {
+                                return;
+                            }
                             if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
                                 window.GLDrawImageCache.purge(false);
                             }
@@ -1174,4 +1272,3 @@
         });
     })();
 })();
-

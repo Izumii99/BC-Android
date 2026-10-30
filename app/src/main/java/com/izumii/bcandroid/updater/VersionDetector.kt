@@ -4,14 +4,10 @@ package com.izumii.bcandroid.updater
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.StringReader
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
@@ -45,7 +41,9 @@ object VersionDetector {
 
     fun getSavedVersion(context: Context): Int {
         val fileConfig = readLocalVersionFile(context)
-        if (fileConfig != null) return fileConfig.first
+        if (fileConfig != null) {
+            return fileConfig.first
+        }
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getInt(KEY_SAVED_VERSION, 132)
@@ -53,7 +51,9 @@ object VersionDetector {
 
     fun isVersionLocked(context: Context): Boolean {
         val fileConfig = readLocalVersionFile(context)
-        if (fileConfig != null) return fileConfig.second
+        if (fileConfig != null) {
+            return fileConfig.second
+        }
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getBoolean(KEY_VERSION_LOCKED, false)
@@ -84,7 +84,9 @@ object VersionDetector {
      * Determines whether the given URL is an active Bondage Club game canvas.
      */
     fun isGameUrl(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
+        if (url.isNullOrBlank()) {
+            return false
+        }
         val cleanUrl = url.trim().lowercase()
 
         val isBcHost = cleanUrl.contains("bondage-asia.com") ||
@@ -92,7 +94,9 @@ object VersionDetector {
                        cleanUrl.contains("bondageprojects.elementfx.com") ||
                        cleanUrl.contains("bondage-europe.com")
 
-        if (!isBcHost) return false
+        if (!isBcHost) {
+            return false
+        }
 
         return cleanUrl.contains("/club") || cleanUrl.contains("/r1") || cleanUrl.contains("/r2")
     }
@@ -127,7 +131,9 @@ object VersionDetector {
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
                 .build()
             client.newCall(req).execute().use { response ->
-                if (!response.isSuccessful) return@withContext Pair(VersionStatus.NotFound, null)
+                if (!response.isSuccessful) {
+                    return@withContext Pair(VersionStatus.NotFound, null)
+                }
                 val html = response.body?.string() ?: ""
                 parseNextVersionFromHtml(html, version)
             }
@@ -157,8 +163,12 @@ object VersionDetector {
                 .build()
 
             client.newCall(req).execute().use { res ->
-                if (!res.isSuccessful) return@withContext null
-                val html = res.body?.string() ?: return@withContext null
+                if (!res.isSuccessful) {
+                    return@withContext null
+                }
+                val html = res.body?.string() ?: run {
+                    return@withContext null
+                }
 
                 val pattern = Pattern.compile("onclick=\"window\\.location='https://www\\.bondage[^']+/R(\\d+)/[^']*'\"", Pattern.CASE_INSENSITIVE)
                 val matcher = pattern.matcher(html)
@@ -204,7 +214,9 @@ object VersionDetector {
      * Checks if GitHub release tag is strictly newer than current app version.
      */
     fun isNewerVersion(latestTag: String, currentVersion: String): Boolean {
-        if (latestTag.isBlank() || currentVersion.isBlank()) return false
+        if (latestTag.isBlank() || currentVersion.isBlank()) {
+            return false
+        }
 
         val cleanLatest = latestTag.trim().trimStart('v', 'V')
         val cleanCurrent = currentVersion.trim().trimStart('v', 'V')
@@ -216,8 +228,12 @@ object VersionDetector {
         for (i in 0 until maxLen) {
             val l = latestParts.getOrElse(i) { 0 }
             val c = currentParts.getOrElse(i) { 0 }
-            if (l > c) return true
-            if (l < c) return false
+            if (l > c) {
+                return true
+            }
+            if (l < c) {
+                return false
+            }
         }
         return false
     }
@@ -242,7 +258,9 @@ object VersionDetector {
             val name = asset.optString("name", "")
             val url = asset.optString("browser_download_url", "")
             val size = asset.optLong("size", 0L)
-            if (!name.endsWith(".apk", ignoreCase = true) || url.isEmpty()) continue
+            if (!name.endsWith(".apk", ignoreCase = true) || url.isEmpty()) {
+                continue
+            }
 
             if (isDiscreet) {
                 if (name.contains("discreet", ignoreCase = true)) {
@@ -270,8 +288,12 @@ object VersionDetector {
                 .build()
 
             httpClient.newCall(req).execute().use { response ->
-                if (!response.isSuccessful) return@withContext AppReleaseInfo(false, "", "")
-                val jsonStr = response.body?.string() ?: return@withContext AppReleaseInfo(false, "", "")
+                if (!response.isSuccessful) {
+                    return@withContext AppReleaseInfo(false, "", "")
+                }
+                val jsonStr = response.body?.string() ?: run {
+                    return@withContext AppReleaseInfo(false, "", "")
+                }
                 val json = JSONObject(jsonStr)
 
                 val tagName = json.optString("tag_name", "")
@@ -295,12 +317,25 @@ object VersionDetector {
     ): java.io.File? = withContext(Dispatchers.IO) {
         try {
             val updatesDir = java.io.File(context.cacheDir, "updates")
-            if (!updatesDir.exists()) updatesDir.mkdirs()
+            if (!updatesDir.exists()) {
+                updatesDir.mkdirs()
+            }
             val tempFile = java.io.File(updatesDir, "update.apk.tmp")
             val targetFile = java.io.File(updatesDir, "update.apk")
 
-            if (tempFile.exists()) tempFile.delete()
-            if (targetFile.exists()) targetFile.delete()
+            // Security guard: verify canonical root containment to prevent path traversal
+            if (!tempFile.canonicalFile.startsWith(updatesDir.canonicalFile) ||
+                !targetFile.canonicalFile.startsWith(updatesDir.canonicalFile)
+            ) {
+                return@withContext null
+            }
+
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
 
             val downloadClient = httpClient.newBuilder()
                 .connectTimeout(15, TimeUnit.SECONDS)
@@ -313,8 +348,12 @@ object VersionDetector {
                 .build()
 
             downloadClient.newCall(req).execute().use { response ->
-                if (!response.isSuccessful) return@withContext null
-                val body = response.body ?: return@withContext null
+                if (!response.isSuccessful) {
+                    return@withContext null
+                }
+                val body = response.body ?: run {
+                    return@withContext null
+                }
                 val contentLength = body.contentLength()
 
                 body.byteStream().use { input ->
@@ -365,7 +404,9 @@ object VersionDetector {
 • Ultra-Low Background Power Profile: Throttles to 0.25 FPS with canvas deactivation to eliminate battery overhead while minimized."""
 
     fun formatReleaseNotesForDisplay(raw: String?): String {
-        if (raw.isNullOrBlank()) return FALLBACK_RELEASE_NOTES
+        if (raw.isNullOrBlank()) {
+            return FALLBACK_RELEASE_NOTES
+        }
         var text = raw
 
         val fixesIdx = text.indexOf("### Fixes & Improvements:", ignoreCase = true)
@@ -433,8 +474,13 @@ object VersionDetector {
     fun cleanCachedApks(context: Context) {
         try {
             val updatesDir = java.io.File(context.cacheDir, "updates")
-            if (updatesDir.exists()) {
-                updatesDir.listFiles()?.forEach { it.delete() }
+            if (updatesDir.exists() && updatesDir.isDirectory) {
+                val rootCanonical = updatesDir.canonicalFile
+                updatesDir.listFiles()?.forEach { file ->
+                    if (file.canonicalFile.startsWith(rootCanonical)) {
+                        file.delete()
+                    }
+                }
             }
         } catch (ignored: Exception) {
         }

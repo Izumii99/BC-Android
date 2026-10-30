@@ -27,7 +27,9 @@ object ScriptLoader {
      * Injects the portrait adapter, desktop bridge, and the remote addon loader from BC-Desktop into the game DOM.
      */
     fun injectCoreScripts(context: Context, webView: WebView?) {
-        webView ?: return
+        if (webView == null) {
+            return
+        }
 
         // 1. Portrait scaling & responsive viewport adapter
         readAsset(context, "portrait_adapter.js")?.let { script ->
@@ -45,13 +47,56 @@ object ScriptLoader {
         }
     }
 
+    private fun parseConfigJson(rawJson: String?): JSONObject {
+        val configStr = if (rawJson != null && rawJson != "null") {
+            try {
+                JSONTokener(rawJson).nextValue() as? String ?: rawJson
+            } catch (e: Exception) {
+                rawJson
+            }
+        } else {
+            "{}"
+        }
+
+        return try {
+            JSONObject(configStr)
+        } catch (e: Exception) {
+            JSONObject()
+        }
+    }
+
+    private fun isAddonCandidateEnabled(
+        configObj: JSONObject,
+        configKeys: List<String>,
+        defaultEnabled: Set<String>
+    ): Boolean {
+        var isEnabled = false
+        var hasExplicitConfig = false
+        for (key in configKeys) {
+            if (configObj.has(key)) {
+                hasExplicitConfig = true
+                if (configObj.optBoolean(key, false)) {
+                    isEnabled = true
+                    break
+                }
+            }
+        }
+
+        if (!hasExplicitConfig) {
+            isEnabled = configKeys.any { defaultEnabled.contains(it) }
+        }
+        return isEnabled
+    }
+
     /**
      * Fallback offline injector: loads embedded assets/addons if the remote CDN cannot be reached.
      * Respects user addon preferences saved in localStorage (BCDesktop_Addons_Config).
      */
     @Suppress("TooGenericExceptionCaught")
     fun injectLocalAddons(context: Context, webView: WebView?) {
-        webView ?: return
+        if (webView == null) {
+            return
+        }
 
         val checkConfigJs = """
             (function() {
@@ -64,23 +109,8 @@ object ScriptLoader {
         """.trimIndent()
 
         webView.evaluateJavascript(checkConfigJs) { rawJson ->
-            val configStr = if (rawJson != null && rawJson != "null") {
-                try {
-                    JSONTokener(rawJson).nextValue() as? String ?: rawJson
-                } catch (e: Exception) {
-                    rawJson
-                }
-            } else "{}"
-
-            val configObj = try {
-                JSONObject(configStr)
-            } catch (e: Exception) {
-                JSONObject()
-            }
-
-            val defaultEnabled = setOf(
-                "chat-qol.js"
-            )
+            val configObj = parseConfigJson(rawJson)
+            val defaultEnabled = setOf("chat-qol.js")
 
             // Ordered scripts without deprecated wardrobe-pagination.js
             val scriptCandidates = listOf(
@@ -94,25 +124,11 @@ object ScriptLoader {
             try {
                 val available = context.assets.list("addons")?.toSet() ?: emptySet()
                 for ((filename, configKeys) in scriptCandidates) {
-                    if (!available.contains(filename)) continue
-
-                    var isEnabled = false
-                    var hasExplicitConfig = false
-                    for (key in configKeys) {
-                        if (configObj.has(key)) {
-                            hasExplicitConfig = true
-                            if (configObj.optBoolean(key, false)) {
-                                isEnabled = true
-                                break
-                            }
-                        }
+                    if (!available.contains(filename)) {
+                        continue
                     }
 
-                    if (!hasExplicitConfig) {
-                        isEnabled = configKeys.any { defaultEnabled.contains(it) }
-                    }
-
-                    if (isEnabled) {
+                    if (isAddonCandidateEnabled(configObj, configKeys, defaultEnabled)) {
                         readAsset(context, "addons/$filename")?.let { addonScript ->
                             webView.evaluateJavascript(addonScript, null)
                         }

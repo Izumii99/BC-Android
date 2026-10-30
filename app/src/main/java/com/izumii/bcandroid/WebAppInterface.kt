@@ -24,7 +24,6 @@ import android.widget.Toast
 import com.izumii.bcandroid.service.ConnectionKeeperService
 import java.io.File
 import java.io.FileOutputStream
-import java.net.URLDecoder
 
 class WebAppInterface(
     private val context: Context,
@@ -80,7 +79,9 @@ class WebAppInterface(
     private fun readClipboardInternal(): String {
         return try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return ""
-            if (!clipboard.hasPrimaryClip()) return ""
+            if (!clipboard.hasPrimaryClip()) {
+                return ""
+            }
             val clip = clipboard.primaryClip ?: return ""
             if (clip.itemCount > 0) {
                 val item = clip.getItemAt(0)
@@ -151,6 +152,59 @@ class WebAppInterface(
         }
     }
 
+    private fun extractMimeType(header: String, mimeTypeHint: String): String {
+        var mime = mimeTypeHint.trim()
+        if (mime.isEmpty() && header.startsWith("data:")) {
+            val semicolonIndex = header.indexOf(';')
+            val endIdx = if (semicolonIndex != -1) {
+                semicolonIndex
+            } else {
+                header.length
+            }
+            if (endIdx > 5) {
+                mime = header.substring(5, endIdx)
+            }
+        }
+        if (mime.isEmpty()) {
+            mime = "application/octet-stream"
+        }
+        return mime
+    }
+
+    private fun determineFileExtension(mime: String): String {
+        return MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: when {
+            mime.contains("json") -> "json"
+            mime.contains("text/plain") -> "txt"
+            mime.contains("html") -> "html"
+            mime.contains("png") -> "png"
+            mime.contains("jpeg") || mime.contains("jpg") -> "jpg"
+            else -> "bin"
+        }
+    }
+
+    private fun sanitizeFileName(suggestedFileName: String, extFromMime: String): String {
+        var cleanName = suggestedFileName.trim()
+        if (cleanName.isEmpty()) {
+            cleanName = "BC_Export_${System.currentTimeMillis()}"
+        }
+        cleanName = cleanName.replace("/", "_").replace("\\", "_").replace("..", "_")
+
+        val lastDot = cleanName.lastIndexOf('.')
+        val hasValidExt = lastDot > 0 && (cleanName.length - lastDot - 1) in 2..5
+        if (!hasValidExt) {
+            cleanName = "$cleanName.$extFromMime"
+        }
+        return cleanName
+    }
+
+    private fun decodePayloadBytes(header: String, payload: String): ByteArray {
+        return if (header.contains(";base64", ignoreCase = true)) {
+            Base64.decode(payload, Base64.DEFAULT)
+        } else {
+            (Uri.decode(payload) ?: payload).toByteArray(Charsets.UTF_8)
+        }
+    }
+
     /**
      * Saves base64 / data-URI file exports (e.g. wardrobe backups, chatlogs, images)
      * directly into the Android public Downloads directory on a background thread.
@@ -159,48 +213,22 @@ class WebAppInterface(
     fun saveBase64File(dataUri: String, suggestedFileName: String, mimeTypeHint: String) {
         Thread {
             try {
-                var cleanName = suggestedFileName.trim()
-                if (cleanName.isEmpty()) {
-                    cleanName = "BC_Export_${System.currentTimeMillis()}"
-                }
-                cleanName = cleanName.replace("/", "_").replace("\\", "_").replace("..", "_")
-
-                var mime = mimeTypeHint.trim()
                 val commaIndex = dataUri.indexOf(',')
-                val header = if (commaIndex != -1) dataUri.substring(0, commaIndex) else ""
-                val payload = if (commaIndex != -1) dataUri.substring(commaIndex + 1) else dataUri
-
-                if (mime.isEmpty() && header.startsWith("data:")) {
-                    val semicolonIndex = header.indexOf(';')
-                    val endIdx = if (semicolonIndex != -1) semicolonIndex else header.length
-                    if (endIdx > 5) {
-                        mime = header.substring(5, endIdx)
-                    }
-                }
-                if (mime.isEmpty()) {
-                    mime = "application/octet-stream"
-                }
-
-                val extFromMime = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: when {
-                    mime.contains("json") -> "json"
-                    mime.contains("text/plain") -> "txt"
-                    mime.contains("html") -> "html"
-                    mime.contains("png") -> "png"
-                    mime.contains("jpeg") || mime.contains("jpg") -> "jpg"
-                    else -> "bin"
-                }
-
-                val lastDot = cleanName.lastIndexOf('.')
-                val hasValidExt = lastDot > 0 && (cleanName.length - lastDot - 1) in 2..5
-                if (!hasValidExt) {
-                    cleanName = "$cleanName.$extFromMime"
-                }
-
-                val bytes = if (header.contains(";base64", ignoreCase = true)) {
-                    Base64.decode(payload, Base64.DEFAULT)
+                val header = if (commaIndex != -1) {
+                    dataUri.substring(0, commaIndex)
                 } else {
-                    (Uri.decode(payload) ?: payload).toByteArray(Charsets.UTF_8)
+                    ""
                 }
+                val payload = if (commaIndex != -1) {
+                    dataUri.substring(commaIndex + 1)
+                } else {
+                    dataUri
+                }
+
+                val mime = extractMimeType(header, mimeTypeHint)
+                val extFromMime = determineFileExtension(mime)
+                val cleanName = sanitizeFileName(suggestedFileName, extFromMime)
+                val bytes = decodePayloadBytes(header, payload)
 
                 val savedUri = saveBytesToDownloads(context, cleanName, mime, bytes)
                 mainHandler.post {
@@ -226,15 +254,23 @@ class WebAppInterface(
         mainHandler.post {
             try {
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
-                    val mime = if (mimeTypeHint.isNotEmpty()) mimeTypeHint else MimeTypeMap.getFileExtensionFromUrl(url)?.let {
-                        MimeTypeMap.getSingleton().getMimeTypeFromExtension(it)
-                    } ?: "application/octet-stream"
+                    val mime = if (mimeTypeHint.isNotEmpty()) {
+                        mimeTypeHint
+                    } else {
+                        MimeTypeMap.getFileExtensionFromUrl(url)?.let {
+                            MimeTypeMap.getSingleton().getMimeTypeFromExtension(it)
+                        } ?: "application/octet-stream"
+                    }
                     setMimeType(mime)
                     val cookies = CookieManager.getInstance().getCookie(url)
                     if (!cookies.isNullOrEmpty()) {
                         addRequestHeader("cookie", cookies)
                     }
-                    val fileName = if (suggestedFileName.isNotEmpty()) suggestedFileName else URLUtil.guessFileName(url, null, mime)
+                    val fileName = if (suggestedFileName.isNotEmpty()) {
+                        suggestedFileName
+                    } else {
+                        URLUtil.guessFileName(url, null, mime)
+                    }
                     setTitle(fileName)
                     setDescription("Downloading...")
                     setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
@@ -266,13 +302,32 @@ class WebAppInterface(
             uri
         } else {
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+            if (!downloadsDir.exists()) {
+                downloadsDir.mkdirs()
+            }
             var targetFile = File(downloadsDir, fileName)
+
+            // Security guard: verify canonical root containment to prevent path traversal
+            if (!targetFile.canonicalFile.startsWith(downloadsDir.canonicalFile)) {
+                return null
+            }
+
             if (targetFile.exists()) {
                 val dotIndex = fileName.lastIndexOf('.')
-                val name = if (dotIndex != -1) fileName.substring(0, dotIndex) else fileName
-                val ext = if (dotIndex != -1) fileName.substring(dotIndex) else ""
+                val name = if (dotIndex != -1) {
+                    fileName.substring(0, dotIndex)
+                } else {
+                    fileName
+                }
+                val ext = if (dotIndex != -1) {
+                    fileName.substring(dotIndex)
+                } else {
+                    ""
+                }
                 targetFile = File(downloadsDir, "${name}_${System.currentTimeMillis()}$ext")
+                if (!targetFile.canonicalFile.startsWith(downloadsDir.canonicalFile)) {
+                    return null
+                }
             }
             FileOutputStream(targetFile).use { stream ->
                 stream.write(bytes)

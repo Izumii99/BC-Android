@@ -11,7 +11,9 @@
 
     function updateZoomState(portraitActive) {
         const shouldEnableZoom = !portraitActive;
-        if (currentZoomEnabled === shouldEnableZoom) return;
+        if (currentZoomEnabled === shouldEnableZoom) {
+            return;
+        }
         currentZoomEnabled = shouldEnableZoom;
 
         let meta = document.querySelector('meta[name="viewport"]');
@@ -189,12 +191,16 @@
     // 3. Dynamic layout observer and canvas scaler (centers in portrait and landscape)
     let lastLayoutSig = '';
     function adjustCanvasLayout() {
-        if (window._bcIsBackground) return;
+        if (window._bcIsBackground) {
+            return;
+        }
         const portraitActive = isExternalPortraitActive();
         updateZoomState(portraitActive);
 
         const canvas = document.getElementById('MainCanvas');
-        if (!canvas) return;
+        if (!canvas) {
+            return;
+        }
 
         const vw = window.innerWidth;
         const vh = window.innerHeight;
@@ -302,11 +308,17 @@
 
     // 4. Intercept and adapt desktop-proportioned banners, alerts, and recovery prompts
     function adaptPromptDialogs() {
-        if (window._bcIsBackground) return;
-        if (window.CurrentScreen && window.CurrentScreen !== 'Login') return;
+        if (window._bcIsBackground) {
+            return;
+        }
+        if (window.CurrentScreen && window.CurrentScreen !== 'Login') {
+            return;
+        }
         const candidates = document.querySelectorAll('body > div, body > table');
         candidates.forEach(function(el) {
-            if (el._bcPromptChecked) return;
+            if (el._bcPromptChecked) {
+                return;
+            }
             if (el.id === 'MainCanvas' || el.id === 'chat-room-div' || el.id === 'chat-room-main' || el.id === 'bc-android-portrait-style') {
                 el._bcPromptChecked = true;
                 return;
@@ -381,8 +393,12 @@
 
     let layoutPending = false;
     function scheduleLayoutUpdate() {
-        if (window._bcIsBackground) return;
-        if (layoutPending) return;
+        if (window._bcIsBackground) {
+            return;
+        }
+        if (layoutPending) {
+            return;
+        }
         layoutPending = true;
         requestAnimationFrame(function() {
             layoutPending = false;
@@ -409,15 +425,21 @@
 
     // Watch for top-level DOM changes (ignoring high-frequency chat log mutations)
     const domObserver = new MutationObserver(function(mutations) {
-        if (window._bcIsBackground) return;
+        if (window._bcIsBackground) {
+            return;
+        }
         let relevant = false;
         for (let i = 0; i < mutations.length; i++) {
             const t = mutations[i].target;
-            if (!t || t.id === 'TextAreaChatLog' || t.id === 'bcn-soft-paws') continue;
+            if (!t || t.id === 'TextAreaChatLog' || t.id === 'bcn-soft-paws') {
+                continue;
+            }
             relevant = true;
             break;
         }
-        if (relevant) scheduleLayoutUpdate();
+        if (relevant) {
+            scheduleLayoutUpdate();
+        }
     });
 
     let safetyInterval = null;
@@ -431,7 +453,9 @@
         }
         if (!safetyInterval) {
             safetyInterval = setInterval(function() {
-                if (window._bcIsBackground) return;
+                if (window._bcIsBackground) {
+                    return;
+                }
                 adjustCanvasLayout();
                 adaptPromptDialogs();
             }, 4000);

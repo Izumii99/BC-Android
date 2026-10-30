@@ -59,7 +59,9 @@
         // 1. Try GitHub Pages first (fast, proper MIME, live updates)
         fetch(pagesURL + "?v=" + Date.now(), { cache: "no-store" })
             .then(res => {
-                if (!res.ok) throw new Error("Pages HTTP " + res.status);
+                if (!res.ok) {
+                    throw new Error("Pages HTTP " + res.status);
+                }
                 return res.text();
             })
             .then(code => injectScriptText(code))
@@ -68,7 +70,9 @@
                 // 2. Try GitHub Raw fallback (direct from repository)
                 fetch(rawURL + "?v=" + Date.now(), { cache: "no-store" })
                     .then(res => {
-                        if (!res.ok) throw new Error("Raw HTTP " + res.status);
+                        if (!res.ok) {
+                            throw new Error("Raw HTTP " + res.status);
+                        }
                         return res.text();
                     })
                     .then(code => injectScriptText(code))
