@@ -2,6 +2,7 @@ package com.izumii.bcandroid.scripts
 
 import android.content.Context
 import android.webkit.WebView
+import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.io.BufferedReader
@@ -47,11 +48,12 @@ object ScriptLoader {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun parseConfigJson(rawJson: String?): JSONObject {
         val configStr = if (rawJson != null && rawJson != "null") {
             try {
                 JSONTokener(rawJson).nextValue() as? String ?: rawJson
-            } catch (e: Exception) {
+            } catch (ignored: JSONException) {
                 rawJson
             }
         } else {
@@ -60,7 +62,7 @@ object ScriptLoader {
 
         return try {
             JSONObject(configStr)
-        } catch (e: Exception) {
+        } catch (ignored: JSONException) {
             JSONObject()
         }
     }
