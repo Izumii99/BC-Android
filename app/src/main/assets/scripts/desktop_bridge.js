@@ -422,6 +422,26 @@
         const markActiveInput = function() {
             window._bcLastInputTime = performance.now();
             window._bcLastFgDrawTime = 0;
+            // ponytail: self-healing guard — if user touches screen but lifecycle flags are stale
+            // (lockscreen/biometric held onResume, or rapid onStop/onResume race), force recovery
+            if (window._bcIsMinimized || window._bcIsBackground) {
+                window._bcIsMinimized = false;
+                window._bcIsBackground = false;
+                window.dispatchEvent(new CustomEvent('bc:visibility', { detail: { background: false, minimized: false } }));
+                if (window._bcOrigRAF) {
+                    const raf = window._bcOrigRAF;
+                    window.requestAnimationFrame = raf;
+                    window._bcOrigRAF = null;
+                    if (window._bcOrigCAF) { window.cancelAnimationFrame = window._bcOrigCAF; window._bcOrigCAF = null; }
+                    const q = window._bcRafQ; window._bcRafQ = null;
+                    if (q) q.forEach(function(e) { clearTimeout(e.t); });
+                    if (typeof window.MainRun === 'function') raf.call(window, window.MainRun);
+                }
+                const mc = document.getElementById('MainCanvas');
+                if (mc) { mc.style.visibility = ''; mc.style.opacity = ''; }
+                const cl = document.getElementById('TextAreaChatLog');
+                if (cl) cl.style.contentVisibility = '';
+            }
         };
         window.addEventListener('pointerdown', markActiveInput, { passive: true, capture: true });
         window.addEventListener('touchstart', markActiveInput, { passive: true, capture: true });

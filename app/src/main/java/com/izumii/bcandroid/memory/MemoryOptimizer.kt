@@ -99,12 +99,20 @@ object MemoryOptimizer {
         "window._bcIsBackground=true;" +
         "window._bcIsMinimized=true;" +
         "window.dispatchEvent(new CustomEvent('bc:visibility',{detail:{background:true,minimized:true}}));" +
+        // --- RAF queue with cancelAnimationFrame support ---
         "if(!window._bcOrigRAF){" +
         "window._bcOrigRAF=window.requestAnimationFrame;" +
+        "window._bcOrigCAF=window.cancelAnimationFrame;" +
         "window._bcRafQ=new Map();" +
         "window.requestAnimationFrame=function(cb){const q=window._bcRafQ;const id=-(q.size+1+Math.floor(Math.random()*1e6));const t=setTimeout(function(){q.delete(id);cb(performance.now());},10000);q.set(id,{t:t,cb:cb});return id;};" +
+        "window.cancelAnimationFrame=function(id){const q=window._bcRafQ;if(q&&q.has(id)){clearTimeout(q.get(id).t);q.delete(id);}else if(window._bcOrigCAF){window._bcOrigCAF(id);}};" +
         "}" +
-        "try{const gl=typeof GLDrawCanvas!=='undefined'&&GLDrawCanvas&&(GLDrawCanvas.getContext('webgl2')||GLDrawCanvas.getContext('webgl'));if(gl&&!gl.isContextLost())window._bcLoseCtx=gl.getExtension('WEBGL_lose_context');}catch(e){}" +
+        // --- WebGL context loss tracking ---
+        "if(!window._bcGlLossTracked&&typeof GLDrawCanvas!=='undefined'&&GLDrawCanvas){" +
+        "window._bcGlLossTracked=true;" +
+        "GLDrawCanvas.addEventListener('webglcontextlost',function(){window._bcGlWasLost=true;},false);" +
+        "GLDrawCanvas.addEventListener('webglcontextrestored',function(){window._bcGlWasLost=true;},false);" +
+        "}" +
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='hidden';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='hidden';" +
         "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='none';" +
@@ -117,20 +125,37 @@ object MemoryOptimizer {
         "window._bcLastInputTime=performance.now();" +
         "window._bcLastFgDrawTime=0;" +
         "window.dispatchEvent(new CustomEvent('bc:visibility',{detail:{background:false,minimized:false}}));" +
+        // --- Flush RAF queue with deduplication + restore cancelAnimationFrame ---
         "if(window._bcOrigRAF){" +
         "const raf=window._bcOrigRAF;" +
         "window.requestAnimationFrame=raf;" +
         "window._bcOrigRAF=null;" +
+        "if(window._bcOrigCAF){window.cancelAnimationFrame=window._bcOrigCAF;window._bcOrigCAF=null;}" +
         "const q=window._bcRafQ;window._bcRafQ=null;" +
-        "if(q)q.forEach(function(e){clearTimeout(e.t);raf.call(window,e.cb);});" +
+        "const seen=new Set();" +
+        "if(q)q.forEach(function(e){clearTimeout(e.t);if(!seen.has(e.cb)){seen.add(e.cb);raf.call(window,e.cb);}});" +
+        "if(typeof window.MainRun==='function'&&!seen.has(window.MainRun)){raf.call(window,window.MainRun);}" +
         "}" +
+        // --- Compositor repaint kick (spoof visibility workaround) ---
+        "const mc=document.getElementById('MainCanvas');if(mc){mc.style.opacity='0.999';requestAnimationFrame(function(){mc.style.opacity='';});}" +
+        // --- WebGL context recovery (300ms) ---
         "setTimeout(function(){try{" +
-        "const gl=typeof GLDrawCanvas!=='undefined'&&GLDrawCanvas&&(GLDrawCanvas.getContext('webgl2')||GLDrawCanvas.getContext('webgl'));" +
-        "if(!gl||!gl.isContextLost())return;" +
-        "if(window._bcLoseCtx){try{window._bcLoseCtx.restoreContext();}catch(e){}}" +
-        "setTimeout(function(){try{if(gl.isContextLost()&&typeof window.GLDrawResetCanvas==='function')window.GLDrawResetCanvas();}catch(e){}},2000);" +
-        "}catch(e){}},500);" +
+        "const gl=window.GLDrawContext||(typeof GLDrawCanvas!=='undefined'&&GLDrawCanvas&&(GLDrawCanvas.getContext('webgl2')||GLDrawCanvas.getContext('webgl')));" +
+        "if(gl&&typeof gl.isContextLost==='function'&&gl.isContextLost()){" +
+        "window._bcGlWasLost=false;" +
+        "if(typeof window.GLDrawResetCanvas==='function')window.GLDrawResetCanvas();" +
+        "}else if(window._bcGlWasLost){" +
+        "window._bcGlWasLost=false;" +
+        "if(typeof window.GLDrawResetCanvas==='function'){window.GLDrawResetCanvas();}else{" +
+        "const cs2=(Array.isArray(window.ChatRoomCharacter)?window.ChatRoomCharacter.slice():[]);" +
+        "if(window.Player&&!cs2.includes(window.Player))cs2.push(window.Player);" +
+        "for(let i=0;i<cs2.length;i++){if(cs2[i])cs2[i]._bcPendingCanvasBuild=true;}" +
+        "}" +
+        "}" +
+        "}catch(e){}},300);" +
+        // --- Purge delay reset ---
         "const now=typeof window.CommonTime==='function'?window.CommonTime():Date.now();if(window.DrawImageCache)window.DrawImageCache.lastPurge=now;if(window.GLDrawImageCache)window.GLDrawImageCache.lastPurge=now;" +
+        // --- Rebuild pending characters ---
         "const chars=(Array.isArray(window.ChatRoomCharacter)?window.ChatRoomCharacter.slice():[]);" +
         "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);" +
         "for(let i=0;i<chars.length;i++){" +
@@ -144,6 +169,7 @@ object MemoryOptimizer {
         "}" +
         "}" +
         "}" +
+        // --- Restore hidden DOM ---
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='';" +
         "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='';" +

@@ -160,7 +160,11 @@ class ScriptDistributionTest {
         assertTrue("Must support adaptive foreground 30/15 FPS frame pacing", content.contains("_bcLastFgDrawTime") && content.contains("_bcLastInputTime") && content.contains("idle?66:32"))
         assertTrue("Must guard ElementScrollToEnd against background DOM reflows", content.contains("__bcScrollHooked") && content.contains("_bcNeedsChatScroll"))
         assertTrue("Must enforce GC cooldown", content.contains("_bcLastGc") && content.contains("60000"))
-        assertTrue("Must flush queued RAF callbacks on resume so the render loop never stays stuck", content.contains("_bcRafQ") && content.contains("raf.call(window,e.cb)"))
+        assertTrue("Must queue RAF callbacks with proper cleanup on timeout", content.contains("_bcRafQ") && content.contains("q.delete(id)"))
+        assertTrue("Must deduplicate RAF flush on resume so MainRun is never duplicated", content.contains("seen.has(e.cb)") && content.contains("seen.add(e.cb)"))
+        assertTrue("Must include MainRun watchdog on resume", content.contains("window.MainRun==='function'&&!seen.has(window.MainRun)"))
+        assertTrue("Must override cancelAnimationFrame to clean RAF queue", content.contains("_bcOrigCAF"))
+        assertTrue("Must track WebGL context loss/restore events", content.contains("_bcGlLossTracked") && content.contains("_bcGlWasLost"))
         assertTrue("Must recover a lost WebGL context on resume", content.contains("isContextLost") && content.contains("GLDrawResetCanvas"))
     }
 
@@ -178,6 +182,7 @@ class ScriptDistributionTest {
         assertTrue("Must include Login screen notification settings UI", content.contains("setupNotificationSettingsUi") && content.contains("bc-notif-btn") && content.contains("bc-notif-modal"))
         assertTrue("Must bridge notification state to AndroidBridge", content.contains("setNotificationsEnabled") && content.contains("BC_Notifications_Enabled"))
         assertTrue("Must strict-check Login screen for notification button visibility", content.contains("window.CurrentScreen === 'Login'"))
+        assertTrue("Must include self-healing guard in markActiveInput for stale lifecycle flags", content.contains("_bcIsMinimized || window._bcIsBackground") && content.contains("MainRun"))
     }
 
     @Test
