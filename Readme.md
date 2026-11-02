@@ -23,7 +23,7 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
 
 <div align="center">
   <h3>☕ Support the Project / Traktir Kopi</h3>
-  <p>A little coffee fuels late-night coding sessions and keeps updates rolling! ✨</p>
+  <p>Optional support for hosting and ongoing maintenance.</p>
   <p>
     <a href="https://sociabuzz.com/izumi99/tribe" target="_blank">
       <img src="https://img.shields.io/badge/SociaBuzz-Treat_Warm_Coffee_><-48C02B?style=for-the-badge&logo=buymeacoffee&logoColor=white" height="36" alt="Treat Warm Coffee on SociaBuzz" />
@@ -40,7 +40,7 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
 ## Features
 
 - **Zero-Bar Immersive Fullscreen:** Pure edge-to-edge experience without address bars, navigation buttons, tab switchers, or settings panels.
-- **Portrait-First Scaling Engine:** Intelligently fits the native 2:1 game canvas to portrait phone displays with zero horizontal overflow, while automatically yielding to portrait addons (such as BC-LCE or MPL) when active.
+- **Portrait-First Scaling Engine:** Fits the native 2:1 game canvas to portrait phone displays with zero horizontal overflow, while automatically yielding to portrait addons (such as BC-LCE or MPL) when active.
 - **Background Session Persistence & Anti-Shutdown:** Integrated background keep-alive service (`ConnectionKeeperService`) maintaining active WebSocket room connections and game timers even when the app is minimized or the screen is locked, preventing aggressive OEM battery killer disconnects.
   > [!TIP]
   > **For Uninterrupted 24/7 Background Running:** On aggressive OEM systems (Xiaomi MIUI/HyperOS, Samsung OneUI, Vivo, Oppo):
@@ -49,16 +49,16 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
   > 3. Enable **"Autostart"** (Mulai otomatis).
   > 4. **Lock the app in Recent Apps** (long-press the app card in Recent Apps and tap the Padlock icon) to prevent OEM task killers from killing the process during heavy multitasking.
 - **Native "Open with" System App Chooser:** Tapping external links (GitHub addon repositories, Discord links, guides, bug trackers) or scripts triggering `window.open` launches Android's native system app picker, allowing you to view external content in Chrome, Firefox, or official apps without ever disrupting your active game room session.
-- **Smart Back Navigation & Double-Tap Protection:** Intelligently navigates back from external web pages to the game canvas, while reserving the double-tap exit confirmation strictly for the active game room to prevent accidental disconnections.
+- **Smart Back Navigation & Double-Tap Protection:** Navigates back from external web pages to the game canvas, while reserving the double-tap exit confirmation strictly for the active game room to prevent accidental disconnections.
 - **Aggressive Memory & Battery Optimization:**
   - Redraws automatically throttle down to **1 FPS** and canvas rendering is completely bypassed when the app is paused or screen is locked.
   - Active memory pruning via Android `onTrimMemory` hooks clears non-essential cache buffers during long sessions without disconnecting WebSocket connections.
 - **Auto-Detects Latest Game Version:** Probes server endpoints concurrently on startup to launch the newest live game release (`R132+`). Supports manual version override or locking via a local `version.txt` file (e.g. `133:lock`).
-- **Instant In-App Updates & Auto-Clean Cache:** Automatically detects new APK releases on launch and provides seamless 1-tap in-app download and direct package installation. Downloaded APKs are stored in private internal sandbox cache and automatically cleaned up on startup, keeping your device's Downloads folder completely clutter-free.
+- **In-App Updates & Auto-Clean Cache:** Detects new APK releases on launch and provides in-app download and installation. Downloaded APKs are stored in private sandbox cache and automatically cleaned up on startup, keeping your Downloads folder clean.
 - **Crash Auto-Recovery:** Automatically recovers and restarts frozen or memory-exhausted WebKit render processes with rapid crash-loop guards.
 - **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
-- **Native System File Chooser:** Full support for HTML `<input type="file">`, allowing seamless import/export of appearances, wardrobe codes, custom backgrounds, and backup files directly through the Android system file picker (Recent, Downloads, Gallery).
-- **Context-Aware Dynamic Pinch-to-Zoom:** Enables pinch-to-zoom (up to 5x magnification) across standard landscape screens (such as the Lobby/Main Hall and non-portrait menus) for effortless readability of small buttons and text, while automatically locking zoom in portrait mode (BC-LCE vertical chatrooms and vertical room search UI) to ensure stable docking without gesture misalignments.
+- **Native System File Chooser:** Full support for HTML `<input type="file">`, allowing direct import and export of appearances, wardrobe codes, custom backgrounds, and backup files through the Android system file picker (Recent, Downloads, Gallery).
+- **Context-Aware Dynamic Pinch-to-Zoom:** Enables pinch-to-zoom (up to 5x magnification) across landscape screens for small buttons and text, while locking zoom in portrait mode (BC-LCE vertical chatrooms and room search UI) to maintain stable touch alignment.
 - **Discreet / Stealth Flavor:** Includes an optional build with a minimal app name (`"BC"`) and transparent launcher icon for complete privacy.
 
 ---
@@ -71,7 +71,7 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
 
 ### 1. Neko Dark Mode (`neko-dark.js`)
 
-A custom dark theme tailored for **Neko Chat Enhancer**, replacing harsh white backgrounds with a sleek purple aesthetic.
+A custom dark theme tailored for **Neko Chat Enhancer**, replacing default backgrounds with dark purple surfaces.
 
 <img src="Assets/neko_dark_preview.png" width="450" alt="Neko Dark Mode Preview" />
 
@@ -83,7 +83,7 @@ Translates text emoticons into character expressions, forces ungarbled messages,
 
 ### 3. Addon Manager UI (`addon-manager.js`)
 
-A built-in GUI to manage all your installed addons and compatible community scripts in one place with simple toggle switches.
+An in-game GUI to manage installed addons and compatible community scripts with simple toggle switches.
 
 <img src="Assets/addon_manager.png" width="350" alt="Addon Manager Preview" />
 
@@ -170,36 +170,36 @@ To run the automated unit test suite locally:
 BC-Android/
 ├── .github/
 │   └── workflows/
-│       ├── checks.yml                        — CI unit test runner & lint verification
-│       └── release.yml                       — Automated multi-flavor APK builder & release
+│       ├── checks.yml                        : CI unit test runner & lint verification
+│       └── release.yml                       : Automated multi-flavor APK builder & release
 ├── app/
 │   ├── src/main/
 │   │   ├── java/com/izumii/bcandroid/
-│   │   │   ├── MainActivity.kt               — WebView host, immersive mode, file chooser & lifecycle
-│   │   │   ├── WebAppInterface.kt            — JavaScript bridge (clipboard, downloads, haptics)
+│   │   │   ├── MainActivity.kt               : WebView host, immersive mode, file chooser & lifecycle
+│   │   │   ├── WebAppInterface.kt            : JavaScript bridge (clipboard, downloads, haptics)
 │   │   │   ├── memory/
-│   │   │   │   └── MemoryOptimizer.kt        — Low-memory trim callbacks, cache pruning & FPS throttle
+│   │   │   │   └── MemoryOptimizer.kt        : Low-memory trim callbacks, cache pruning & FPS throttle
 │   │   │   ├── service/
-│   │   │   │   └── ConnectionKeeperService.kt — 24/7 silent background keep-alive (WifiLock & WakeLock)
+│   │   │   │   └── ConnectionKeeperService.kt : 24/7 silent background keep-alive (WifiLock & WakeLock)
 │   │   │   ├── updater/
-│   │   │   │   └── VersionDetector.kt        — Dynamic server detection & in-app APK updater
+│   │   │   │   └── VersionDetector.kt        : Dynamic server detection & in-app APK updater
 │   │   │   └── scripts/
-│   │   │       └── ScriptLoader.kt           — Offline fallback addon injection
+│   │   │       └── ScriptLoader.kt           : Offline fallback addon injection
 │   │   ├── assets/
-│   │   │   ├── addons/                       — Offline fallback addon bundle (synced from BC-Desktop)
-│   │   │   ├── scripts/                      — Desktop bridge & remote loader scripts
-│   │   │   └── portrait_adapter.js           — Dynamic 2:1 canvas scaling & zoom controller
-│   │   ├── res/                              — App layouts, drawables, launcher icons & themes
-│   │   └── AndroidManifest.xml               — Permissions (WakeLock, WifiLock, Battery Exempt)
-│   ├── src/test/                             — Automated JUnit test suite
-│   │   ├── ScriptDistributionTest.kt         — Addon hub & fallback integrity tests
-│   │   └── VersionDetectorTest.kt            — SemVer tag comparison & calendar formula tests
-│   └── build.gradle.kts                      — Android app configuration (SDK 34, flavors, SemVer)
-├── Assets/                                   — Readme screenshots, banner & launcher branding
-├── build_all.ps1                             — Release APK compile & packaging script
-├── build-local.ps1                           — Fast local debug build & adb push tool
-├── RELEASE_NOTES.md                          — User-facing changelog & release details
-└── settings.gradle.kts                       — Gradle project root settings
+│   │   │   ├── addons/                       : Offline fallback addon bundle (synced from BC-Desktop)
+│   │   │   ├── scripts/                      : Desktop bridge & remote loader scripts
+│   │   │   └── portrait_adapter.js           : Dynamic 2:1 canvas scaling & zoom controller
+│   │   ├── res/                              : App layouts, drawables, launcher icons & themes
+│   │   └── AndroidManifest.xml               : Permissions (WakeLock, WifiLock, Battery Exempt)
+│   ├── src/test/                             : Automated JUnit test suite
+│   │   ├── ScriptDistributionTest.kt         : Addon hub & fallback integrity tests
+│   │   └── VersionDetectorTest.kt            : SemVer tag comparison & calendar formula tests
+│   └── build.gradle.kts                      : Android app configuration (SDK 34, flavors, SemVer)
+├── Assets/                                   : Readme screenshots, banner & launcher branding
+├── build_all.ps1                             : Release APK compile & packaging script
+├── build-local.ps1                           : Fast local debug build & adb push tool
+├── RELEASE_NOTES.md                          : User-facing changelog & release details
+└── settings.gradle.kts                       : Gradle project root settings
 ```
 
 ---
