@@ -8,14 +8,14 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 2.0.6)'
+        description: 'Release version / tag (e.g., 2.0.7)'
         required: false
-        default: '2.0.6'
+        default: '2.0.7'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Adaptive Low-Power Pacing, Smart Background Burst & Login Notification Toggle'
+        default: 'Crowded Room Staggered Rendering, Auto-Focus Keyboard Toggle & WebGL Memory Optimization'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -80,9 +80,9 @@ jobs:
           else
             REF_TAG=""
           fi
-          VER="${INPUT_VER:-${REF_TAG:-2.0.6}}"
+          VER="${INPUT_VER:-${REF_TAG:-2.0.7}}"
 
-          TITLE="${INPUT_TITLE:-Adaptive Low-Power Pacing, Smart Background Burst & Login Notification Toggle}"
+          TITLE="${INPUT_TITLE:-Crowded Room Staggered Rendering, Auto-Focus Keyboard Toggle & WebGL Memory Optimization}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"

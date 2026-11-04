@@ -71,6 +71,7 @@
             user-select: none !important;
             -webkit-user-select: none !important;
             -webkit-touch-callout: none !important;
+            touch-action: manipulation !important;
         }
 
         /* Full support for holding and dragging (blocking) chat text and inputs on Android */
@@ -111,6 +112,10 @@
             content-visibility: auto;
             contain-intrinsic-size: auto 42px;
             contain: layout style paint;
+        }
+
+        .dialog-grid, .dialog-root {
+            contain: layout style;
         }
 
         /* Suppress redundant fullscreen button overlay on Android zero-bar immersive display */

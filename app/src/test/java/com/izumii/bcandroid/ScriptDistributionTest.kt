@@ -110,6 +110,9 @@ class ScriptDistributionTest {
         assertTrue("Must define NORMAL_PURGE_DELAY", content.contains("NORMAL_PURGE_DELAY"))
         assertTrue("Must call safe GLDrawImageCache.purge", content.contains("GLDrawImageCache.purge"))
         assertTrue("Must call safe DrawImageCache.purge", content.contains("DrawImageCache.purge"))
+        assertTrue("Must release WebGL GPU textures on cache delete", content.contains("pruneWebGlGpuTextures") && content.contains("deleteTexture"))
+        assertTrue("Must include toggleable Android auto-focus guard (default OFF)", content.contains("_bcAndroidAutoFocusEnabled") && content.contains("BC_Android_AutoFocus"))
+        assertTrue("Must stagger crowded room CharacterLoadCanvas queue", content.contains("_bcCanvasQueue") && content.contains("_drainCanvasQueue"))
     }
 
     @Test
