@@ -633,7 +633,7 @@
                 window.__bcScrollHooked = true;
                 const _origScroll = window.ElementScrollToEnd;
                 window.ElementScrollToEnd = function(id) {
-                    if (window._bcIsMinimized || window._bcIsBackground) {
+                    if (window._bcIsMinimized) {
                         window._bcNeedsChatScroll = true;
                         return;
                     }
@@ -668,7 +668,7 @@
                 };
 
                 window.CharacterLoadCanvas = function(C) {
-                    if (window._bcIsMinimized || window._bcIsBackground) {
+                    if (window._bcIsMinimized) {
                         if (C) {
                             C._bcPendingCanvasBuild = true;
                         }
@@ -732,7 +732,7 @@
                 window.__bcBuildCanvasHooked = true;
                 const _origBuild = window.CharacterAppearanceBuildCanvas;
                 window.CharacterAppearanceBuildCanvas = function(C) {
-                    if (window._bcIsMinimized || window._bcIsBackground) {
+                    if (window._bcIsMinimized) {
                         if (C) {
                             C._bcPendingCanvasBuild = true;
                         }
@@ -1280,6 +1280,7 @@
                             const keys = Array.from(glImgMap.keys());
                             for (let i = 0; i < keys.length && excess > 0; i++) {
                                 const k = keys[i];
+                                if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
                                 if (!activeAssetUrls || !activeAssetUrls.has(k)) {
                                     const entry = glImgMap.get(k);
                                     if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
@@ -1296,6 +1297,7 @@
                         const keys = Array.from(drawMap.keys());
                         for (let i = 0; i < keys.length && excess > 0; i++) {
                             const k = keys[i];
+                            if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
                             if (!activeAssetUrls || !activeAssetUrls.has(k)) {
                                 const entry = drawMap.get(k);
                                 if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
@@ -1323,6 +1325,7 @@
                             const keys = Array.from(gl.textureCache.keys());
                             for (let i = 0; i < keys.length && excess > 0; i++) {
                                 const k = keys[i];
+                                if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
                                 if (!activeAssetUrls || !activeAssetUrls.has(k)) {
                                     gl.textureCache.delete(k);
                                     excess--;
@@ -1493,7 +1496,7 @@
             if (typeof window.ServerSend === 'function' && !window.__bcSendBurstHooked) {
                 window.__bcSendBurstHooked = true;
             }
-            if (typeof window.CommonDrawWarmDrawnAssets === 'function' && !window.__bcWarmDrawnHooked) {
+            if (false && typeof window.CommonDrawWarmDrawnAssets === 'function' && !window.__bcWarmDrawnHooked) {
                 window.__bcWarmDrawnHooked = true;
                 const _origWarm = window.CommonDrawWarmDrawnAssets;
                 window.CommonDrawWarmDrawnAssets = function() {
@@ -1537,6 +1540,7 @@
                 const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                 const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
                 const glMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
+                if (drawMap && typeof drawMap.forEach === 'function') { drawMap.forEach((dImg, url) => { if (dImg && typeof url === 'string' && !url.startsWith('Assets/')) dImg.lastUsed = now; }); }
                 if (Array.isArray(window.DrawLastCharacters)) { for (let i = 0; i < window.DrawLastCharacters.length; i++) { const dc = window.DrawLastCharacters[i]; if (dc && !chars.includes(dc)) chars.push(dc); } }
                 const activeAssetUrls = new Set();
                 for (let i = 0; i < chars.length; i++) {

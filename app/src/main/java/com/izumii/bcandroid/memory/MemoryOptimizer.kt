@@ -51,7 +51,7 @@ object MemoryOptimizer {
         "window.__bcLoadCanvasHooked=true;" +
         "const _origLoad=window.CharacterLoadCanvas;" +
         "window.CharacterLoadCanvas=function(C){" +
-        "if(window._bcIsMinimized||window._bcIsBackground){" +
+        "if(window._bcIsMinimized){" +
         "if(C)C._bcPendingCanvasBuild=true;" +
         "return;" +
         "}" +
@@ -73,7 +73,7 @@ object MemoryOptimizer {
         "window.__bcBuildCanvasHooked=true;" +
         "const _origBuild=window.CharacterAppearanceBuildCanvas;" +
         "window.CharacterAppearanceBuildCanvas=function(C){" +
-        "if(window._bcIsMinimized||window._bcIsBackground){" +
+        "if(window._bcIsMinimized){" +
         "if(C)C._bcPendingCanvasBuild=true;" +
         "return;" +
         "}" +
@@ -157,7 +157,7 @@ object MemoryOptimizer {
         "}" +
         "}catch(e){}},300);" +
         // --- Purge delay reset ---
-        "const now=typeof window.CommonTime==='function'?window.CommonTime():Date.now();if(window.DrawImageCache)window.DrawImageCache.lastPurge=now;if(window.GLDrawImageCache)window.GLDrawImageCache.lastPurge=now;" +
+        "const now=typeof window.CurrentTime==='number'?window.CurrentTime:0;if(window.DrawImageCache)window.DrawImageCache.lastPurge=now;if(window.GLDrawImageCache)window.GLDrawImageCache.lastPurge=now;" +
         // --- Rebuild pending characters ---
         "const chars=(Array.isArray(window.ChatRoomCharacter)?window.ChatRoomCharacter.slice():[]);" +
         "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);" +
