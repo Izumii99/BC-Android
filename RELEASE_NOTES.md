@@ -4,6 +4,7 @@
 - **Fix (Crowded Room & Character Tap Delay):** Eliminated the long delay when tapping characters or opening menus in crowded rooms by prioritizing the selected character for immediate rendering while smoothly staggering background character outfit updates one per frame.
 - **Improvement (Instant Canvas Touch Response & Dialog Layout Containment):** Added direct touch manipulation hints on the game canvas and isolated character dialog layouts so tapping characters and switching restraint menus responds immediately without layout stutter.
 - **Fix (WebGL & GPU Memory Optimization):** Fixed a memory issue where discarded outfit textures were not released from graphics memory, significantly reducing RAM usage during long sessions and crowded room visits while keeping the lightweight theme fast and responsive.
+- **Feature (Freya's Seidr Addon Support):** Added Freya's Seidr to the Addons Manager list (disabled by default) for optional access to holds, undress activities, custom animations, slash commands, and room management.
 
 ### How to Keep the App Connected in Background:
 

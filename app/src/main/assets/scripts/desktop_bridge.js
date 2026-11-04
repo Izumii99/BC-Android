@@ -1192,11 +1192,15 @@
             }
         } catch (e) {}
 
-        const NORMAL_PURGE_DELAY = 6 * 60 * 1000;
-        const WARDROBE_PURGE_DELAY = 90 * 1000;
-        const MAX_WEBGL_TEXTURES = 320;
-        const MAX_MASK_TEXTURES = 160;
-        const MAX_ALPHA_MASKS = 180;
+        const NORMAL_PURGE_DELAY = 90 * 1000;
+        const WARDROBE_PURGE_DELAY = 45 * 1000;
+        const MAX_WEBGL_TEXTURES = 240;
+        const MAX_MASK_TEXTURES = 110;
+        const MAX_ALPHA_MASKS = 110;
+
+
+
+
 
         function hookGlCacheDelete(gl) {
             if (!gl || gl.__bcDeleteHooked) {
@@ -1234,6 +1238,7 @@
             };
             wrapCache(gl.textureCache);
             wrapCache(gl.maskCache);
+            if (window.GLDrawImageCache && window.GLDrawImageCache.cache) wrapCache(window.GLDrawImageCache.cache);
         }
 
         function pruneWebGlGpuTextures(activeAssetUrls) {
@@ -1242,6 +1247,36 @@
                 if (gl) {
                     hookGlCacheDelete(gl);
                     const glImgMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
+                    if (glImgMap && typeof glImgMap.size === 'number') {
+                        wrapCache(glImgMap);
+                        if (glImgMap.size > MAX_WEBGL_TEXTURES) {
+                            let excess = glImgMap.size - MAX_WEBGL_TEXTURES;
+                            const keys = Array.from(glImgMap.keys());
+                            for (let i = 0; i < keys.length && excess > 0; i++) {
+                                const k = keys[i];
+                                if (!activeAssetUrls || !activeAssetUrls.has(k)) {
+                                    const entry = glImgMap.get(k);
+                                    if (entry && entry.texture && typeof gl.deleteTexture === 'function') {
+                                        try { gl.deleteTexture(entry.texture); entry.texture = null; } catch (e) {}
+                                    }
+                                    glImgMap.delete(k);
+                                    excess--;
+                                }
+                            }
+                        }
+                    }
+                    const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
+                    if (drawMap && typeof drawMap.size === 'number' && drawMap.size > MAX_WEBGL_TEXTURES) {
+                        let excess = drawMap.size - MAX_WEBGL_TEXTURES;
+                        const keys = Array.from(drawMap.keys());
+                        for (let i = 0; i < keys.length && excess > 0; i++) {
+                            const k = keys[i];
+                            if (!activeAssetUrls || !activeAssetUrls.has(k)) {
+                                drawMap.delete(k);
+                                excess--;
+                            }
+                        }
+                    }
                     if (gl.textureCache && typeof gl.textureCache.forEach === 'function') {
                         const toDelete = [];
                         gl.textureCache.forEach(function(_, url) {
@@ -1443,7 +1478,62 @@
                     return _origSend.apply(this, arguments);
                 };
             }
+            if (typeof window.CommonDrawWarmDrawnAssets === 'function' && !window.__bcWarmDrawnHooked) {
+                window.__bcWarmDrawnHooked = true;
+                const _origWarm = window.CommonDrawWarmDrawnAssets;
+                window.CommonDrawWarmDrawnAssets = function(C) {
+                    if (window._bcIsBackground || window._bcIsMinimized) return;
+                    if (C) {
+                        const now = Date.now();
+                        if (C._bcLastWarmTime && (now - C._bcLastWarmTime < 15000)) return;
+                        C._bcLastWarmTime = now;
+                    }
+                    return _origWarm.apply(this, arguments);
+                };
+            }
+            if (typeof window.GLDrawAppearanceBuild === 'function' && !window.__bcGlBuildZeroFlickerHooked) {
+                window.__bcGlBuildZeroFlickerHooked = true;
+                const _origGlBuild = window.GLDrawAppearanceBuild;
+                window.GLDrawAppearanceBuild = function(C) {
+                    if (C && C.Canvas && C.CanvasBlink && typeof window.GLDrawCanvas !== 'undefined' && window.GLDrawCanvas && window.GLDrawCanvas.GL && !window.GLDrawCanvas.GL.isContextLost()) {
+                        const prevCanvas = C.Canvas;
+                        const prevBlink = C.CanvasBlink;
+                        const w = prevCanvas.width || 500;
+                        const h = prevCanvas.height || 1000;
+                        if (prevCanvas.width > 0 && prevBlink.width > 0 && typeof window.GLDrawGetSubCanvas === 'function') {
+                            try {
+                                const offsetX = C.HeightRatio === 1 ? 0 : (500 - (500 * (C.HeightRatio || 1))) / 2;
+                                const offsetY = 1000 * (1 - (C.HeightRatio || 1)) * (C.HeightRatioProportion || 0);
+                                window.GLDrawClearRect(window.GLDrawCanvas.GL, 0, 0, w, h, 0);
+                                window.CommonDrawCanvasPrepare(C);
+                                window.CommonDrawAppearanceBuild(C, {
+                                    clearRect: (x, y, cw, ch) => window.GLDrawClearRect(window.GLDrawCanvas.GL, x, y, cw, ch, 0),
+                                    clearRectBlink: (x, y, cw, ch) => window.GLDrawClearRect(window.GLDrawCanvas.GL, x, y, cw, ch, h),
+                                    drawImage: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y, opts),
+                                    drawImageBlink: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y + h, opts),
+                                    drawImageColorize: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y, opts),
+                                    drawImageColorizeBlink: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y + h, opts),
+                                    drawCanvas: (Img, x, y, alphaMasks) => window.GLDraw2DCanvas(window.GLDrawCanvas.GL, Img, x + offsetX, y + offsetY, alphaMasks),
+                                    drawCanvasBlink: (Img, x, y, alphaMasks) => window.GLDraw2DCanvas(window.GLDrawCanvas.GL, Img, x + offsetX, y + h + offsetY, alphaMasks)
+                                });
+                                const ctx1 = prevCanvas.getContext('2d');
+                                const ctx2 = prevBlink.getContext('2d');
+                                if (ctx1 && ctx2) {
+                                    ctx1.clearRect(0, 0, w, h);
+                                    ctx1.drawImage(window.GLDrawCanvas, 0, 0, w, h, 0, 0, w, h);
+                                    ctx2.clearRect(0, 0, w, h);
+                                    ctx2.drawImage(window.GLDrawCanvas, 0, h, w, h, 0, 0, w, h);
+                                    C.MustDraw = false;
+                                    return;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                    return _origGlBuild.apply(this, arguments);
+                };
+            }
         }
+        window._bcPruneGpuNow = function() { pruneWebGlGpuTextures(null); };
         attachRoomHooks();
 
         let vramPruneInterval = null;
