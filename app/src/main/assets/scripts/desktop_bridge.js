@@ -577,6 +577,7 @@
                 return idleMs < 3000 ? 32 : 50;
             }
             const scr = window.CurrentScreen;
+            if (!scr || scr === 'Login' || scr === 'Relog' || window.ScreenIsLoading) return 32;
             const isIdleScreen = !scr || scr === 'Login' || scr === 'MainHall' || scr === 'ChatSearch' || scr === 'Relog' || scr === 'InformationSheet';
             if (isIdleScreen) {
                 return idleMs < 1500 ? 33 : 125;
@@ -598,19 +599,6 @@
                     if (t > (window._bcBgBurstUntil || 0)) {
                         window._bcBgBurstUntil = t;
                     }
-                };
-            }
-            if (!window.__bcGameRunHooked && typeof window.GameRun === 'function') {
-                window.__bcGameRunHooked = true;
-                const _origGameRun = window.GameRun;
-                let _lastGameRunTime = 0;
-                window.GameRun = function(ts) {
-                    if (window._bcIsMinimized) return;
-                    const now = typeof ts === 'number' ? ts : performance.now();
-                    const targetDelta = typeof window._bcGetTargetFrameDelta === 'function' ? window._bcGetTargetFrameDelta(now) : 32;
-                    if (now - _lastGameRunTime < targetDelta) return;
-                    _lastGameRunTime = now;
-                    return _origGameRun.apply(this, arguments);
                 };
             }
             if (!window.__bcDrawHooked && typeof window.DrawProcess === 'function') {
@@ -645,7 +633,7 @@
                 window.__bcScrollHooked = true;
                 const _origScroll = window.ElementScrollToEnd;
                 window.ElementScrollToEnd = function(id) {
-                    if (window._bcIsMinimized) {
+                    if (window._bcIsMinimized || window._bcIsBackground) {
                         window._bcNeedsChatScroll = true;
                         return;
                     }
@@ -680,7 +668,7 @@
                 };
 
                 window.CharacterLoadCanvas = function(C) {
-                    if (window._bcIsMinimized) {
+                    if (window._bcIsMinimized || window._bcIsBackground) {
                         if (C) {
                             C._bcPendingCanvasBuild = true;
                         }
@@ -744,7 +732,7 @@
                 window.__bcBuildCanvasHooked = true;
                 const _origBuild = window.CharacterAppearanceBuildCanvas;
                 window.CharacterAppearanceBuildCanvas = function(C) {
-                    if (window._bcIsMinimized) {
+                    if (window._bcIsMinimized || window._bcIsBackground) {
                         if (C) {
                             C._bcPendingCanvasBuild = true;
                         }
@@ -1278,7 +1266,6 @@
             };
             wrapCache(gl.textureCache);
             wrapCache(gl.maskCache);
-            if (window.GLDrawImageCache && window.GLDrawImageCache.cache) wrapCache(window.GLDrawImageCache.cache);
         }
 
         function pruneWebGlGpuTextures(activeAssetUrls) {
@@ -1287,8 +1274,7 @@
                 if (gl) {
                     hookGlCacheDelete(gl);
                     const glImgMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
-                    if (glImgMap && typeof glImgMap.size === 'number') {
-                        wrapCache(glImgMap);
+                    if (glImgMap && typeof glImgMap.size === 'number' && typeof window.GLDrawImageCache.delete === 'function') {
                         if (glImgMap.size > MAX_WEBGL_TEXTURES) {
                             let excess = glImgMap.size - MAX_WEBGL_TEXTURES;
                             const keys = Array.from(glImgMap.keys());
@@ -1296,23 +1282,25 @@
                                 const k = keys[i];
                                 if (!activeAssetUrls || !activeAssetUrls.has(k)) {
                                     const entry = glImgMap.get(k);
-                                    if (entry && entry.texture && typeof gl.deleteTexture === 'function') {
-                                        try { gl.deleteTexture(entry.texture); entry.texture = null; } catch (e) {}
-                                    }
-                                    glImgMap.delete(k);
+                                    if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
+                                    if (typeof entry.isDoneLoading === 'function' && !entry.isDoneLoading()) continue;
+                                    window.GLDrawImageCache.delete(k);
                                     excess--;
                                 }
                             }
                         }
                     }
                     const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
-                    if (drawMap && typeof drawMap.size === 'number' && drawMap.size > MAX_WEBGL_TEXTURES) {
+                    if (drawMap && typeof drawMap.size === 'number' && drawMap.size > MAX_WEBGL_TEXTURES && typeof window.DrawImageCache.delete === 'function') {
                         let excess = drawMap.size - MAX_WEBGL_TEXTURES;
                         const keys = Array.from(drawMap.keys());
                         for (let i = 0; i < keys.length && excess > 0; i++) {
                             const k = keys[i];
                             if (!activeAssetUrls || !activeAssetUrls.has(k)) {
-                                drawMap.delete(k);
+                                const entry = drawMap.get(k);
+                                if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
+                                if (typeof entry.isDoneLoading === 'function' && !entry.isDoneLoading()) continue;
+                                window.DrawImageCache.delete(k);
                                 excess--;
                             }
                         }
@@ -1508,59 +1496,16 @@
             if (typeof window.CommonDrawWarmDrawnAssets === 'function' && !window.__bcWarmDrawnHooked) {
                 window.__bcWarmDrawnHooked = true;
                 const _origWarm = window.CommonDrawWarmDrawnAssets;
-                window.CommonDrawWarmDrawnAssets = function(C) {
+                window.CommonDrawWarmDrawnAssets = function() {
                     if (window._bcIsBackground || window._bcIsMinimized) return;
-                    if (C) {
-                        const now = Date.now();
-                        if (C._bcLastWarmTime && (now - C._bcLastWarmTime < 15000)) return;
-                        C._bcLastWarmTime = now;
-                    }
+                    const now = Date.now();
+                    if (now - (window._bcLastWarmTime || 0) < 3000) return;
+                    window._bcLastWarmTime = now;
                     return _origWarm.apply(this, arguments);
                 };
             }
-            if (typeof window.GLDrawAppearanceBuild === 'function' && !window.__bcGlBuildZeroFlickerHooked) {
-                window.__bcGlBuildZeroFlickerHooked = true;
-                const _origGlBuild = window.GLDrawAppearanceBuild;
-                window.GLDrawAppearanceBuild = function(C) {
-                    if (C && C.Canvas && C.CanvasBlink && typeof window.GLDrawCanvas !== 'undefined' && window.GLDrawCanvas && window.GLDrawCanvas.GL && !window.GLDrawCanvas.GL.isContextLost()) {
-                        const prevCanvas = C.Canvas;
-                        const prevBlink = C.CanvasBlink;
-                        const w = prevCanvas.width || 500;
-                        const h = prevCanvas.height || 1000;
-                        if (prevCanvas.width > 0 && prevBlink.width > 0 && typeof window.GLDrawGetSubCanvas === 'function') {
-                            try {
-                                const offsetX = C.HeightRatio === 1 ? 0 : (500 - (500 * (C.HeightRatio || 1))) / 2;
-                                const offsetY = 1000 * (1 - (C.HeightRatio || 1)) * (C.HeightRatioProportion || 0);
-                                window.GLDrawClearRect(window.GLDrawCanvas.GL, 0, 0, w, h, 0);
-                                window.CommonDrawCanvasPrepare(C);
-                                window.CommonDrawAppearanceBuild(C, {
-                                    clearRect: (x, y, cw, ch) => window.GLDrawClearRect(window.GLDrawCanvas.GL, x, y, cw, ch, 0),
-                                    clearRectBlink: (x, y, cw, ch) => window.GLDrawClearRect(window.GLDrawCanvas.GL, x, y, cw, ch, h),
-                                    drawImage: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y, opts),
-                                    drawImageBlink: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y + h, opts),
-                                    drawImageColorize: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y, opts),
-                                    drawImageColorizeBlink: (src, x, y, opts) => window.GLDrawImage(src, window.GLDrawCanvas.GL, x, y + h, opts),
-                                    drawCanvas: (Img, x, y, alphaMasks) => window.GLDraw2DCanvas(window.GLDrawCanvas.GL, Img, x + offsetX, y + offsetY, alphaMasks),
-                                    drawCanvasBlink: (Img, x, y, alphaMasks) => window.GLDraw2DCanvas(window.GLDrawCanvas.GL, Img, x + offsetX, y + h + offsetY, alphaMasks)
-                                });
-                                const ctx1 = prevCanvas.getContext('2d');
-                                const ctx2 = prevBlink.getContext('2d');
-                                if (ctx1 && ctx2) {
-                                    ctx1.clearRect(0, 0, w, h);
-                                    ctx1.drawImage(window.GLDrawCanvas, 0, 0, w, h, 0, 0, w, h);
-                                    ctx2.clearRect(0, 0, w, h);
-                                    ctx2.drawImage(window.GLDrawCanvas, 0, h, w, h, 0, 0, w, h);
-                                    C.MustDraw = false;
-                                    return;
-                                }
-                            } catch (e) {}
-                        }
-                    }
-                    return _origGlBuild.apply(this, arguments);
-                };
-            }
         }
-        window._bcPruneGpuNow = function() { pruneWebGlGpuTextures(null); };
+        window._bcPruneGpuNow = function() { pruneVram(); };
         attachRoomHooks();
 
         let vramPruneInterval = null;
@@ -1592,6 +1537,7 @@
                 const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                 const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
                 const glMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
+                if (Array.isArray(window.DrawLastCharacters)) { for (let i = 0; i < window.DrawLastCharacters.length; i++) { const dc = window.DrawLastCharacters[i]; if (dc && !chars.includes(dc)) chars.push(dc); } }
                 const activeAssetUrls = new Set();
                 for (let i = 0; i < chars.length; i++) {
                     const drawn = chars[i] && chars[i].DrawnAssets;

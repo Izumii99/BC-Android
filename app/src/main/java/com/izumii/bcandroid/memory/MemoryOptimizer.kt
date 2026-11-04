@@ -51,7 +51,7 @@ object MemoryOptimizer {
         "window.__bcLoadCanvasHooked=true;" +
         "const _origLoad=window.CharacterLoadCanvas;" +
         "window.CharacterLoadCanvas=function(C){" +
-        "if(window._bcIsMinimized){" +
+        "if(window._bcIsMinimized||window._bcIsBackground){" +
         "if(C)C._bcPendingCanvasBuild=true;" +
         "return;" +
         "}" +
@@ -73,7 +73,7 @@ object MemoryOptimizer {
         "window.__bcBuildCanvasHooked=true;" +
         "const _origBuild=window.CharacterAppearanceBuildCanvas;" +
         "window.CharacterAppearanceBuildCanvas=function(C){" +
-        "if(window._bcIsMinimized){" +
+        "if(window._bcIsMinimized||window._bcIsBackground){" +
         "if(C)C._bcPendingCanvasBuild=true;" +
         "return;" +
         "}" +
