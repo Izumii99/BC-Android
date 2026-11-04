@@ -559,6 +559,32 @@
         window.addEventListener('touchmove', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
         window.addEventListener('keydown', markActiveInput, { passive: true, capture: true });
         window.addEventListener('wheel', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
+        window.addEventListener('pointermove', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
+
+        window._bcGetTargetFrameDelta = function(now) {
+            if (window._bcIsMinimized) return 10000;
+            if (window._bcIsBackground) {
+                const isBurst = now < (window._bcBgBurstUntil || 0) &&
+                    window.CurrentScreen !== 'Relog' &&
+                    window.CurrentScreen !== 'ChatSearch' &&
+                    window.CurrentScreen !== 'Login';
+                return isBurst ? 66 : 1000;
+            }
+            const idleMs = now - (window._bcLastInputTime || 0);
+            const inMinigame = typeof window.CurrentModule === 'string' && window.CurrentModule === 'MiniGame';
+            const inStruggle = typeof window.StruggleProgress === 'number' && window.StruggleProgress >= 0;
+            if (inMinigame || inStruggle || window.CurrentCharacter != null || window.CurrentScreen === 'Appearance') {
+                return idleMs < 3000 ? 32 : 50;
+            }
+            const scr = window.CurrentScreen;
+            const isIdleScreen = !scr || scr === 'Login' || scr === 'MainHall' || scr === 'ChatSearch' || scr === 'Relog' || scr === 'InformationSheet';
+            if (isIdleScreen) {
+                return idleMs < 1500 ? 33 : 125;
+            }
+            if (idleMs < 1500) return 32;
+            if (idleMs < 5000) return 66;
+            return 100;
+        };
 
         function attachRenderHooks() {
             if (!window.__bcFocusOverridden && typeof document.hasFocus === 'function') {
@@ -572,6 +598,19 @@
                     if (t > (window._bcBgBurstUntil || 0)) {
                         window._bcBgBurstUntil = t;
                     }
+                };
+            }
+            if (!window.__bcGameRunHooked && typeof window.GameRun === 'function') {
+                window.__bcGameRunHooked = true;
+                const _origGameRun = window.GameRun;
+                let _lastGameRunTime = 0;
+                window.GameRun = function(ts) {
+                    if (window._bcIsMinimized) return;
+                    const now = typeof ts === 'number' ? ts : performance.now();
+                    const targetDelta = typeof window._bcGetTargetFrameDelta === 'function' ? window._bcGetTargetFrameDelta(now) : 32;
+                    if (now - _lastGameRunTime < targetDelta) return;
+                    _lastGameRunTime = now;
+                    return _origGameRun.apply(this, arguments);
                 };
             }
             if (!window.__bcDrawHooked && typeof window.DrawProcess === 'function') {
@@ -593,7 +632,8 @@
                         const idle = (now - (window._bcLastInputTime || 0)) > 2500 &&
                             !window.CurrentCharacter &&
                             !(typeof window.StruggleProgress === 'number' && window.StruggleProgress >= 0);
-                        if (now - (window._bcLastFgDrawTime || 0) < (idle ? 66 : 32)) {
+                        const targetDelta = typeof window._bcGetTargetFrameDelta === 'function' ? window._bcGetTargetFrameDelta(now) : (idle ? 66 : 32);
+                        if (now - (window._bcLastFgDrawTime || 0) < targetDelta) {
                             return;
                         }
                         window._bcLastFgDrawTime = now;
@@ -1313,6 +1353,7 @@
                             }
                         }
                     }
+                    if (typeof gl.flush === 'function') { try { gl.flush(); } catch (e) {} }
                 }
                 const alphaMasks = window.GLDrawAlphaMasks;
                 if (alphaMasks && typeof alphaMasks.size === 'number' && alphaMasks.size > MAX_ALPHA_MASKS) {
@@ -1460,23 +1501,9 @@
             }
             if (typeof window.ChatRoomMessage === 'function' && !window.__bcMsgBurstHooked) {
                 window.__bcMsgBurstHooked = true;
-                const _origMsg = window.ChatRoomMessage;
-                window.ChatRoomMessage = function(data) {
-                    if (window._bcIsBackground && !window._bcIsMinimized && window._bcRequestBgBurst) {
-                        window._bcRequestBgBurst(2500);
-                    }
-                    return _origMsg.apply(this, arguments);
-                };
             }
             if (typeof window.ServerSend === 'function' && !window.__bcSendBurstHooked) {
                 window.__bcSendBurstHooked = true;
-                const _origSend = window.ServerSend;
-                window.ServerSend = function(msg, data) {
-                    if (window._bcIsBackground && !window._bcIsMinimized && window._bcRequestBgBurst) {
-                        window._bcRequestBgBurst(2500);
-                    }
-                    return _origSend.apply(this, arguments);
-                };
             }
             if (typeof window.CommonDrawWarmDrawnAssets === 'function' && !window.__bcWarmDrawnHooked) {
                 window.__bcWarmDrawnHooked = true;

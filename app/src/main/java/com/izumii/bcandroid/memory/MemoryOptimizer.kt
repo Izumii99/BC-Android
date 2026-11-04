@@ -91,6 +91,8 @@ object MemoryOptimizer {
         "if(window.bcFocusMemory&&!window.bcFocusMemory.isConnected)window.bcFocusMemory=null;" +
         "if(window.bcLastMousedown&&!window.bcLastMousedown.isConnected)window.bcLastMousedown=null;" +
         "if(window.bcLastFocusedLayer&&!window.bcLastFocusedLayer.isConnected)window.bcLastFocusedLayer=null;" +
+        "if(typeof window._bcPruneGpuNow==='function'){try{window._bcPruneGpuNow();}catch(e){}}" +
+        "const _paws=document.getElementById('bcn-soft-paws');if(_paws)_paws.style.setProperty('display','none','important');" +
         "if(typeof window.gc==='function'){try{const now=performance.now();if(!window._bcLastGc||now-window._bcLastGc>60000){window._bcLastGc=now;window.gc();}}catch(e){}}" +
         "})();"
 
@@ -115,6 +117,7 @@ object MemoryOptimizer {
         "}" +
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='hidden';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='hidden';" +
+        "if(typeof window._bcPruneGpuNow==='function'){try{window._bcPruneGpuNow();}catch(e){}}" +
         "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='none';" +
         "})();"
 
@@ -172,7 +175,7 @@ object MemoryOptimizer {
         // --- Restore hidden DOM ---
         "const canvas=document.getElementById('MainCanvas');if(canvas)canvas.style.visibility='';" +
         "const chatLog=document.getElementById('TextAreaChatLog');if(chatLog)chatLog.style.contentVisibility='';" +
-        "const paws=document.getElementById('bcn-soft-paws');if(paws)paws.style.display='';" +
+        "const paws=document.getElementById('bcn-soft-paws');if(paws){if(window.CurrentScreen==='ChatRoom')paws.style.display='';else paws.style.display='none';}" +
         "if(window._bcNeedsChatScroll){window._bcNeedsChatScroll=false;if(typeof window.ElementScrollToEnd==='function'){try{window.ElementScrollToEnd('TextAreaChatLog');}catch(e){}}}" +
         "})();"
 
