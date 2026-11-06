@@ -156,6 +156,9 @@ class MainActivity : AppCompatActivity() {
 
     @Suppress("TooGenericExceptionCaught")
     private fun openExternalChooser(url: String): Boolean {
+        if (url.isBlank() || url.equals("about:blank", ignoreCase = true)) {
+            return false
+        }
         return try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -430,6 +433,9 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest?
             ): Boolean {
                 val url = request?.url?.toString() ?: run {
+                    return false
+                }
+                if (url.equals("about:blank", ignoreCase = true) || url.startsWith("data:", ignoreCase = true) || url.startsWith("blob:", ignoreCase = true)) {
                     return false
                 }
                 if (VersionDetector.isGameUrl(url)) {

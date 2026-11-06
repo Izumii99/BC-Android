@@ -138,6 +138,9 @@ class WebAppInterface(
 
     @JavascriptInterface
     fun openExternalUrl(url: String) {
+        if (url.isBlank() || url.equals("about:blank", ignoreCase = true)) {
+            return
+        }
         mainHandler.post {
             try {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
@@ -150,6 +153,51 @@ class WebAppInterface(
             } catch (ignored: Exception) {
             }
         }
+    }
+
+    /**
+     * Saves a captured in-game screenshot/photo into public Downloads
+     * and presents the Android system chooser ("Open with:") pointing to the image.
+     */
+    @JavascriptInterface
+    fun saveAndOpenPhoto(dataUri: String, suggestedFileName: String) {
+        Thread {
+            try {
+                val commaIndex = dataUri.indexOf(',')
+                val header = if (commaIndex != -1) dataUri.substring(0, commaIndex) else ""
+                val payload = if (commaIndex != -1) dataUri.substring(commaIndex + 1) else dataUri
+
+                val mime = extractMimeType(header, "image/png")
+                val extFromMime = determineFileExtension(mime)
+                val cleanName = sanitizeFileName(suggestedFileName, extFromMime)
+                val bytes = decodePayloadBytes(header, payload)
+
+                val savedUri = saveBytesToDownloads(context, cleanName, mime, bytes)
+                mainHandler.post {
+                    if (savedUri != null) {
+                        Toast.makeText(context, "Saved to Downloads: $cleanName", Toast.LENGTH_LONG).show()
+                        try {
+                            val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(savedUri, mime)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            val chooser = Intent.createChooser(viewIntent, context.getString(R.string.open_with)).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(chooser)
+                        } catch (e: Exception) {
+                            // If chooser fails, photo is still safely saved in Downloads
+                        }
+                    } else {
+                        Toast.makeText(context, "Failed to save file: $cleanName", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                mainHandler.post {
+                    Toast.makeText(context, "Error saving file: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
     }
 
     private fun extractMimeType(header: String, mimeTypeHint: String): String {

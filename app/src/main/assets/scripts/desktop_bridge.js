@@ -145,10 +145,105 @@
                clean.indexOf("bondage-europe.com") !== -1;
     }
 
+    let lastCapturedPhotoTime = 0;
+    function handleCapturedPhoto(dataUrl) {
+        if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+            return;
+        }
+        const now = Date.now();
+        if (now - lastCapturedPhotoTime < 1500) {
+            return;
+        }
+        lastCapturedPhotoTime = now;
+
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const fileName = 'BondageClub_' + ts + '.png';
+        if (window.AndroidBridge && typeof window.AndroidBridge.saveAndOpenPhoto === 'function') {
+            window.AndroidBridge.saveAndOpenPhoto(dataUrl, fileName);
+        } else if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
+            window.AndroidBridge.saveBase64File(dataUrl, fileName, 'image/png');
+        }
+    }
+
+    function setupPhotoCaptureBridge() {
+        if (typeof window.CommonTakePhoto === 'function' && !window.CommonTakePhoto._bcPhotoHooked) {
+            const origCommonTakePhoto = window.CommonTakePhoto;
+            window.CommonTakePhoto = function(Left, Top, Width, Height) {
+                try {
+                    window.CommonPhotoMode = true;
+                    if (typeof window.DrawProcess === 'function') {
+                        window.DrawProcess(0);
+                    }
+                    const canvas = document.getElementById('MainCanvas');
+                    const ctx = canvas && typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
+                    if (ctx && typeof ctx.getImageData === 'function') {
+                        const imgData = ctx.getImageData(Left, Top, Width, Height);
+                        if (imgData) {
+                            const photoCanvas = document.createElement('canvas');
+                            photoCanvas.width = Width;
+                            photoCanvas.height = Height;
+                            const pCtx = photoCanvas.getContext('2d');
+                            if (pCtx) {
+                                pCtx.putImageData(imgData, 0, 0);
+                                const photoDataUrl = photoCanvas.toDataURL('image/png');
+                                handleCapturedPhoto(photoDataUrl);
+                                window.CommonPhotoMode = false;
+                                return;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Photo capture error:', e);
+                } finally {
+                    window.CommonPhotoMode = false;
+                }
+                return origCommonTakePhoto.apply(this, arguments);
+            };
+            window.CommonTakePhoto._bcPhotoHooked = true;
+            return true;
+        }
+        return false;
+    }
+
+    setupPhotoCaptureBridge();
+    let photoHookInterval = setInterval(function() {
+        if (setupPhotoCaptureBridge()) {
+            clearInterval(photoHookInterval);
+        }
+    }, 500);
+
     // Intercept window.open to open external links with Android app chooser ("Open with:")
     const origWindowOpen = window.open;
     window.open = function(url, target, features) {
         if (url && typeof url === 'string') {
+            const cleanUrl = url.trim();
+            if (cleanUrl === 'about:blank' || cleanUrl === '' || cleanUrl.toLowerCase().startsWith('javascript:')) {
+                const mockWin = {
+                    document: {
+                        body: {
+                            appendChild: function(node) {
+                                if (node && node.tagName === 'IMG' && node.src) {
+                                    handleCapturedPhoto(node.src);
+                                }
+                                return node;
+                            }
+                        },
+                        write: function(html) {
+                            if (typeof html === 'string') {
+                                const match = /src=["'](data:image\/[^"']+)["']/i.exec(html);
+                                if (match && match[1]) {
+                                    handleCapturedPhoto(match[1]);
+                                }
+                            }
+                        },
+                        close: function() {}
+                    },
+                    close: function() {},
+                    focus: function() {}
+                };
+                return mockWin;
+            }
+
             if (!isGameDomain(url) && window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
                 window.AndroidBridge.openExternalUrl(url);
                 return null;
