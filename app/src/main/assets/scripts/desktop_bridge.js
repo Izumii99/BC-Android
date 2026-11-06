@@ -2,67 +2,90 @@
  * Bondage Club Android - Desktop Bridge
  * Ports smart focus, clipboard bridge, and event handling from BC Desktop.
  */
-(function() {
-    'use strict';
+(function () {
+    "use strict";
 
     // Guard against undefined pidx ReferenceError
-    if (typeof window.pidx === 'undefined') {
+    if (typeof window.pidx === "undefined") {
         try {
-            Object.defineProperty(window, 'pidx', { get: () => 0, set: () => {}, configurable: true });
+            Object.defineProperty(window, "pidx", {
+                get: () => 0,
+                set: () => {},
+                configurable: true,
+            });
         } catch (e) {}
     }
 
     // Clipboard bridge to Android native ClipboardManager
     const origClipboard = navigator.clipboard;
     const mockClipboard = {
-        writeText: function(text) {
-            if (window.AndroidBridge && typeof window.AndroidBridge.copyText === 'function') {
+        writeText: function (text) {
+            if (
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.copyText === "function"
+            ) {
                 window.AndroidBridge.copyText(text);
             }
             return Promise.resolve();
         },
-        readText: function() {
-            if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
+        readText: function () {
+            if (
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.getClipboardText === "function"
+            ) {
                 try {
                     const text = window.AndroidBridge.getClipboardText();
-                    return Promise.resolve(text || '');
+                    return Promise.resolve(text || "");
                 } catch (e) {
                     console.error("AndroidBridge.getClipboardText failed", e);
                 }
-            } else if (window.AndroidBridge && typeof window.AndroidBridge.readText === 'function') {
+            } else if (
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.readText === "function"
+            ) {
                 try {
                     const text = window.AndroidBridge.readText();
-                    return Promise.resolve(text || '');
+                    return Promise.resolve(text || "");
                 } catch (e) {
                     console.error("AndroidBridge.readText failed", e);
                 }
             }
-            if (origClipboard && typeof origClipboard.readText === 'function') {
-                return origClipboard.readText().catch(function() {
-                    return '';
+            if (origClipboard && typeof origClipboard.readText === "function") {
+                return origClipboard.readText().catch(function () {
+                    return "";
                 });
             }
-            return Promise.resolve('');
-        }
+            return Promise.resolve("");
+        },
     };
 
     try {
-        Object.defineProperty(navigator, 'clipboard', {
+        Object.defineProperty(navigator, "clipboard", {
             value: mockClipboard,
             configurable: true,
-            writable: true
+            writable: true,
         });
     } catch (e) {}
 
     const originalExecCommand = document.execCommand;
-    document.execCommand = function(commandId, showUI, value) {
-        if (commandId && commandId.toLowerCase() === 'copy') {
-            let text = '';
+    document.execCommand = function (commandId, showUI, value) {
+        if (commandId && commandId.toLowerCase() === "copy") {
+            let text = "";
             const activeEl = document.activeElement;
-            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            if (
+                activeEl &&
+                (activeEl.tagName === "INPUT" ||
+                    activeEl.tagName === "TEXTAREA")
+            ) {
                 try {
-                    if (activeEl.selectionStart !== null && activeEl.selectionEnd !== null) {
-                        text = activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd);
+                    if (
+                        activeEl.selectionStart !== null &&
+                        activeEl.selectionEnd !== null
+                    ) {
+                        text = activeEl.value.substring(
+                            activeEl.selectionStart,
+                            activeEl.selectionEnd,
+                        );
                     } else {
                         text = activeEl.value;
                     }
@@ -75,29 +98,50 @@
             if (text && window.AndroidBridge && window.AndroidBridge.copyText) {
                 window.AndroidBridge.copyText(text);
             }
-        } else if (commandId && commandId.toLowerCase() === 'paste') {
-            if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
+        } else if (commandId && commandId.toLowerCase() === "paste") {
+            if (
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.getClipboardText === "function"
+            ) {
                 try {
                     const text = window.AndroidBridge.getClipboardText();
                     if (text) {
                         const activeEl = document.activeElement;
-                        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-                            const start = typeof activeEl.selectionStart === 'number' ? activeEl.selectionStart : activeEl.value.length;
-                            const end = typeof activeEl.selectionEnd === 'number' ? activeEl.selectionEnd : activeEl.value.length;
-                            const val = activeEl.value || '';
-                            activeEl.value = val.substring(0, start) + text + val.substring(end);
-                            activeEl.selectionStart = activeEl.selectionEnd = start + text.length;
-                            activeEl.dispatchEvent(new Event('input', { bubbles: true }));
-                            activeEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        if (
+                            activeEl &&
+                            (activeEl.tagName === "INPUT" ||
+                                activeEl.tagName === "TEXTAREA")
+                        ) {
+                            const start =
+                                typeof activeEl.selectionStart === "number"
+                                    ? activeEl.selectionStart
+                                    : activeEl.value.length;
+                            const end =
+                                typeof activeEl.selectionEnd === "number"
+                                    ? activeEl.selectionEnd
+                                    : activeEl.value.length;
+                            const val = activeEl.value || "";
+                            activeEl.value =
+                                val.substring(0, start) +
+                                text +
+                                val.substring(end);
+                            activeEl.selectionStart = activeEl.selectionEnd =
+                                start + text.length;
+                            activeEl.dispatchEvent(
+                                new Event("input", { bubbles: true }),
+                            );
+                            activeEl.dispatchEvent(
+                                new Event("change", { bubbles: true }),
+                            );
                             return true;
                         } else {
                             try {
                                 const dt = new DataTransfer();
-                                dt.setData('text/plain', text);
-                                const pasteEvt = new ClipboardEvent('paste', {
+                                dt.setData("text/plain", text);
+                                const pasteEvt = new ClipboardEvent("paste", {
                                     bubbles: true,
                                     cancelable: true,
-                                    clipboardData: dt
+                                    clipboardData: dt,
                                 });
                                 (activeEl || document).dispatchEvent(pasteEvt);
                                 return true;
@@ -111,45 +155,65 @@
     };
 
     // Keyboard Ctrl+V / Cmd+V listener to dispatch paste ClipboardEvent across the canvas and active screen
-    window.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V' || e.code === 'KeyV')) {
-            const activeEl = document.activeElement;
-            const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
-            if (!isInput && window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
-                try {
-                    const text = window.AndroidBridge.getClipboardText();
-                    if (text) {
-                        const dt = new DataTransfer();
-                        dt.setData('text/plain', text);
-                        const pasteEvt = new ClipboardEvent('paste', {
-                            bubbles: true,
-                            cancelable: true,
-                            clipboardData: dt
-                        });
-                        (activeEl || document).dispatchEvent(pasteEvt);
-                    }
-                } catch (e) {}
+    window.addEventListener(
+        "keydown",
+        function (e) {
+            if (
+                (e.ctrlKey || e.metaKey) &&
+                (e.key === "v" || e.key === "V" || e.code === "KeyV")
+            ) {
+                const activeEl = document.activeElement;
+                const isInput =
+                    activeEl &&
+                    (activeEl.tagName === "INPUT" ||
+                        activeEl.tagName === "TEXTAREA");
+                if (
+                    !isInput &&
+                    window.AndroidBridge &&
+                    typeof window.AndroidBridge.getClipboardText === "function"
+                ) {
+                    try {
+                        const text = window.AndroidBridge.getClipboardText();
+                        if (text) {
+                            const dt = new DataTransfer();
+                            dt.setData("text/plain", text);
+                            const pasteEvt = new ClipboardEvent("paste", {
+                                bubbles: true,
+                                cancelable: true,
+                                clipboardData: dt,
+                            });
+                            (activeEl || document).dispatchEvent(pasteEvt);
+                        }
+                    } catch (e) {}
+                }
             }
-        }
-    }, true);
+        },
+        true,
+    );
 
     // Helper to identify Bondage Club internal game domains
     function isGameDomain(url) {
-        if (!url || typeof url !== 'string') {
+        if (!url || typeof url !== "string") {
             return false;
         }
         const clean = url.trim().toLowerCase();
-        return clean.indexOf("bondage-asia.com") !== -1 ||
-               clean.indexOf("bondageprojects.com") !== -1 ||
-               clean.indexOf("bondageprojects.elementfx.com") !== -1 ||
-               clean.indexOf("bondage-europe.com") !== -1;
+        return (
+            clean.indexOf("bondage-asia.com") !== -1 ||
+            clean.indexOf("bondageprojects.com") !== -1 ||
+            clean.indexOf("bondageprojects.elementfx.com") !== -1 ||
+            clean.indexOf("bondage-europe.com") !== -1
+        );
     }
 
     // Intercept window.open to open external links with Android app chooser ("Open with:")
     const origWindowOpen = window.open;
-    window.open = function(url, target, features) {
-        if (url && typeof url === 'string') {
-            if (!isGameDomain(url) && window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
+    window.open = function (url, target, features) {
+        if (url && typeof url === "string") {
+            if (
+                !isGameDomain(url) &&
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.openExternalUrl === "function"
+            ) {
                 window.AndroidBridge.openExternalUrl(url);
                 return null;
             }
@@ -158,10 +222,10 @@
     };
 
     // Defer URL.revokeObjectURL for 3 seconds to allow asynchronous fetch(blobUrl) to read blob data
-    if (window.URL && typeof window.URL.revokeObjectURL === 'function') {
+    if (window.URL && typeof window.URL.revokeObjectURL === "function") {
         const origRevokeObjectURL = window.URL.revokeObjectURL;
-        window.URL.revokeObjectURL = function(url) {
-            setTimeout(function() {
+        window.URL.revokeObjectURL = function (url) {
+            setTimeout(function () {
                 try {
                     origRevokeObjectURL.call(window.URL, url);
                 } catch (e) {}
@@ -171,41 +235,68 @@
 
     // Intercept download requests (blob:, data:, and <a download>)
     function handleDownloadUrl(url, filename, mimeType) {
-        if (!url || typeof url !== 'string') {
+        if (!url || typeof url !== "string") {
             return false;
         }
 
         // 1. Blob URL: fetch blob inside web context, convert to Base64, and pass to native bridge
-        if (url.startsWith('blob:')) {
+        if (url.startsWith("blob:")) {
             fetch(url) // nosemgrep
-                .then(function(res) { return res.blob(); })
-                .then(function(blob) {
+                .then(function (res) {
+                    return res.blob();
+                })
+                .then(function (blob) {
                     const reader = new FileReader();
-                    reader.onloadend = function() {
-                        if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
-                            window.AndroidBridge.saveBase64File(reader.result, filename || 'download', blob.type || mimeType || '');
+                    reader.onloadend = function () {
+                        if (
+                            window.AndroidBridge &&
+                            typeof window.AndroidBridge.saveBase64File ===
+                                "function"
+                        ) {
+                            window.AndroidBridge.saveBase64File(
+                                reader.result,
+                                filename || "download",
+                                blob.type || mimeType || "",
+                            );
                         }
                     };
                     reader.readAsDataURL(blob);
                 })
-                .catch(function(err) {
+                .catch(function (err) {
                     console.error("Failed to read blob for download", err);
                 });
             return true;
         }
 
         // 2. Data URL: directly pass to native bridge
-        if (url.startsWith('data:')) {
-            if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
-                window.AndroidBridge.saveBase64File(url, filename || 'download', mimeType || '');
+        if (url.startsWith("data:")) {
+            if (
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.saveBase64File === "function"
+            ) {
+                window.AndroidBridge.saveBase64File(
+                    url,
+                    filename || "download",
+                    mimeType || "",
+                );
             }
             return true;
         }
 
         // 3. HTTP / HTTPS with explicit download attribute:
-        if (filename && (url.startsWith('http://') || url.startsWith('https://'))) {
-            if (window.AndroidBridge && typeof window.AndroidBridge.downloadHttpFile === 'function') {
-                window.AndroidBridge.downloadHttpFile(url, filename, mimeType || '');
+        if (
+            filename &&
+            (url.startsWith("http://") || url.startsWith("https://"))
+        ) {
+            if (
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.downloadHttpFile === "function"
+            ) {
+                window.AndroidBridge.downloadHttpFile(
+                    url,
+                    filename,
+                    mimeType || "",
+                );
                 return true;
             }
         }
@@ -215,11 +306,14 @@
 
     // Hook HTMLAnchorElement.prototype.click to catch programmatic downloads (e.g. wardrobe/log exports)
     const origAnchorClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function() {
+    HTMLAnchorElement.prototype.click = function () {
         const href = this.href;
-        const download = this.getAttribute('download');
-        if (download !== null || (href && (href.startsWith('blob:') || href.startsWith('data:')))) {
-            if (handleDownloadUrl(href, download || '', '')) {
+        const download = this.getAttribute("download");
+        if (
+            download !== null ||
+            (href && (href.startsWith("blob:") || href.startsWith("data:")))
+        ) {
+            if (handleDownloadUrl(href, download || "", "")) {
                 return;
             }
         }
@@ -227,38 +321,59 @@
     };
 
     // Intercept clicks on external <a> links to prevent unloading the game canvas
-    document.addEventListener('click', function(e) {
-        let el = e.target;
-        while (el && el.tagName !== 'A') {
-            el = el.parentElement;
-        }
-        if (el && el.href) {
-            const href = el.href;
-            const download = el.getAttribute('download');
-            if (download !== null || href.startsWith('blob:') || href.startsWith('data:')) {
-                if (handleDownloadUrl(href, download || '', '')) {
+    document.addEventListener(
+        "click",
+        function (e) {
+            let el = e.target;
+            while (el && el.tagName !== "A") {
+                el = el.parentElement;
+            }
+            if (el && el.href) {
+                const href = el.href;
+                const download = el.getAttribute("download");
+                if (
+                    download !== null ||
+                    href.startsWith("blob:") ||
+                    href.startsWith("data:")
+                ) {
+                    if (handleDownloadUrl(href, download || "", "")) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                }
+
+                if (
+                    !isGameDomain(href) &&
+                    (href.startsWith("http://") || href.startsWith("https://"))
+                ) {
                     e.preventDefault();
                     e.stopPropagation();
-                    return;
+                    if (
+                        window.AndroidBridge &&
+                        typeof window.AndroidBridge.openExternalUrl ===
+                            "function"
+                    ) {
+                        window.AndroidBridge.openExternalUrl(href);
+                    }
                 }
             }
-
-            if (!isGameDomain(href) && (href.startsWith('http://') || href.startsWith('https://'))) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (window.AndroidBridge && typeof window.AndroidBridge.openExternalUrl === 'function') {
-                    window.AndroidBridge.openExternalUrl(href);
-                }
-            }
-        }
-    }, true);
+        },
+        true,
+    );
 
     function isInteractive(el) {
         if (!el) {
             return false;
         }
         const tag = el.tagName;
-        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || el.isContentEditable;
+        return (
+            tag === "INPUT" ||
+            tag === "TEXTAREA" ||
+            tag === "SELECT" ||
+            tag === "BUTTON" ||
+            el.isContentEditable
+        );
     }
 
     function isTextInput(el) {
@@ -266,12 +381,23 @@
             return false;
         }
         const tag = el.tagName.toUpperCase();
-        if (tag === 'TEXTAREA') {
+        if (tag === "TEXTAREA") {
             return !el.readOnly && !el.disabled;
         }
-        if (tag === 'INPUT') {
-            const t = (el.type || 'text').toLowerCase();
-            if (t === 'button' || t === 'checkbox' || t === 'radio' || t === 'range' || t === 'color' || t === 'file' || t === 'submit' || t === 'reset' || t === 'hidden' || t === 'image') {
+        if (tag === "INPUT") {
+            const t = (el.type || "text").toLowerCase();
+            if (
+                t === "button" ||
+                t === "checkbox" ||
+                t === "radio" ||
+                t === "range" ||
+                t === "color" ||
+                t === "file" ||
+                t === "submit" ||
+                t === "reset" ||
+                t === "hidden" ||
+                t === "image"
+            ) {
                 return false;
             }
             return !el.readOnly && !el.disabled;
@@ -279,9 +405,22 @@
         return Boolean(el.isContentEditable);
     }
 
-    window._bcAndroidAutoFocusEnabled = (function() {
+    function isSearchInput(el) {
+        if (!el) return false;
+        const id = (el.id || "").toLowerCase();
+        const type = (el.type || "").toLowerCase();
+        const name = (el.name || "").toLowerCase();
+        return (
+            id === "bcxsearch" ||
+            id.includes("search") ||
+            type === "search" ||
+            name.includes("search")
+        );
+    }
+
+    window._bcAndroidAutoFocusEnabled = (function () {
         try {
-            return localStorage.getItem('BC_Android_AutoFocus') === 'true';
+            return localStorage.getItem("BC_Android_AutoFocus") === "true";
         } catch (e) {
             return false;
         }
@@ -290,21 +429,37 @@
     window._bcLastDirectInputTapEl = null;
     window._bcLastDirectInputTapTime = 0;
 
-    window._bcSetAutoFocusEnabled = function(enabled, fromQol) {
+    window._bcSetAutoFocusEnabled = function (enabled, fromQol) {
         const val = Boolean(enabled);
         window._bcAndroidAutoFocusEnabled = val;
         window._bcAutoFocusEnabled = val;
         try {
-            localStorage.setItem('BC_Android_AutoFocus', val ? 'true' : 'false');
+            localStorage.setItem(
+                "BC_Android_AutoFocus",
+                val ? "true" : "false",
+            );
         } catch (e) {}
-        if (typeof window._bcUpdateAutoFocusPillUi === 'function') {
-            try { window._bcUpdateAutoFocusPillUi(); } catch (e) {}
+        if (typeof window._bcUpdateAutoFocusPillUi === "function") {
+            try {
+                window._bcUpdateAutoFocusPillUi();
+            } catch (e) {}
         }
-        if (!fromQol && typeof window._bcSyncQolAutoFocusToggle === 'function') {
-            try { window._bcSyncQolAutoFocusToggle(val); } catch (e) {}
+        if (
+            !fromQol &&
+            typeof window._bcSyncQolAutoFocusToggle === "function"
+        ) {
+            try {
+                window._bcSyncQolAutoFocusToggle(val);
+            } catch (e) {}
         }
-        if (!val && document.activeElement && isTextInput(document.activeElement)) {
-            try { document.activeElement.blur(); } catch (e) {}
+        if (
+            !val &&
+            document.activeElement &&
+            isTextInput(document.activeElement)
+        ) {
+            try {
+                document.activeElement.blur();
+            } catch (e) {}
         }
     };
 
@@ -313,38 +468,73 @@
         if (!t) {
             return;
         }
-        const inputEl = isTextInput(t) ? t : (t.closest ? t.closest('input, textarea, [contenteditable="true"]') : null);
+        const inputEl = isTextInput(t)
+            ? t
+            : t.closest
+              ? t.closest('input, textarea, [contenteditable="true"]')
+              : null;
         if (inputEl && isTextInput(inputEl)) {
             window._bcLastDirectInputTapEl = inputEl;
             window._bcLastDirectInputTapTime = Date.now();
         } else {
             window._bcLastDirectInputTapEl = null;
             window._bcLastDirectInputTapTime = 0;
-            if (!window._bcAndroidAutoFocusEnabled && document.activeElement && isTextInput(document.activeElement)) {
-                try { document.activeElement.blur(); } catch (err) {}
+            if (
+                !window._bcAndroidAutoFocusEnabled &&
+                document.activeElement &&
+                isTextInput(document.activeElement)
+            ) {
+                if (!isSearchInput(document.activeElement)) {
+                    try {
+                        document.activeElement.blur();
+                    } catch (err) {}
+                }
             }
         }
     }
-    window.addEventListener('pointerdown', trackDirectInputTap, { passive: true, capture: true });
-    window.addEventListener('touchstart', trackDirectInputTap, { passive: true, capture: true });
-    window.addEventListener('mousedown', trackDirectInputTap, { passive: true, capture: true });
+    window.addEventListener("pointerdown", trackDirectInputTap, {
+        passive: true,
+        capture: true,
+    });
+    window.addEventListener("touchstart", trackDirectInputTap, {
+        passive: true,
+        capture: true,
+    });
+    window.addEventListener("mousedown", trackDirectInputTap, {
+        passive: true,
+        capture: true,
+    });
 
     // Hook window.ElementFocus so InputChat does not steal focus from addon search/text inputs
-    let patchInterval = setInterval(function() {
-        if (typeof window.ElementFocus === 'function' && !window.ElementFocus._isHooked) {
+    let patchInterval = setInterval(function () {
+        if (
+            typeof window.ElementFocus === "function" &&
+            !window.ElementFocus._isHooked
+        ) {
             const origElementFocus = window.ElementFocus;
-            window.ElementFocus = function(ID) {
-                const targetEl = typeof ID === 'string' ? document.getElementById(ID) : ID;
-                if (!window._bcAndroidAutoFocusEnabled && targetEl && isTextInput(targetEl)) {
-                    const isDirectTap = window._bcLastDirectInputTapEl === targetEl && (Date.now() - (window._bcLastDirectInputTapTime || 0)) < 1000;
+            window.ElementFocus = function (ID) {
+                const targetEl =
+                    typeof ID === "string" ? document.getElementById(ID) : ID;
+                if (
+                    !window._bcAndroidAutoFocusEnabled &&
+                    targetEl &&
+                    isTextInput(targetEl)
+                ) {
+                    const isSearch = isSearchInput(targetEl);
+                    const isDirectTap =
+                        isSearch ||
+                        (window._bcLastDirectInputTapEl === targetEl &&
+                            Date.now() - (window._bcLastDirectInputTapTime || 0) <
+                                1000);
                     if (!isDirectTap && document.activeElement !== targetEl) {
                         return;
                     }
                 }
                 const active = document.activeElement;
-                const isUserInAnotherInput = active && isInteractive(active) && active !== targetEl;
+                const isUserInAnotherInput =
+                    active && isInteractive(active) && active !== targetEl;
 
-                if (ID === 'InputChat' && isUserInAnotherInput) {
+                if (ID === "InputChat" && isUserInAnotherInput) {
                     return;
                 }
                 origElementFocus(ID);
@@ -356,87 +546,143 @@
 
     // Soft focus management: prevents canvas taps from unexpectedly losing input focus
     let origFocus = HTMLElement.prototype.focus;
-    HTMLElement.prototype.focus = function() {
+    HTMLElement.prototype.focus = function () {
         try {
             if (!window._bcAndroidAutoFocusEnabled && isTextInput(this)) {
-                const isDirectTap = window._bcLastDirectInputTapEl === this && (Date.now() - (window._bcLastDirectInputTapTime || 0)) < 1000;
+                const isSearch = isSearchInput(this);
+                const isDirectTap =
+                    isSearch ||
+                    (window._bcLastDirectInputTapEl === this &&
+                        Date.now() - (window._bcLastDirectInputTapTime || 0) <
+                            1000);
                 if (!isDirectTap && document.activeElement !== this) {
                     return;
                 }
             }
-            const isLayeringInput = this.id && this.id.startsWith('layering-input-');
+            const isLayeringInput =
+                this.id && this.id.startsWith("layering-input-");
             const active = document.activeElement;
-            const currentIsLayering = active && active.id && active.id.startsWith('layering-input-');
+            const currentIsLayering =
+                active && active.id && active.id.startsWith("layering-input-");
             if (currentIsLayering && !isLayeringInput) {
                 return;
             }
 
-            const isUserInAnotherInput = active && isInteractive(active) && active !== this;
-            if (this.id === 'InputChat' && isUserInAnotherInput && !isLayeringInput) {
+            const isUserInAnotherInput =
+                active && isInteractive(active) && active !== this;
+            if (
+                this.id === "InputChat" &&
+                isUserInAnotherInput &&
+                !isLayeringInput
+            ) {
                 return;
             }
         } catch (e) {}
         origFocus.call(this);
     };
 
-    document.addEventListener('focusin', function(e) {
-        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-            if (!window._bcAndroidAutoFocusEnabled && isTextInput(e.target)) {
-                const isDirectTap = window._bcLastDirectInputTapEl === e.target && (Date.now() - (window._bcLastDirectInputTapTime || 0)) < 1000;
-                if (!isDirectTap) {
-                    try { e.target.blur(); } catch (err) {}
-                    return;
+    document.addEventListener(
+        "focusin",
+        function (e) {
+            if (
+                e.target &&
+                (e.target.tagName === "INPUT" ||
+                    e.target.tagName === "TEXTAREA")
+            ) {
+                if (
+                    !window._bcAndroidAutoFocusEnabled &&
+                    isTextInput(e.target)
+                ) {
+                    const isSearch = isSearchInput(e.target);
+                    const isDirectTap =
+                        isSearch ||
+                        (window._bcLastDirectInputTapEl === e.target &&
+                            Date.now() - (window._bcLastDirectInputTapTime || 0) <
+                                1000);
+                    if (!isDirectTap) {
+                        try {
+                            e.target.blur();
+                        } catch (err) {}
+                        return;
+                    }
                 }
+                window.bcFocusMemory = e.target;
             }
-            window.bcFocusMemory = e.target;
-        }
-    }, true);
+        },
+        true,
+    );
 
     // Provide focus crawler helper for Android
-    window.bcRunFocusCrawler = function() {
-        const inputs = document.querySelectorAll('input:not([type=hidden]), textarea');
+    window.bcRunFocusCrawler = function () {
+        const inputs = document.querySelectorAll(
+            "input:not([type=hidden]), textarea",
+        );
         for (let i = 0; i < inputs.length; i++) {
             const el = inputs[i];
             if (!el.disabled && !el.readOnly && el.offsetParent !== null) {
-                if (el.id !== 'InputChat' && el.id !== 'TextAreaChatLog') {
+                if (el.id !== "InputChat" && el.id !== "TextAreaChatLog") {
                     return el;
                 }
             }
         }
-        return document.getElementById('InputChat');
+        return document.getElementById("InputChat");
     };
 
     // Automatic Relog Handler (reconnects into the room instantly without manual password entry)
     function hookAutoRelogin() {
-        const captureCredentials = function() {
+        const captureCredentials = function () {
             try {
-                const accInput = document.getElementById('InputName');
-                const passInput = document.getElementById('InputPassword');
-                const acc = (accInput && accInput.value) ? accInput.value.trim() : (window.Player ? window.Player.AccountName : '');
-                const pass = passInput ? passInput.value : '';
+                const accInput = document.getElementById("InputName");
+                const passInput = document.getElementById("InputPassword");
+                const acc =
+                    accInput && accInput.value
+                        ? accInput.value.trim()
+                        : window.Player
+                          ? window.Player.AccountName
+                          : "";
+                const pass = passInput ? passInput.value : "";
                 if (acc && pass) {
-                    sessionStorage.setItem('_bc_session_creds', JSON.stringify({ account: acc, pass: pass }));
+                    sessionStorage.setItem(
+                        "_bc_session_creds",
+                        JSON.stringify({ account: acc, pass: pass }),
+                    );
                 }
             } catch (e) {}
         };
 
-        document.addEventListener('submit', captureCredentials, true);
-        document.addEventListener('click', function(e) {
-            if (e.target && (e.target.id === 'Login' || e.target.id === 'relog-login')) {
-                captureCredentials();
-            }
-        }, true);
+        document.addEventListener("submit", captureCredentials, true);
+        document.addEventListener(
+            "click",
+            function (e) {
+                if (
+                    e.target &&
+                    (e.target.id === "Login" || e.target.id === "relog-login")
+                ) {
+                    captureCredentials();
+                }
+            },
+            true,
+        );
 
         let hookAttempts = 0;
-        const hookInterval = setInterval(function() {
+        const hookInterval = setInterval(function () {
             hookAttempts++;
-            if (typeof window.LoginDoLogin === 'function' && !window._bcLoginHooked) {
+            if (
+                typeof window.LoginDoLogin === "function" &&
+                !window._bcLoginHooked
+            ) {
                 window._bcLoginHooked = true;
                 const origDoLogin = window.LoginDoLogin;
-                window.LoginDoLogin = function(account, password) {
+                window.LoginDoLogin = function (account, password) {
                     if (account && password) {
                         try {
-                            sessionStorage.setItem('_bc_session_creds', JSON.stringify({ account: account, pass: password }));
+                            sessionStorage.setItem(
+                                "_bc_session_creds",
+                                JSON.stringify({
+                                    account: account,
+                                    pass: password,
+                                }),
+                            );
                         } catch (e) {}
                     }
                     return origDoLogin.apply(this, arguments);
@@ -451,24 +697,34 @@
         let relogInterval = null;
         function checkAutoRelog() {
             try {
-                if (window.CurrentScreen === 'Relog' && !window._bcRelogActive) {
-                    const raw = sessionStorage.getItem('_bc_session_creds');
+                if (
+                    window.CurrentScreen === "Relog" &&
+                    !window._bcRelogActive
+                ) {
+                    const raw = sessionStorage.getItem("_bc_session_creds");
                     if (raw) {
                         const creds = JSON.parse(raw);
                         if (creds && creds.pass) {
                             window._bcRelogActive = true;
-                            const passInput = document.getElementById('InputPassword');
-                            const loginBtn = document.getElementById('relog-login');
+                            const passInput =
+                                document.getElementById("InputPassword");
+                            const loginBtn =
+                                document.getElementById("relog-login");
                             if (passInput) {
                                 passInput.value = creds.pass;
                             }
                             if (loginBtn) {
                                 loginBtn.click();
-                            } else if (typeof window.LoginDoLogin === 'function') {
-                                const acc = (window.Player && window.Player.AccountName) ? window.Player.AccountName : creds.account;
+                            } else if (
+                                typeof window.LoginDoLogin === "function"
+                            ) {
+                                const acc =
+                                    window.Player && window.Player.AccountName
+                                        ? window.Player.AccountName
+                                        : creds.account;
                                 window.LoginDoLogin(acc, creds.pass);
                             }
-                            setTimeout(function() {
+                            setTimeout(function () {
                                 window._bcRelogActive = false;
                             }, 4000);
                         }
@@ -492,16 +748,20 @@
 
         startRelogWatcher(3000);
 
-        window.addEventListener('online', function() {
+        window.addEventListener("online", function () {
             try {
-                if (window.ServerSocket && !window.ServerSocket.connected && typeof window.ServerSocket.connect === 'function') {
+                if (
+                    window.ServerSocket &&
+                    !window.ServerSocket.connected &&
+                    typeof window.ServerSocket.connect === "function"
+                ) {
                     window.ServerSocket.connect();
                 }
                 checkAutoRelog();
             } catch (e) {}
         });
 
-        window.addEventListener('bc:visibility', function(e) {
+        window.addEventListener("bc:visibility", function (e) {
             if (e.detail && e.detail.background) {
                 // ConnectionKeeperService pulse handles checkAutoRelog in background without extra JS polling
                 startRelogWatcher(0);
@@ -517,7 +777,7 @@
         window._bcLastInputTime = performance.now();
         window._bcLastFgDrawTime = 0;
 
-        const markActiveInput = function() {
+        const markActiveInput = function () {
             window._bcLastInputTime = performance.now();
             window._bcLastFgDrawTime = 0;
             // ponytail: self-healing guard — if user touches screen but lifecycle flags are stale
@@ -525,7 +785,11 @@
             if (window._bcIsMinimized || window._bcIsBackground) {
                 window._bcIsMinimized = false;
                 window._bcIsBackground = false;
-                window.dispatchEvent(new CustomEvent('bc:visibility', { detail: { background: false, minimized: false } }));
+                window.dispatchEvent(
+                    new CustomEvent("bc:visibility", {
+                        detail: { background: false, minimized: false },
+                    }),
+                );
                 if (window._bcOrigRAF) {
                     const raf = window._bcOrigRAF;
                     window.requestAnimationFrame = raf;
@@ -537,48 +801,99 @@
                     const q = window._bcRafQ;
                     window._bcRafQ = null;
                     if (q) {
-                        q.forEach(function(e) { clearTimeout(e.t); });
+                        q.forEach(function (e) {
+                            clearTimeout(e.t);
+                        });
                     }
-                    if (typeof window.MainRun === 'function') {
+                    if (typeof window.MainRun === "function") {
                         raf.call(window, window.MainRun);
                     }
                 }
-                const mc = document.getElementById('MainCanvas');
+                const mc = document.getElementById("MainCanvas");
                 if (mc) {
-                    mc.style.visibility = '';
-                    mc.style.opacity = '';
+                    mc.style.visibility = "";
+                    mc.style.opacity = "";
                 }
-                const cl = document.getElementById('TextAreaChatLog');
+                const cl = document.getElementById("TextAreaChatLog");
                 if (cl) {
-                    cl.style.contentVisibility = '';
+                    cl.style.contentVisibility = "";
                 }
             }
         };
-        window.addEventListener('pointerdown', markActiveInput, { passive: true, capture: true });
-        window.addEventListener('touchstart', markActiveInput, { passive: true, capture: true });
-        window.addEventListener('touchmove', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
-        window.addEventListener('keydown', markActiveInput, { passive: true, capture: true });
-        window.addEventListener('wheel', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
-        window.addEventListener('pointermove', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
+        window.addEventListener("pointerdown", markActiveInput, {
+            passive: true,
+            capture: true,
+        });
+        window.addEventListener("touchstart", markActiveInput, {
+            passive: true,
+            capture: true,
+        });
+        window.addEventListener(
+            "touchmove",
+            function () {
+                window._bcLastInputTime = performance.now();
+            },
+            { passive: true, capture: true },
+        );
+        window.addEventListener("keydown", markActiveInput, {
+            passive: true,
+            capture: true,
+        });
+        window.addEventListener(
+            "wheel",
+            function () {
+                window._bcLastInputTime = performance.now();
+            },
+            { passive: true, capture: true },
+        );
+        window.addEventListener(
+            "pointermove",
+            function () {
+                window._bcLastInputTime = performance.now();
+            },
+            { passive: true, capture: true },
+        );
 
-        window._bcGetTargetFrameDelta = function(now) {
+        window._bcGetTargetFrameDelta = function (now) {
             if (window._bcIsMinimized) return 10000;
             if (window._bcIsBackground) {
-                const isBurst = now < (window._bcBgBurstUntil || 0) &&
-                    window.CurrentScreen !== 'Relog' &&
-                    window.CurrentScreen !== 'ChatSearch' &&
-                    window.CurrentScreen !== 'Login';
+                const isBurst =
+                    now < (window._bcBgBurstUntil || 0) &&
+                    window.CurrentScreen !== "Relog" &&
+                    window.CurrentScreen !== "ChatSearch" &&
+                    window.CurrentScreen !== "Login";
                 return isBurst ? 66 : 1000;
             }
             const idleMs = now - (window._bcLastInputTime || 0);
-            const inMinigame = typeof window.CurrentModule === 'string' && window.CurrentModule === 'MiniGame';
-            const inStruggle = typeof window.StruggleProgress === 'number' && window.StruggleProgress >= 0;
-            if (inMinigame || inStruggle || window.CurrentCharacter != null || window.CurrentScreen === 'Appearance') {
+            const inMinigame =
+                typeof window.CurrentModule === "string" &&
+                window.CurrentModule === "MiniGame";
+            const inStruggle =
+                typeof window.StruggleProgress === "number" &&
+                window.StruggleProgress >= 0;
+            if (
+                inMinigame ||
+                inStruggle ||
+                window.CurrentCharacter != null ||
+                window.CurrentScreen === "Appearance"
+            ) {
                 return idleMs < 3000 ? 32 : 50;
             }
             const scr = window.CurrentScreen;
-            if (!scr || scr === 'Login' || scr === 'Relog' || window.ScreenIsLoading) return 32;
-            const isIdleScreen = !scr || scr === 'Login' || scr === 'MainHall' || scr === 'ChatSearch' || scr === 'Relog' || scr === 'InformationSheet';
+            if (
+                !scr ||
+                scr === "Login" ||
+                scr === "Relog" ||
+                window.ScreenIsLoading
+            )
+                return 32;
+            const isIdleScreen =
+                !scr ||
+                scr === "Login" ||
+                scr === "MainHall" ||
+                scr === "ChatSearch" ||
+                scr === "Relog" ||
+                scr === "InformationSheet";
             if (isIdleScreen) {
                 return idleMs < 1500 ? 33 : 125;
             }
@@ -588,40 +903,64 @@
         };
 
         function attachRenderHooks() {
-            if (!window.__bcFocusOverridden && typeof document.hasFocus === 'function') {
+            if (
+                !window.__bcFocusOverridden &&
+                typeof document.hasFocus === "function"
+            ) {
                 window.__bcFocusOverridden = true;
                 const _origHasFocus = document.hasFocus.bind(document);
-                document.hasFocus = function() { return !window._bcIsBackground && _origHasFocus(); };
+                document.hasFocus = function () {
+                    return !window._bcIsBackground && _origHasFocus();
+                };
             }
             if (!window._bcRequestBgBurst) {
-                window._bcRequestBgBurst = function(ms) {
+                window._bcRequestBgBurst = function (ms) {
                     const t = performance.now() + (ms || 2500);
                     if (t > (window._bcBgBurstUntil || 0)) {
                         window._bcBgBurstUntil = t;
                     }
                 };
             }
-            if (!window.__bcDrawHooked && typeof window.DrawProcess === 'function') {
+            if (
+                !window.__bcDrawHooked &&
+                typeof window.DrawProcess === "function"
+            ) {
                 window.__bcDrawHooked = true;
                 const _origDraw = window.DrawProcess;
                 let _lastBgDrawTime = 0;
-                window.DrawProcess = function(...args) {
+                window.DrawProcess = function (...args) {
                     if (window._bcIsMinimized) {
                         return;
                     }
                     const now = performance.now();
                     if (window._bcIsBackground) {
                         const isBurst = now < (window._bcBgBurstUntil || 0);
-                        if (isBurst ? (now - _lastBgDrawTime < 66) : (now - _lastBgDrawTime < 1000)) {
+                        if (
+                            isBurst
+                                ? now - _lastBgDrawTime < 66
+                                : now - _lastBgDrawTime < 1000
+                        ) {
                             return;
                         }
                         _lastBgDrawTime = now;
                     } else {
-                        const idle = (now - (window._bcLastInputTime || 0)) > 2500 &&
+                        const idle =
+                            now - (window._bcLastInputTime || 0) > 2500 &&
                             !window.CurrentCharacter &&
-                            !(typeof window.StruggleProgress === 'number' && window.StruggleProgress >= 0);
-                        const targetDelta = typeof window._bcGetTargetFrameDelta === 'function' ? window._bcGetTargetFrameDelta(now) : (idle ? 66 : 32);
-                        if (now - (window._bcLastFgDrawTime || 0) < targetDelta) {
+                            !(
+                                typeof window.StruggleProgress === "number" &&
+                                window.StruggleProgress >= 0
+                            );
+                        const targetDelta =
+                            typeof window._bcGetTargetFrameDelta === "function"
+                                ? window._bcGetTargetFrameDelta(now)
+                                : idle
+                                  ? 66
+                                  : 32;
+                        if (
+                            now - (window._bcLastFgDrawTime || 0) <
+                            targetDelta
+                        ) {
                             return;
                         }
                         window._bcLastFgDrawTime = now;
@@ -629,10 +968,13 @@
                     return _origDraw.apply(this, args);
                 };
             }
-            if (!window.__bcScrollHooked && typeof window.ElementScrollToEnd === 'function') {
+            if (
+                !window.__bcScrollHooked &&
+                typeof window.ElementScrollToEnd === "function"
+            ) {
                 window.__bcScrollHooked = true;
                 const _origScroll = window.ElementScrollToEnd;
-                window.ElementScrollToEnd = function(id) {
+                window.ElementScrollToEnd = function (id) {
                     if (window._bcIsMinimized) {
                         window._bcNeedsChatScroll = true;
                         return;
@@ -640,34 +982,48 @@
                     return _origScroll.apply(this, arguments);
                 };
             }
-            if (!window.__bcLoadCanvasHooked && typeof window.CharacterLoadCanvas === 'function') {
+            if (
+                !window.__bcLoadCanvasHooked &&
+                typeof window.CharacterLoadCanvas === "function"
+            ) {
                 window.__bcLoadCanvasHooked = true;
                 const _origLoad = window.CharacterLoadCanvas;
                 window._bcCanvasQueue = window._bcCanvasQueue || [];
                 window._bcCanvasQueueTimer = null;
                 window._bcLastGlobalCanvasBuild = 0;
 
-                const _drainCanvasQueue = function() {
+                const _drainCanvasQueue = function () {
                     window._bcCanvasQueueTimer = null;
-                    if (window._bcIsMinimized || !window._bcCanvasQueue || window._bcCanvasQueue.length === 0) {
+                    if (
+                        window._bcIsMinimized ||
+                        !window._bcCanvasQueue ||
+                        window._bcCanvasQueue.length === 0
+                    ) {
                         return;
                     }
                     const nextChar = window._bcCanvasQueue.shift();
                     if (nextChar) {
                         nextChar._bcQueued = false;
                         nextChar._bcLastCanvasBuild = performance.now();
-                        window._bcLastGlobalCanvasBuild = nextChar._bcLastCanvasBuild;
+                        window._bcLastGlobalCanvasBuild =
+                            nextChar._bcLastCanvasBuild;
                         try {
                             _origLoad.call(window, nextChar);
                         } catch (e) {}
                     }
-                    if (window._bcCanvasQueue.length > 0 && !window._bcCanvasQueueTimer) {
+                    if (
+                        window._bcCanvasQueue.length > 0 &&
+                        !window._bcCanvasQueueTimer
+                    ) {
                         const spacing = window._bcIsBackground ? 90 : 28;
-                        window._bcCanvasQueueTimer = setTimeout(_drainCanvasQueue, spacing);
+                        window._bcCanvasQueueTimer = setTimeout(
+                            _drainCanvasQueue,
+                            spacing,
+                        );
                     }
                 };
 
-                window.CharacterLoadCanvas = function(C) {
+                window.CharacterLoadCanvas = function (C) {
                     if (window._bcIsMinimized) {
                         if (C) {
                             C._bcPendingCanvasBuild = true;
@@ -677,22 +1033,45 @@
                     if (window._bcIsBackground && window._bcRequestBgBurst) {
                         window._bcRequestBgBurst(2500);
                     }
-                    const isPriority = !C || C === window.Player || C === window.CurrentCharacter || (typeof C.IsPlayer === 'function' && C.IsPlayer());
-                    if (!isPriority && C.Canvas && C.CanvasBlink && window.CurrentScreen === 'ChatRoom') {
+                    const isPriority =
+                        !C ||
+                        C === window.Player ||
+                        C === window.CurrentCharacter ||
+                        (typeof C.IsPlayer === "function" && C.IsPlayer());
+                    if (
+                        !isPriority &&
+                        C.Canvas &&
+                        C.CanvasBlink &&
+                        window.CurrentScreen === "ChatRoom"
+                    ) {
                         const now = performance.now();
-                        const minCharInterval = window._bcIsBackground ? 240 : 120;
+                        const minCharInterval = window._bcIsBackground
+                            ? 240
+                            : 120;
                         const globalSpacing = window._bcIsBackground ? 90 : 28;
                         const charElapsed = now - (C._bcLastCanvasBuild || 0);
-                        const globalElapsed = now - (window._bcLastGlobalCanvasBuild || 0);
+                        const globalElapsed =
+                            now - (window._bcLastGlobalCanvasBuild || 0);
 
-                        if (charElapsed < minCharInterval || globalElapsed < globalSpacing || (window._bcCanvasQueue && window._bcCanvasQueue.length > 0)) {
+                        if (
+                            charElapsed < minCharInterval ||
+                            globalElapsed < globalSpacing ||
+                            (window._bcCanvasQueue &&
+                                window._bcCanvasQueue.length > 0)
+                        ) {
                             if (!C._bcQueued && window._bcCanvasQueue) {
                                 C._bcQueued = true;
                                 window._bcCanvasQueue.push(C);
                             }
                             if (!window._bcCanvasQueueTimer) {
-                                const wait = Math.max(16, globalSpacing - globalElapsed);
-                                window._bcCanvasQueueTimer = setTimeout(_drainCanvasQueue, wait);
+                                const wait = Math.max(
+                                    16,
+                                    globalSpacing - globalElapsed,
+                                );
+                                window._bcCanvasQueueTimer = setTimeout(
+                                    _drainCanvasQueue,
+                                    wait,
+                                );
                             }
                             return;
                         }
@@ -712,10 +1091,13 @@
                     return _origLoad.apply(this, arguments);
                 };
             }
-            if (!window.__bcSetCurrentHooked && typeof window.CharacterSetCurrent === 'function') {
+            if (
+                !window.__bcSetCurrentHooked &&
+                typeof window.CharacterSetCurrent === "function"
+            ) {
                 window.__bcSetCurrentHooked = true;
                 const _origSetCurrent = window.CharacterSetCurrent;
-                window.CharacterSetCurrent = function(C) {
+                window.CharacterSetCurrent = function (C) {
                     window._bcLastInputTime = performance.now();
                     window._bcLastFgDrawTime = 0;
                     if (C && C._bcQueued && window._bcCanvasQueue) {
@@ -728,10 +1110,13 @@
                     return _origSetCurrent.apply(this, arguments);
                 };
             }
-            if (!window.__bcBuildCanvasHooked && typeof window.CharacterAppearanceBuildCanvas === 'function') {
+            if (
+                !window.__bcBuildCanvasHooked &&
+                typeof window.CharacterAppearanceBuildCanvas === "function"
+            ) {
                 window.__bcBuildCanvasHooked = true;
                 const _origBuild = window.CharacterAppearanceBuildCanvas;
-                window.CharacterAppearanceBuildCanvas = function(C) {
+                window.CharacterAppearanceBuildCanvas = function (C) {
                     if (window._bcIsMinimized) {
                         if (C) {
                             C._bcPendingCanvasBuild = true;
@@ -744,11 +1129,15 @@
                     return _origBuild.apply(this, arguments);
                 };
             }
-            return Boolean(window.__bcDrawHooked && window.__bcLoadCanvasHooked && window.__bcBuildCanvasHooked);
+            return Boolean(
+                window.__bcDrawHooked &&
+                window.__bcLoadCanvasHooked &&
+                window.__bcBuildCanvasHooked,
+            );
         }
 
         if (!attachRenderHooks() && !window._bcDrawHookTimer) {
-            window._bcDrawHookTimer = setInterval(function() {
+            window._bcDrawHookTimer = setInterval(function () {
                 if (attachRenderHooks()) {
                     clearInterval(window._bcDrawHookTimer);
                     window._bcDrawHookTimer = null;
@@ -759,14 +1148,20 @@
 
     // Notification System Control (Default OFF) & Login Screen Bottom-Left Settings UI
     (function setupNotificationSettingsUi() {
-        const STORAGE_KEY = 'BC_Notifications_Enabled';
+        const STORAGE_KEY = "BC_Notifications_Enabled";
         let notifEnabled = false;
 
         try {
-            if (window.AndroidBridge && typeof window.AndroidBridge.isNotificationsEnabled === 'function') {
-                notifEnabled = Boolean(window.AndroidBridge.isNotificationsEnabled());
+            if (
+                window.AndroidBridge &&
+                typeof window.AndroidBridge.isNotificationsEnabled ===
+                    "function"
+            ) {
+                notifEnabled = Boolean(
+                    window.AndroidBridge.isNotificationsEnabled(),
+                );
             } else {
-                notifEnabled = localStorage.getItem(STORAGE_KEY) === 'true';
+                notifEnabled = localStorage.getItem(STORAGE_KEY) === "true";
             }
         } catch (e) {
             notifEnabled = false;
@@ -777,10 +1172,17 @@
             notifEnabled = Boolean(enabled);
             window._bcNotificationsEnabled = notifEnabled;
             try {
-                localStorage.setItem(STORAGE_KEY, notifEnabled ? 'true' : 'false');
+                localStorage.setItem(
+                    STORAGE_KEY,
+                    notifEnabled ? "true" : "false",
+                );
             } catch (e) {}
             try {
-                if (window.AndroidBridge && typeof window.AndroidBridge.setNotificationsEnabled === 'function') {
+                if (
+                    window.AndroidBridge &&
+                    typeof window.AndroidBridge.setNotificationsEnabled ===
+                        "function"
+                ) {
                     window.AndroidBridge.setNotificationsEnabled(notifEnabled);
                 }
             } catch (e) {}
@@ -795,25 +1197,32 @@
                     return new OrigNotification(title, options);
                 } catch (e) {}
             }
-            this.close = function() {};
+            this.close = function () {};
         }
-        Object.defineProperty(MockNotification, 'permission', {
-            get: function() {
-                return window._bcNotificationsEnabled ? (OrigNotification ? OrigNotification.permission : 'default') : 'denied';
+        Object.defineProperty(MockNotification, "permission", {
+            get: function () {
+                return window._bcNotificationsEnabled
+                    ? OrigNotification
+                        ? OrigNotification.permission
+                        : "default"
+                    : "denied";
             },
-            configurable: true
+            configurable: true,
         });
-        MockNotification.requestPermission = function(cb) {
+        MockNotification.requestPermission = function (cb) {
             if (!window._bcNotificationsEnabled) {
-                if (typeof cb === 'function') {
-                    cb('denied');
+                if (typeof cb === "function") {
+                    cb("denied");
                 }
-                return Promise.resolve('denied');
+                return Promise.resolve("denied");
             }
-            if (OrigNotification && typeof OrigNotification.requestPermission === 'function') {
+            if (
+                OrigNotification &&
+                typeof OrigNotification.requestPermission === "function"
+            ) {
                 return OrigNotification.requestPermission(cb);
             }
-            return Promise.resolve('granted');
+            return Promise.resolve("granted");
         };
         try {
             window.Notification = MockNotification;
@@ -822,7 +1231,7 @@
         if (navigator.vibrate) {
             const origVibrate = navigator.vibrate.bind(navigator);
             try {
-                navigator.vibrate = function(pattern) {
+                navigator.vibrate = function (pattern) {
                     if (!window._bcNotificationsEnabled) {
                         return false;
                     }
@@ -832,10 +1241,13 @@
         }
 
         function hookGameNotifications() {
-            if (typeof window.NotificationRaise === 'function' && !window.__bcNotifRaiseHooked) {
+            if (
+                typeof window.NotificationRaise === "function" &&
+                !window.__bcNotifRaiseHooked
+            ) {
                 window.__bcNotifRaiseHooked = true;
                 const origRaise = window.NotificationRaise;
-                window.NotificationRaise = function() {
+                window.NotificationRaise = function () {
                     if (!window._bcNotificationsEnabled) {
                         return;
                     }
@@ -846,171 +1258,175 @@
         hookGameNotifications();
 
         // Bottom-Left Floating Button (Visible ONLY on Login screen)
-        const notifBtn = document.createElement('div');
-        notifBtn.id = 'bc-notif-btn';
-        notifBtn.title = 'Notification Settings';
+        const notifBtn = document.createElement("div");
+        notifBtn.id = "bc-notif-btn";
+        notifBtn.title = "Notification Settings";
         Object.assign(notifBtn.style, {
-            position: 'fixed',
-            bottom: '20px',
-            left: '20px',
-            width: '44px',
-            height: '44px',
-            backgroundColor: '#1a1625',
-            borderRadius: '10px',
-            padding: '9px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-            border: '1px solid #3d3554',
-            display: 'none',
-            justifyContent: 'center',
-            alignItems: 'center',
-            cursor: 'pointer',
-            zIndex: '2147483645',
-            transition: 'transform 0.2s, border-color 0.2s, background-color 0.2s',
-            userSelect: 'none',
-            boxSizing: 'border-box'
+            position: "fixed",
+            bottom: "20px",
+            left: "20px",
+            width: "44px",
+            height: "44px",
+            backgroundColor: "#1a1625",
+            borderRadius: "10px",
+            padding: "9px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+            border: "1px solid #3d3554",
+            display: "none",
+            justifyContent: "center",
+            alignItems: "center",
+            cursor: "pointer",
+            zIndex: "2147483645",
+            transition:
+                "transform 0.2s, border-color 0.2s, background-color 0.2s",
+            userSelect: "none",
+            boxSizing: "border-box",
         });
 
-        const bellOnSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#a29bfe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
-        const bellOffSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8a81a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+        const bellOnSvg =
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#a29bfe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+        const bellOffSvg =
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#8a81a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
-        const notifModal = document.createElement('div');
-        notifModal.id = 'bc-notif-modal';
+        const notifModal = document.createElement("div");
+        notifModal.id = "bc-notif-modal";
         Object.assign(notifModal.style, {
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(6px)',
-            zIndex: '2147483647',
-            display: 'none',
-            justifyContent: 'center',
-            alignItems: 'center'
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            zIndex: "2147483647",
+            display: "none",
+            justifyContent: "center",
+            alignItems: "center",
         });
 
-        const notifCard = document.createElement('div');
+        const notifCard = document.createElement("div");
         Object.assign(notifCard.style, {
-            backgroundColor: '#1a1625',
-            width: '380px',
-            maxWidth: '90%',
-            borderRadius: '16px',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.8)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            border: '1px solid #2e2640',
-            color: '#f5f5f5',
-            fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
+            backgroundColor: "#1a1625",
+            width: "380px",
+            maxWidth: "90%",
+            borderRadius: "16px",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.8)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            border: "1px solid #2e2640",
+            color: "#f5f5f5",
+            fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
         });
 
-        const notifHeader = document.createElement('div');
+        const notifHeader = document.createElement("div");
         Object.assign(notifHeader.style, {
-            backgroundColor: '#211c2e',
-            padding: '16px 22px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid #2e2640',
-            fontWeight: 'bold',
-            fontSize: '16px'
+            backgroundColor: "#211c2e",
+            padding: "16px 22px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid #2e2640",
+            fontWeight: "bold",
+            fontSize: "16px",
         });
-        notifHeader.innerHTML = '<span>Notification Settings</span>';
+        notifHeader.innerHTML = "<span>Notification Settings</span>";
 
-        const notifClose = document.createElement('div');
-        notifClose.innerText = '✖';
+        const notifClose = document.createElement("div");
+        notifClose.innerText = "✖";
         Object.assign(notifClose.style, {
-            cursor: 'pointer',
-            fontSize: '16px',
-            color: '#8a81a8',
-            padding: '2px 6px'
+            cursor: "pointer",
+            fontSize: "16px",
+            color: "#8a81a8",
+            padding: "2px 6px",
         });
-        notifClose.onclick = function() {
-            notifModal.style.display = 'none';
+        notifClose.onclick = function () {
+            notifModal.style.display = "none";
         };
         notifHeader.appendChild(notifClose);
 
-        const notifBody = document.createElement('div');
+        const notifBody = document.createElement("div");
         Object.assign(notifBody.style, {
-            padding: '20px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '14px'
+            padding: "20px 22px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
         });
 
-        const row = document.createElement('div');
+        const row = document.createElement("div");
         Object.assign(row.style, {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '14px',
-            padding: '14px 16px',
-            backgroundColor: '#211c2e',
-            borderRadius: '12px',
-            border: '1px solid #2e2640'
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "14px",
+            padding: "14px 16px",
+            backgroundColor: "#211c2e",
+            borderRadius: "12px",
+            border: "1px solid #2e2640",
         });
 
-        const textCol = document.createElement('div');
+        const textCol = document.createElement("div");
         Object.assign(textCol.style, {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px'
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
         });
 
-        const rowTitle = document.createElement('div');
-        rowTitle.innerText = 'System & Chat Notifications';
+        const rowTitle = document.createElement("div");
+        rowTitle.innerText = "System & Chat Notifications";
         Object.assign(rowTitle.style, {
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#f5f5f5'
+            fontSize: "14px",
+            fontWeight: "600",
+            color: "#f5f5f5",
         });
 
-        const rowDesc = document.createElement('div');
-        rowDesc.innerText = 'Keep OFF (default) to silence all background alerts, unread badges, and vibrations for maximum privacy and battery savings.';
+        const rowDesc = document.createElement("div");
+        rowDesc.innerText =
+            "Keep OFF (default) to silence all background alerts, unread badges, and vibrations for maximum privacy and battery savings.";
         Object.assign(rowDesc.style, {
-            fontSize: '11.5px',
-            color: '#a59fb5',
-            lineHeight: '1.4'
+            fontSize: "11.5px",
+            color: "#a59fb5",
+            lineHeight: "1.4",
         });
 
         textCol.appendChild(rowTitle);
         textCol.appendChild(rowDesc);
 
-        const pillToggle = document.createElement('div');
+        const pillToggle = document.createElement("div");
         Object.assign(pillToggle.style, {
-            display: 'flex',
-            backgroundColor: '#14111d',
-            borderRadius: '20px',
-            padding: '4px',
-            alignItems: 'center',
-            fontSize: '11px',
-            fontWeight: 'bold',
-            border: '1px solid #3d3554',
-            cursor: 'pointer',
-            userSelect: 'none',
-            flexShrink: '0'
+            display: "flex",
+            backgroundColor: "#14111d",
+            borderRadius: "20px",
+            padding: "4px",
+            alignItems: "center",
+            fontSize: "11px",
+            fontWeight: "bold",
+            border: "1px solid #3d3554",
+            cursor: "pointer",
+            userSelect: "none",
+            flexShrink: "0",
         });
 
-        const offPill = document.createElement('div');
-        offPill.innerText = 'OFF';
+        const offPill = document.createElement("div");
+        offPill.innerText = "OFF";
         Object.assign(offPill.style, {
-            padding: '5px 12px',
-            borderRadius: '16px',
-            transition: 'all 0.2s'
+            padding: "5px 12px",
+            borderRadius: "16px",
+            transition: "all 0.2s",
         });
 
-        const onPill = document.createElement('div');
-        onPill.innerText = 'ON';
+        const onPill = document.createElement("div");
+        onPill.innerText = "ON";
         Object.assign(onPill.style, {
-            padding: '5px 12px',
-            borderRadius: '16px',
-            transition: 'all 0.2s'
+            padding: "5px 12px",
+            borderRadius: "16px",
+            transition: "all 0.2s",
         });
 
         pillToggle.appendChild(offPill);
         pillToggle.appendChild(onPill);
 
-        pillToggle.onclick = function() {
+        pillToggle.onclick = function () {
             syncNotificationState(!notifEnabled);
         };
 
@@ -1018,73 +1434,74 @@
         row.appendChild(pillToggle);
         notifBody.appendChild(row);
 
-        const afRow = document.createElement('div');
+        const afRow = document.createElement("div");
         Object.assign(afRow.style, {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '14px',
-            padding: '14px 16px',
-            backgroundColor: '#211c2e',
-            borderRadius: '12px',
-            border: '1px solid #2e2640'
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "14px",
+            padding: "14px 16px",
+            backgroundColor: "#211c2e",
+            borderRadius: "12px",
+            border: "1px solid #2e2640",
         });
 
-        const afTextCol = document.createElement('div');
+        const afTextCol = document.createElement("div");
         Object.assign(afTextCol.style, {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px'
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
         });
 
-        const afTitle = document.createElement('div');
-        afTitle.innerText = 'Auto-Focus Text / Keyboard';
+        const afTitle = document.createElement("div");
+        afTitle.innerText = "Auto-Focus Text / Keyboard";
         Object.assign(afTitle.style, {
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#f5f5f5'
+            fontSize: "14px",
+            fontWeight: "600",
+            color: "#f5f5f5",
         });
 
-        const afDesc = document.createElement('div');
-        afDesc.innerText = 'Keep OFF (default) so applying items/restraints or closing menus never pops up the keyboard unless you directly tap a text box.';
+        const afDesc = document.createElement("div");
+        afDesc.innerText =
+            "Keep OFF (default) so applying items/restraints or closing menus never pops up the keyboard unless you directly tap a text box.";
         Object.assign(afDesc.style, {
-            fontSize: '11.5px',
-            color: '#a59fb5',
-            lineHeight: '1.4'
+            fontSize: "11.5px",
+            color: "#a59fb5",
+            lineHeight: "1.4",
         });
 
         afTextCol.appendChild(afTitle);
         afTextCol.appendChild(afDesc);
 
-        const afPillToggle = document.createElement('div');
+        const afPillToggle = document.createElement("div");
         Object.assign(afPillToggle.style, {
-            display: 'flex',
-            backgroundColor: '#14111d',
-            borderRadius: '20px',
-            padding: '4px',
-            alignItems: 'center',
-            fontSize: '11px',
-            fontWeight: 'bold',
-            border: '1px solid #3d3554',
-            cursor: 'pointer',
-            userSelect: 'none',
-            flexShrink: '0'
+            display: "flex",
+            backgroundColor: "#14111d",
+            borderRadius: "20px",
+            padding: "4px",
+            alignItems: "center",
+            fontSize: "11px",
+            fontWeight: "bold",
+            border: "1px solid #3d3554",
+            cursor: "pointer",
+            userSelect: "none",
+            flexShrink: "0",
         });
 
-        const afOffPill = document.createElement('div');
-        afOffPill.innerText = 'OFF';
+        const afOffPill = document.createElement("div");
+        afOffPill.innerText = "OFF";
         Object.assign(afOffPill.style, {
-            padding: '5px 12px',
-            borderRadius: '16px',
-            transition: 'all 0.2s'
+            padding: "5px 12px",
+            borderRadius: "16px",
+            transition: "all 0.2s",
         });
 
-        const afOnPill = document.createElement('div');
-        afOnPill.innerText = 'ON';
+        const afOnPill = document.createElement("div");
+        afOnPill.innerText = "ON";
         Object.assign(afOnPill.style, {
-            padding: '5px 12px',
-            borderRadius: '16px',
-            transition: 'all 0.2s'
+            padding: "5px 12px",
+            borderRadius: "16px",
+            transition: "all 0.2s",
         });
 
         afPillToggle.appendChild(afOffPill);
@@ -1092,17 +1509,20 @@
 
         function updateAutoFocusPillUi() {
             const afOn = Boolean(window._bcAndroidAutoFocusEnabled);
-            afOffPill.style.backgroundColor = !afOn ? '#7b7194' : 'transparent';
-            afOffPill.style.color = !afOn ? '#ffffff' : '#8a81a8';
-            afOnPill.style.backgroundColor = afOn ? '#7c3aed' : 'transparent';
-            afOnPill.style.color = afOn ? '#ffffff' : '#8a81a8';
+            afOffPill.style.backgroundColor = !afOn ? "#7b7194" : "transparent";
+            afOffPill.style.color = !afOn ? "#ffffff" : "#8a81a8";
+            afOnPill.style.backgroundColor = afOn ? "#7c3aed" : "transparent";
+            afOnPill.style.color = afOn ? "#ffffff" : "#8a81a8";
         }
         window._bcUpdateAutoFocusPillUi = updateAutoFocusPillUi;
         updateAutoFocusPillUi();
 
-        afPillToggle.onclick = function() {
-            if (typeof window._bcSetAutoFocusEnabled === 'function') {
-                window._bcSetAutoFocusEnabled(!window._bcAndroidAutoFocusEnabled, false);
+        afPillToggle.onclick = function () {
+            if (typeof window._bcSetAutoFocusEnabled === "function") {
+                window._bcSetAutoFocusEnabled(
+                    !window._bcAndroidAutoFocusEnabled,
+                    false,
+                );
             }
         };
 
@@ -1116,19 +1536,24 @@
 
         function updateNotifUiState() {
             notifBtn.innerHTML = notifEnabled ? bellOnSvg : bellOffSvg;
-            notifBtn.style.borderColor = notifEnabled ? '#a29bfe' : '#3d3554';
-            offPill.style.backgroundColor = !notifEnabled ? '#7b7194' : 'transparent';
-            offPill.style.color = !notifEnabled ? '#ffffff' : '#8a81a8';
-            onPill.style.backgroundColor = notifEnabled ? '#7c3aed' : 'transparent';
-            onPill.style.color = notifEnabled ? '#ffffff' : '#8a81a8';
+            notifBtn.style.borderColor = notifEnabled ? "#a29bfe" : "#3d3554";
+            offPill.style.backgroundColor = !notifEnabled
+                ? "#7b7194"
+                : "transparent";
+            offPill.style.color = !notifEnabled ? "#ffffff" : "#8a81a8";
+            onPill.style.backgroundColor = notifEnabled
+                ? "#7c3aed"
+                : "transparent";
+            onPill.style.color = notifEnabled ? "#ffffff" : "#8a81a8";
         }
 
-        notifBtn.onclick = function() {
-            notifModal.style.display = notifModal.style.display === 'flex' ? 'none' : 'flex';
+        notifBtn.onclick = function () {
+            notifModal.style.display =
+                notifModal.style.display === "flex" ? "none" : "flex";
         };
-        notifModal.onclick = function(e) {
+        notifModal.onclick = function (e) {
             if (e.target === notifModal) {
-                notifModal.style.display = 'none';
+                notifModal.style.display = "none";
             }
         };
 
@@ -1146,16 +1571,16 @@
                     document.body.appendChild(notifModal);
                     notifUiMounted = true;
                 }
-                if (window.CurrentScreen === 'Login') {
-                    if (notifBtn.style.display !== 'flex') {
-                        notifBtn.style.display = 'flex';
+                if (window.CurrentScreen === "Login") {
+                    if (notifBtn.style.display !== "flex") {
+                        notifBtn.style.display = "flex";
                     }
                 } else {
-                    if (notifBtn.style.display !== 'none') {
-                        notifBtn.style.display = 'none';
+                    if (notifBtn.style.display !== "none") {
+                        notifBtn.style.display = "none";
                     }
-                    if (notifModal.style.display !== 'none') {
-                        notifModal.style.display = 'none';
+                    if (notifModal.style.display !== "none") {
+                        notifModal.style.display = "none";
                     }
                 }
             } catch (e) {}
@@ -1167,11 +1592,21 @@
 
     // Force Page Visibility API to report visible state permanently
     try {
-        Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
-        Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
-        window.addEventListener('visibilitychange', function(e) {
-            e.stopImmediatePropagation();
-        }, true);
+        Object.defineProperty(document, "hidden", {
+            get: () => false,
+            configurable: true,
+        });
+        Object.defineProperty(document, "visibilityState", {
+            get: () => "visible",
+            configurable: true,
+        });
+        window.addEventListener(
+            "visibilitychange",
+            function (e) {
+                e.stopImmediatePropagation();
+            },
+            true,
+        );
     } catch (e) {}
 
     // Silent WebAudio Keep-Alive stub (active flag stubbed to avoid activating hardware audio)
@@ -1182,8 +1617,14 @@
         window._bcAudioKeepAliveActive = true;
     }
 
-    document.addEventListener('click', initSilentAudioKeepAlive, { once: true, passive: true });
-    document.addEventListener('touchstart', initSilentAudioKeepAlive, { once: true, passive: true });
+    document.addEventListener("click", initSilentAudioKeepAlive, {
+        once: true,
+        passive: true,
+    });
+    document.addEventListener("touchstart", initSilentAudioKeepAlive, {
+        once: true,
+        passive: true,
+    });
     initSilentAudioKeepAlive();
 
     // Suppress native Bondage Club fullscreen button (unnecessary in edge-to-edge immersive app)
@@ -1192,13 +1633,18 @@
     function suppressFullscreenButton() {
         suppressFullscreenAttempts++;
         try {
-            if (window.Fullscreen && typeof window.Fullscreen.UpdateButton === 'function') {
-                window.Fullscreen.Init = function() {};
+            if (
+                window.Fullscreen &&
+                typeof window.Fullscreen.UpdateButton === "function"
+            ) {
+                window.Fullscreen.Init = function () {};
             }
-            const btn = document.getElementById('bc-fullscreen-button') || document.querySelector('.bc-fullscreen-button');
+            const btn =
+                document.getElementById("bc-fullscreen-button") ||
+                document.querySelector(".bc-fullscreen-button");
             if (btn || suppressFullscreenAttempts > 15) {
                 if (btn) {
-                    btn.style.setProperty('display', 'none', 'important');
+                    btn.style.setProperty("display", "none", "important");
                     btn.remove();
                 }
                 if (suppressFullscreenInterval) {
@@ -1209,14 +1655,14 @@
         } catch (e) {}
     }
     suppressFullscreenButton();
-    document.addEventListener('DOMContentLoaded', suppressFullscreenButton);
+    document.addEventListener("DOMContentLoaded", suppressFullscreenButton);
     suppressFullscreenInterval = setInterval(suppressFullscreenButton, 1000);
 
     // Safe VRAM & texture optimization via BC's native ImageCache
     (function setupSafeVramOptimization() {
         try {
-            if (localStorage.getItem('GLDraw-antialiasOff') === null) {
-                localStorage.setItem('GLDraw-antialiasOff', 'true');
+            if (localStorage.getItem("GLDraw-antialiasOff") === null) {
+                localStorage.setItem("GLDraw-antialiasOff", "true");
             }
         } catch (e) {}
 
@@ -1226,25 +1672,29 @@
         const MAX_MASK_TEXTURES = 110;
         const MAX_ALPHA_MASKS = 110;
 
-
-
-
-
         function hookGlCacheDelete(gl) {
             if (!gl || gl.__bcDeleteHooked) {
                 return;
             }
             gl.__bcDeleteHooked = true;
-            const wrapCache = function(map) {
-                if (!map || map.__bcDeleteWrapped || typeof map.delete !== 'function') {
+            const wrapCache = function (map) {
+                if (
+                    !map ||
+                    map.__bcDeleteWrapped ||
+                    typeof map.delete !== "function"
+                ) {
                     return;
                 }
                 map.__bcDeleteWrapped = true;
                 const origDelete = map.delete.bind(map);
-                map.delete = function(key) {
+                map.delete = function (key) {
                     try {
                         const entry = map.get(key);
-                        if (entry && entry.texture && typeof gl.deleteTexture === 'function') {
+                        if (
+                            entry &&
+                            entry.texture &&
+                            typeof gl.deleteTexture === "function"
+                        ) {
                             gl.deleteTexture(entry.texture);
                             entry.texture = null;
                         }
@@ -1252,10 +1702,14 @@
                     return origDelete(key);
                 };
                 const origClear = map.clear.bind(map);
-                map.clear = function() {
+                map.clear = function () {
                     try {
-                        map.forEach(function(entry) {
-                            if (entry && entry.texture && typeof gl.deleteTexture === 'function') {
+                        map.forEach(function (entry) {
+                            if (
+                                entry &&
+                                entry.texture &&
+                                typeof gl.deleteTexture === "function"
+                            ) {
                                 gl.deleteTexture(entry.texture);
                                 entry.texture = null;
                             }
@@ -1270,50 +1724,110 @@
 
         function pruneWebGlGpuTextures(activeAssetUrls) {
             try {
-                const gl = (typeof window.GLDrawCanvas !== 'undefined' && window.GLDrawCanvas && window.GLDrawCanvas.GL) || window.GLDrawContext;
+                const gl =
+                    (typeof window.GLDrawCanvas !== "undefined" &&
+                        window.GLDrawCanvas &&
+                        window.GLDrawCanvas.GL) ||
+                    window.GLDrawContext;
                 if (gl) {
                     hookGlCacheDelete(gl);
-                    const glImgMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
-                    if (glImgMap && typeof glImgMap.size === 'number' && typeof window.GLDrawImageCache.delete === 'function') {
+                    const glImgMap =
+                        window.GLDrawImageCache &&
+                        window.GLDrawImageCache.cache;
+                    if (
+                        glImgMap &&
+                        typeof glImgMap.size === "number" &&
+                        typeof window.GLDrawImageCache.delete === "function"
+                    ) {
                         if (glImgMap.size > MAX_WEBGL_TEXTURES) {
                             let excess = glImgMap.size - MAX_WEBGL_TEXTURES;
                             const keys = Array.from(glImgMap.keys());
-                            for (let i = 0; i < keys.length && excess > 0; i++) {
+                            for (
+                                let i = 0;
+                                i < keys.length && excess > 0;
+                                i++
+                            ) {
                                 const k = keys[i];
-                                if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
-                                if (!activeAssetUrls || !activeAssetUrls.has(k)) {
+                                if (
+                                    typeof k !== "string" ||
+                                    !k.startsWith("Assets/") ||
+                                    k.indexOf("/Preview/") >= 0
+                                )
+                                    continue;
+                                if (
+                                    !activeAssetUrls ||
+                                    !activeAssetUrls.has(k)
+                                ) {
                                     const entry = glImgMap.get(k);
-                                    if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
-                                    if (typeof entry.isDoneLoading === 'function' && !entry.isDoneLoading()) continue;
+                                    if (
+                                        !entry ||
+                                        (typeof entry.isLoading ===
+                                            "function" &&
+                                            entry.isLoading())
+                                    )
+                                        continue;
+                                    if (
+                                        typeof entry.isDoneLoading ===
+                                            "function" &&
+                                        !entry.isDoneLoading()
+                                    )
+                                        continue;
                                     window.GLDrawImageCache.delete(k);
                                     excess--;
                                 }
                             }
                         }
                     }
-                    const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
-                    if (drawMap && typeof drawMap.size === 'number' && drawMap.size > MAX_WEBGL_TEXTURES && typeof window.DrawImageCache.delete === 'function') {
+                    const drawMap =
+                        window.DrawImageCache && window.DrawImageCache.cache;
+                    if (
+                        drawMap &&
+                        typeof drawMap.size === "number" &&
+                        drawMap.size > MAX_WEBGL_TEXTURES &&
+                        typeof window.DrawImageCache.delete === "function"
+                    ) {
                         let excess = drawMap.size - MAX_WEBGL_TEXTURES;
                         const keys = Array.from(drawMap.keys());
                         for (let i = 0; i < keys.length && excess > 0; i++) {
                             const k = keys[i];
-                            if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
+                            if (
+                                typeof k !== "string" ||
+                                !k.startsWith("Assets/") ||
+                                k.indexOf("/Preview/") >= 0
+                            )
+                                continue;
                             if (!activeAssetUrls || !activeAssetUrls.has(k)) {
                                 const entry = drawMap.get(k);
-                                if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
-                                if (typeof entry.isDoneLoading === 'function' && !entry.isDoneLoading()) continue;
+                                if (
+                                    !entry ||
+                                    (typeof entry.isLoading === "function" &&
+                                        entry.isLoading())
+                                )
+                                    continue;
+                                if (
+                                    typeof entry.isDoneLoading === "function" &&
+                                    !entry.isDoneLoading()
+                                )
+                                    continue;
                                 window.DrawImageCache.delete(k);
                                 excess--;
                             }
                         }
                     }
-                    if (gl.textureCache && typeof gl.textureCache.forEach === 'function') {
+                    if (
+                        gl.textureCache &&
+                        typeof gl.textureCache.forEach === "function"
+                    ) {
                         const toDelete = [];
-                        gl.textureCache.forEach(function(_, url) {
+                        gl.textureCache.forEach(function (_, url) {
                             if (activeAssetUrls && activeAssetUrls.has(url)) {
                                 return;
                             }
-                            if (glImgMap && typeof glImgMap.has === 'function' && !glImgMap.has(url)) {
+                            if (
+                                glImgMap &&
+                                typeof glImgMap.has === "function" &&
+                                !glImgMap.has(url)
+                            ) {
                                 toDelete.push(url);
                             }
                         });
@@ -1321,19 +1835,36 @@
                             gl.textureCache.delete(toDelete[i]);
                         }
                         if (gl.textureCache.size > MAX_WEBGL_TEXTURES) {
-                            let excess = gl.textureCache.size - MAX_WEBGL_TEXTURES;
+                            let excess =
+                                gl.textureCache.size - MAX_WEBGL_TEXTURES;
                             const keys = Array.from(gl.textureCache.keys());
-                            for (let i = 0; i < keys.length && excess > 0; i++) {
+                            for (
+                                let i = 0;
+                                i < keys.length && excess > 0;
+                                i++
+                            ) {
                                 const k = keys[i];
-                                if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
-                                if (!activeAssetUrls || !activeAssetUrls.has(k)) {
+                                if (
+                                    typeof k !== "string" ||
+                                    !k.startsWith("Assets/") ||
+                                    k.indexOf("/Preview/") >= 0
+                                )
+                                    continue;
+                                if (
+                                    !activeAssetUrls ||
+                                    !activeAssetUrls.has(k)
+                                ) {
                                     gl.textureCache.delete(k);
                                     excess--;
                                 }
                             }
                         }
                     }
-                    if (gl.maskCache && typeof gl.maskCache.size === 'number' && gl.maskCache.size > MAX_MASK_TEXTURES) {
+                    if (
+                        gl.maskCache &&
+                        typeof gl.maskCache.size === "number" &&
+                        gl.maskCache.size > MAX_MASK_TEXTURES
+                    ) {
                         let excess = gl.maskCache.size - MAX_MASK_TEXTURES;
                         const keys = Array.from(gl.maskCache.keys());
                         for (let i = 0; i < keys.length && excess > 0; i++) {
@@ -1344,17 +1875,25 @@
                             }
                         }
                     }
-                    if (typeof gl.flush === 'function') { try { gl.flush(); } catch (e) {} }
+                    if (typeof gl.flush === "function") {
+                        try {
+                            gl.flush();
+                        } catch (e) {}
+                    }
                 }
                 const alphaMasks = window.GLDrawAlphaMasks;
-                if (alphaMasks && typeof alphaMasks.size === 'number' && alphaMasks.size > MAX_ALPHA_MASKS) {
+                if (
+                    alphaMasks &&
+                    typeof alphaMasks.size === "number" &&
+                    alphaMasks.size > MAX_ALPHA_MASKS
+                ) {
                     let excess = alphaMasks.size - MAX_ALPHA_MASKS;
                     const keys = Array.from(alphaMasks.keys());
                     for (let i = 0; i < keys.length && excess > 0; i++) {
                         const k = keys[i];
                         if (!activeAssetUrls || !activeAssetUrls.has(k)) {
                             const c = alphaMasks.get(k);
-                            if (c && typeof c.width === 'number') {
+                            if (c && typeof c.width === "number") {
                                 c.width = 0;
                                 c.height = 0;
                             }
@@ -1367,24 +1906,40 @@
         }
 
         function applyPurgeDelay() {
-            if (typeof window.ImageCachePurgeDelay !== 'undefined') {
-                window.ImageCachePurgeDelay = (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance')
-                    ? WARDROBE_PURGE_DELAY
-                    : NORMAL_PURGE_DELAY;
+            if (typeof window.ImageCachePurgeDelay !== "undefined") {
+                window.ImageCachePurgeDelay =
+                    typeof window.CurrentScreen !== "undefined" &&
+                    window.CurrentScreen === "Appearance"
+                        ? WARDROBE_PURGE_DELAY
+                        : NORMAL_PURGE_DELAY;
             }
-            if (window.Player && window.Player.GraphicsSettings && window.CurrentScreen !== 'Preference') {
+            if (
+                window.Player &&
+                window.Player.GraphicsSettings &&
+                window.CurrentScreen !== "Preference"
+            ) {
                 const gs = window.Player.GraphicsSettings;
-                if (typeof gs.MaxFPS === 'number' && (gs.MaxFPS === 0 || gs.MaxFPS > 30)) {
+                if (
+                    typeof gs.MaxFPS === "number" &&
+                    (gs.MaxFPS === 0 || gs.MaxFPS > 30)
+                ) {
                     gs.MaxFPS = 30;
                 }
-                if (typeof gs.MaxUnfocusedFPS === 'number' && (gs.MaxUnfocusedFPS === 0 || gs.MaxUnfocusedFPS > 15)) {
+                if (
+                    typeof gs.MaxUnfocusedFPS === "number" &&
+                    (gs.MaxUnfocusedFPS === 0 || gs.MaxUnfocusedFPS > 15)
+                ) {
                     gs.MaxUnfocusedFPS = 15;
                 }
             }
         }
 
         function cleanUpDepartedCharacter(targetChar) {
-            if (!targetChar || targetChar === window.Player || (targetChar.IsPlayer && targetChar.IsPlayer())) {
+            if (
+                !targetChar ||
+                targetChar === window.Player ||
+                (targetChar.IsPlayer && targetChar.IsPlayer())
+            ) {
                 return;
             }
             try {
@@ -1394,20 +1949,29 @@
                 }
                 const memberNum = targetChar.MemberNumber;
                 if (window.CurrentCharacter === targetChar) {
-                    if (typeof window.DialogLeave === 'function') {
-                        try { window.DialogLeave(); } catch (e) {}
+                    if (typeof window.DialogLeave === "function") {
+                        try {
+                            window.DialogLeave();
+                        } catch (e) {}
                     }
                     window.CurrentCharacter = null;
                 }
                 if (memberNum && window._chatQol_PetsuitRemoteAnims) {
-                    if (typeof window._chatQol_PetsuitRemoteAnims.delete === 'function' && window._chatQol_PetsuitRemoteAnims.has(memberNum)) {
-                        const entry = window._chatQol_PetsuitRemoteAnims.get(memberNum);
+                    if (
+                        typeof window._chatQol_PetsuitRemoteAnims.delete ===
+                            "function" &&
+                        window._chatQol_PetsuitRemoteAnims.has(memberNum)
+                    ) {
+                        const entry =
+                            window._chatQol_PetsuitRemoteAnims.get(memberNum);
                         if (entry && entry.timer) {
                             clearTimeout(entry.timer);
                         }
                         window._chatQol_PetsuitRemoteAnims.delete(memberNum);
                     } else if (window._chatQol_PetsuitRemoteAnims[memberNum]) {
-                        clearInterval(window._chatQol_PetsuitRemoteAnims[memberNum]);
+                        clearInterval(
+                            window._chatQol_PetsuitRemoteAnims[memberNum],
+                        );
                         delete window._chatQol_PetsuitRemoteAnims[memberNum];
                     }
                 }
@@ -1422,11 +1986,15 @@
                     targetChar.CanvasBlink.height = 0;
                     targetChar.CanvasBlink = null;
                 }
-                if (typeof window.AnimationPurge === 'function') {
-                    try { window.AnimationPurge(targetChar, true); } catch (e) {}
+                if (typeof window.AnimationPurge === "function") {
+                    try {
+                        window.AnimationPurge(targetChar, true);
+                    } catch (e) {}
                 }
-                if (typeof window.CharacterDelete === 'function') {
-                    try { window.CharacterDelete(targetChar); } catch (e) {}
+                if (typeof window.CharacterDelete === "function") {
+                    try {
+                        window.CharacterDelete(targetChar);
+                    } catch (e) {}
                 } else if (Array.isArray(window.Character)) {
                     const idx = window.Character.indexOf(targetChar);
                     if (idx >= 0) {
@@ -1437,15 +2005,26 @@
         }
 
         function attachRoomHooks() {
-            if (typeof window.ChatRoomSyncMemberLeave === 'function' && !window.__bcMemberLeaveHooked) {
+            if (
+                typeof window.ChatRoomSyncMemberLeave === "function" &&
+                !window.__bcMemberLeaveHooked
+            ) {
                 window.__bcMemberLeaveHooked = true;
                 const _origLeave = window.ChatRoomSyncMemberLeave;
-                window.ChatRoomSyncMemberLeave = function(data) {
-                    const targetId = data && typeof data.SourceMemberNumber === 'number' ? data.SourceMemberNumber : null;
-                    const char = targetId != null
-                        ? ((window.ChatRoomCharacter || []).find(c => c && c.MemberNumber === targetId) ||
-                           (window.Character || []).find(c => c && c.MemberNumber === targetId))
-                        : null;
+                window.ChatRoomSyncMemberLeave = function (data) {
+                    const targetId =
+                        data && typeof data.SourceMemberNumber === "number"
+                            ? data.SourceMemberNumber
+                            : null;
+                    const char =
+                        targetId != null
+                            ? (window.ChatRoomCharacter || []).find(
+                                  (c) => c && c.MemberNumber === targetId,
+                              ) ||
+                              (window.Character || []).find(
+                                  (c) => c && c.MemberNumber === targetId,
+                              )
+                            : null;
                     try {
                         return _origLeave.apply(this, arguments);
                     } finally {
@@ -1455,20 +2034,36 @@
                     }
                 };
             }
-            if (typeof window.ChatRoomLeave === 'function' && !window.__bcRoomLeaveHooked) {
+            if (
+                typeof window.ChatRoomLeave === "function" &&
+                !window.__bcRoomLeaveHooked
+            ) {
                 window.__bcRoomLeaveHooked = true;
                 const _origRoomLeave = window.ChatRoomLeave;
-                window.ChatRoomLeave = function(clearCharacters) {
+                window.ChatRoomLeave = function (clearCharacters) {
                     return _origRoomLeave.call(this, true);
                 };
             }
-            if (typeof window.ImageCache === 'function' && window.ImageCache.prototype && !window.ImageCache.prototype.__bcFastGetHooked) {
+            if (
+                typeof window.ImageCache === "function" &&
+                window.ImageCache.prototype &&
+                !window.ImageCache.prototype.__bcFastGetHooked
+            ) {
                 window.ImageCache.prototype.__bcFastGetHooked = true;
                 const _origGet = window.ImageCache.prototype.get;
-                window.ImageCache.prototype.get = function(url) {
-                    const image = this.cache && typeof this.cache.get === 'function' ? this.cache.get(url) : null;
-                    if (image && ((typeof image.isDoneLoading === 'function' && image.isDoneLoading()) || (typeof image.isLoading === 'function' && image.isLoading()))) {
-                        if (typeof window.CommonTime === 'function') {
+                window.ImageCache.prototype.get = function (url) {
+                    const image =
+                        this.cache && typeof this.cache.get === "function"
+                            ? this.cache.get(url)
+                            : null;
+                    if (
+                        image &&
+                        ((typeof image.isDoneLoading === "function" &&
+                            image.isDoneLoading()) ||
+                            (typeof image.isLoading === "function" &&
+                                image.isLoading()))
+                    ) {
+                        if (typeof window.CommonTime === "function") {
                             image.lastUsed = window.CommonTime();
                         }
                         return image;
@@ -1476,30 +2071,58 @@
                     return _origGet.apply(this, arguments);
                 };
             }
-            if (typeof window.ElementButton === 'object' && window.ElementButton && typeof window.ElementButton.SetImage === 'function' && !window.ElementButton.__bcFastSetImageHooked) {
+            if (
+                typeof window.ElementButton === "object" &&
+                window.ElementButton &&
+                typeof window.ElementButton.SetImage === "function" &&
+                !window.ElementButton.__bcFastSetImageHooked
+            ) {
                 window.ElementButton.__bcFastSetImageHooked = true;
                 const _origSetImage = window.ElementButton.SetImage;
-                window.ElementButton.SetImage = function(button, src) {
-                    if (typeof src === 'string' && typeof window.ElementWrap === 'function') {
+                window.ElementButton.SetImage = function (button, src) {
+                    if (
+                        typeof src === "string" &&
+                        typeof window.ElementWrap === "function"
+                    ) {
                         const el = window.ElementWrap(button);
-                        const img = el && (el.matches && el.matches('.button-image') ? el : (el.querySelector ? el.querySelector('.button-image') : null));
-                        if (img && img.tagName === 'IMG' && img.getAttribute('src') === src) {
+                        const img =
+                            el &&
+                            (el.matches && el.matches(".button-image")
+                                ? el
+                                : el.querySelector
+                                  ? el.querySelector(".button-image")
+                                  : null);
+                        if (
+                            img &&
+                            img.tagName === "IMG" &&
+                            img.getAttribute("src") === src
+                        ) {
                             return img;
                         }
                     }
                     return _origSetImage.apply(this, arguments);
                 };
             }
-            if (typeof window.ChatRoomMessage === 'function' && !window.__bcMsgBurstHooked) {
+            if (
+                typeof window.ChatRoomMessage === "function" &&
+                !window.__bcMsgBurstHooked
+            ) {
                 window.__bcMsgBurstHooked = true;
             }
-            if (typeof window.ServerSend === 'function' && !window.__bcSendBurstHooked) {
+            if (
+                typeof window.ServerSend === "function" &&
+                !window.__bcSendBurstHooked
+            ) {
                 window.__bcSendBurstHooked = true;
             }
-            if (false && typeof window.CommonDrawWarmDrawnAssets === 'function' && !window.__bcWarmDrawnHooked) {
+            if (
+                false &&
+                typeof window.CommonDrawWarmDrawnAssets === "function" &&
+                !window.__bcWarmDrawnHooked
+            ) {
                 window.__bcWarmDrawnHooked = true;
                 const _origWarm = window.CommonDrawWarmDrawnAssets;
-                window.CommonDrawWarmDrawnAssets = function() {
+                window.CommonDrawWarmDrawnAssets = function () {
                     if (window._bcIsBackground || window._bcIsMinimized) return;
                     const now = Date.now();
                     if (now - (window._bcLastWarmTime || 0) < 3000) return;
@@ -1508,7 +2131,9 @@
                 };
             }
         }
-        window._bcPruneGpuNow = function() { pruneVram(); };
+        window._bcPruneGpuNow = function () {
+            pruneVram();
+        };
         attachRoomHooks();
 
         let vramPruneInterval = null;
@@ -1527,7 +2152,10 @@
                 if (window.Player) {
                     chars.push(window.Player);
                 }
-                if (window.CurrentCharacter && window.CurrentCharacter !== window.Player) {
+                if (
+                    window.CurrentCharacter &&
+                    window.CurrentCharacter !== window.Player
+                ) {
                     chars.push(window.CurrentCharacter);
                 }
                 if (Array.isArray(window.ChatRoomCharacter)) {
@@ -1537,22 +2165,47 @@
                         }
                     }
                 }
-                const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
-                const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
-                const glMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
-                if (drawMap && typeof drawMap.forEach === 'function') { drawMap.forEach((dImg, url) => { if (dImg && typeof url === 'string' && !url.startsWith('Assets/')) dImg.lastUsed = now; }); }
-                if (Array.isArray(window.DrawLastCharacters)) { for (let i = 0; i < window.DrawLastCharacters.length; i++) { const dc = window.DrawLastCharacters[i]; if (dc && !chars.includes(dc)) chars.push(dc); } }
+                const now =
+                    typeof window.CommonTime === "function"
+                        ? window.CommonTime()
+                        : Date.now();
+                const drawMap =
+                    window.DrawImageCache && window.DrawImageCache.cache;
+                const glMap =
+                    window.GLDrawImageCache && window.GLDrawImageCache.cache;
+                if (drawMap && typeof drawMap.forEach === "function") {
+                    drawMap.forEach((dImg, url) => {
+                        if (
+                            dImg &&
+                            typeof url === "string" &&
+                            !url.startsWith("Assets/")
+                        )
+                            dImg.lastUsed = now;
+                    });
+                }
+                if (Array.isArray(window.DrawLastCharacters)) {
+                    for (let i = 0; i < window.DrawLastCharacters.length; i++) {
+                        const dc = window.DrawLastCharacters[i];
+                        if (dc && !chars.includes(dc)) chars.push(dc);
+                    }
+                }
                 const activeAssetUrls = new Set();
                 for (let i = 0; i < chars.length; i++) {
                     const drawn = chars[i] && chars[i].DrawnAssets;
-                    if (drawn && typeof drawn.forEach === 'function') {
-                        drawn.forEach(url => {
+                    if (drawn && typeof drawn.forEach === "function") {
+                        drawn.forEach((url) => {
                             activeAssetUrls.add(url);
-                            const dImg = drawMap && typeof drawMap.get === 'function' ? drawMap.get(url) : null;
+                            const dImg =
+                                drawMap && typeof drawMap.get === "function"
+                                    ? drawMap.get(url)
+                                    : null;
                             if (dImg) {
                                 dImg.lastUsed = now;
                             }
-                            const gImg = glMap && typeof glMap.get === 'function' ? glMap.get(url) : null;
+                            const gImg =
+                                glMap && typeof glMap.get === "function"
+                                    ? glMap.get(url)
+                                    : null;
                             if (gImg) {
                                 gImg.lastUsed = now;
                             }
@@ -1562,16 +2215,25 @@
 
                 // Scavenger: remove any orphaned ghost characters in window.Character who are not in the room
                 if (Array.isArray(window.Character)) {
-                    const inChatRoom = (typeof window.ServerPlayerIsInChatRoom === 'function' && window.ServerPlayerIsInChatRoom()) ||
-                                       window.CurrentScreen === 'ChatRoom' ||
-                                       (window.ChatRoomData != null && Array.isArray(window.ChatRoomCharacter) && window.ChatRoomCharacter.length > 0);
+                    const inChatRoom =
+                        (typeof window.ServerPlayerIsInChatRoom ===
+                            "function" &&
+                            window.ServerPlayerIsInChatRoom()) ||
+                        window.CurrentScreen === "ChatRoom" ||
+                        (window.ChatRoomData != null &&
+                            Array.isArray(window.ChatRoomCharacter) &&
+                            window.ChatRoomCharacter.length > 0);
 
                     const activeMemberNums = new Set();
                     if (window.Player && window.Player.MemberNumber) {
                         activeMemberNums.add(window.Player.MemberNumber);
                     }
                     if (Array.isArray(window.ChatRoomCharacter)) {
-                        for (let i = 0; i < window.ChatRoomCharacter.length; i++) {
+                        for (
+                            let i = 0;
+                            i < window.ChatRoomCharacter.length;
+                            i++
+                        ) {
                             const m = window.ChatRoomCharacter[i]?.MemberNumber;
                             if (m) {
                                 activeMemberNums.add(m);
@@ -1579,21 +2241,32 @@
                         }
                     }
 
-                    const ghosts = window.Character.filter(c => {
-                        if (!c || c === window.Player || (c.IsPlayer && c.IsPlayer())) {
+                    const ghosts = window.Character.filter((c) => {
+                        if (
+                            !c ||
+                            c === window.Player ||
+                            (c.IsPlayer && c.IsPlayer())
+                        ) {
                             return false;
                         }
                         if (c === window.CurrentCharacter) {
                             return false;
                         }
-                        const isOnline = (c.AccountName && c.AccountName.startsWith('Online-')) || (typeof c.MemberNumber === 'number' && c.MemberNumber > 0);
+                        const isOnline =
+                            (c.AccountName &&
+                                c.AccountName.startsWith("Online-")) ||
+                            (typeof c.MemberNumber === "number" &&
+                                c.MemberNumber > 0);
                         if (!isOnline) {
                             return false;
                         }
                         if (inChatRoom) {
                             return !activeMemberNums.has(c.MemberNumber);
                         }
-                        if (window.CurrentScreen === 'ChatSearch' || window.CurrentScreen === 'MainHall') {
+                        if (
+                            window.CurrentScreen === "ChatSearch" ||
+                            window.CurrentScreen === "MainHall"
+                        ) {
                             return true;
                         }
                         return false;
@@ -1604,15 +2277,29 @@
                     }
                 }
 
-                if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
+                if (
+                    typeof window.GLDrawImageCache !== "undefined" &&
+                    window.GLDrawImageCache &&
+                    typeof window.GLDrawImageCache.purge === "function"
+                ) {
                     window.GLDrawImageCache.purge(false);
                 }
-                if (typeof window.DrawImageCache !== 'undefined' && window.DrawImageCache && typeof window.DrawImageCache.purge === 'function') {
+                if (
+                    typeof window.DrawImageCache !== "undefined" &&
+                    window.DrawImageCache &&
+                    typeof window.DrawImageCache.purge === "function"
+                ) {
                     window.DrawImageCache.purge(false);
                 }
                 pruneWebGlGpuTextures(activeAssetUrls);
-                if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance' && typeof window.gc === 'function') {
-                    try { window.gc(); } catch (e) {}
+                if (
+                    typeof window.CurrentScreen !== "undefined" &&
+                    window.CurrentScreen === "Appearance" &&
+                    typeof window.gc === "function"
+                ) {
+                    try {
+                        window.gc();
+                    } catch (e) {}
                 }
             } catch (e) {}
         }
@@ -1623,27 +2310,46 @@
                     return;
                 }
                 applyPurgeDelay();
-                if (typeof window.CurrentScreen !== 'undefined') {
-                    if (lastScreen === 'Appearance' && window.CurrentScreen !== 'Appearance') {
+                if (typeof window.CurrentScreen !== "undefined") {
+                    if (
+                        lastScreen === "Appearance" &&
+                        window.CurrentScreen !== "Appearance"
+                    ) {
                         if (screenTimer) {
                             clearTimeout(screenTimer);
                         }
-                        screenTimer = setTimeout(function() {
+                        screenTimer = setTimeout(function () {
                             if (window._bcIsBackground) {
                                 return;
                             }
-                            if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') {
+                            if (
+                                typeof window.CurrentScreen !== "undefined" &&
+                                window.CurrentScreen === "Appearance"
+                            ) {
                                 return;
                             }
-                            if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
+                            if (
+                                typeof window.GLDrawImageCache !==
+                                    "undefined" &&
+                                window.GLDrawImageCache &&
+                                typeof window.GLDrawImageCache.purge ===
+                                    "function"
+                            ) {
                                 window.GLDrawImageCache.purge(false);
                             }
-                            if (typeof window.DrawImageCache !== 'undefined' && window.DrawImageCache && typeof window.DrawImageCache.purge === 'function') {
+                            if (
+                                typeof window.DrawImageCache !== "undefined" &&
+                                window.DrawImageCache &&
+                                typeof window.DrawImageCache.purge ===
+                                    "function"
+                            ) {
                                 window.DrawImageCache.purge(false);
                             }
                             pruneWebGlGpuTextures(null);
-                            if (typeof window.gc === 'function') {
-                                try { window.gc(); } catch (e) {}
+                            if (typeof window.gc === "function") {
+                                try {
+                                    window.gc();
+                                } catch (e) {}
                             }
                         }, 12000);
                     }
@@ -1657,7 +2363,10 @@
                 vramPruneInterval = setInterval(pruneVram, 45 * 1000);
             }
             if (!screenMonitorInterval) {
-                screenMonitorInterval = setInterval(monitorScreenTransitions, 3000);
+                screenMonitorInterval = setInterval(
+                    monitorScreenTransitions,
+                    3000,
+                );
             }
         }
 
@@ -1678,7 +2387,7 @@
 
         startVramWatchers();
 
-        window.addEventListener('bc:visibility', function(e) {
+        window.addEventListener("bc:visibility", function (e) {
             if (e.detail && e.detail.background) {
                 stopVramWatchers();
             } else {
