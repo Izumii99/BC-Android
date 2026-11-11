@@ -47,8 +47,8 @@ object MemoryOptimizer {
         "return _origScroll.apply(this,arguments);" +
         "};" +
         "}" +
-        "if(!window.__bcLoadCanvasHooked&&typeof window.CharacterLoadCanvas==='function'){" +
-        "window.__bcLoadCanvasHooked=true;" +
+        "if(!window.__bcLoadCanvasHooked&&!window.__bcBgLoadCanvasHooked&&typeof window.CharacterLoadCanvas==='function'){" +
+        "window.__bcBgLoadCanvasHooked=true;" +
         "const _origLoad=window.CharacterLoadCanvas;" +
         "window.CharacterLoadCanvas=function(C){" +
         "if(window._bcIsMinimized){" +
@@ -56,16 +56,6 @@ object MemoryOptimizer {
         "return;" +
         "}" +
         "if(window._bcIsBackground&&window._bcRequestBgBurst)window._bcRequestBgBurst(2500);" +
-        "if(C&&C!==window.CurrentCharacter&&C.Canvas&&C.CanvasBlink&&window.CurrentScreen==='ChatRoom'){" +
-        "const minInterval=window._bcIsBackground?120:(C===window.Player?16:32);" +
-        "const now=performance.now();" +
-        "const elapsed=now-(C._bcLastCanvasBuild||0);" +
-        "if(elapsed<minInterval){" +
-        "if(!C._bcBuildTimer){C._bcBuildTimer=setTimeout(()=>{C._bcBuildTimer=null;if(typeof window.CharacterLoadCanvas==='function')window.CharacterLoadCanvas(C);},minInterval-elapsed);}" +
-        "return;" +
-        "}" +
-        "C._bcLastCanvasBuild=now;" +
-        "}" +
         "return _origLoad.apply(this,arguments);" +
         "};" +
         "}" +
@@ -160,7 +150,7 @@ object MemoryOptimizer {
         "const now=typeof window.CurrentTime==='number'?window.CurrentTime:0;if(window.DrawImageCache)window.DrawImageCache.lastPurge=now;if(window.GLDrawImageCache)window.GLDrawImageCache.lastPurge=now;" +
         // --- Rebuild pending characters ---
         "const chars=(Array.isArray(window.ChatRoomCharacter)?window.ChatRoomCharacter.slice():[]);" +
-        "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);" +
+        "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);if(window.CurrentCharacter&&!chars.includes(window.CurrentCharacter))chars.push(window.CurrentCharacter);if(Array.isArray(window.DrawLastCharacters)){for(let j=0;j<window.DrawLastCharacters.length;j++){if(window.DrawLastCharacters[j]&&!chars.includes(window.DrawLastCharacters[j]))chars.push(window.DrawLastCharacters[j]);}}" +
         "for(let i=0;i<chars.length;i++){" +
         "const c=chars[i];" +
         "if(c&&c._bcPendingCanvasBuild){" +

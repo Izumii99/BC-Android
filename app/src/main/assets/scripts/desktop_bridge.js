@@ -12,6 +12,15 @@
         } catch (e) {}
     }
 
+    if (typeof CanvasRenderingContext2D !== 'undefined' && CanvasRenderingContext2D.prototype && !CanvasRenderingContext2D.prototype.__bcSafeDrawImage) {
+        CanvasRenderingContext2D.prototype.__bcSafeDrawImage = true;
+        const _origDI = CanvasRenderingContext2D.prototype.drawImage;
+        CanvasRenderingContext2D.prototype.drawImage = function(img) {
+            if (!img || img.width === 0 || img.height === 0) return;
+            return _origDI.apply(this, arguments);
+        };
+    }
+
     // Clipboard bridge to Android native ClipboardManager
     const origClipboard = navigator.clipboard;
     const mockClipboard = {
@@ -434,8 +443,40 @@
     window.addEventListener('touchstart', trackDirectInputTap, { passive: true, capture: true });
     window.addEventListener('mousedown', trackDirectInputTap, { passive: true, capture: true });
 
-    // Hook window.ElementFocus so InputChat does not steal focus from addon search/text inputs
+    // Hook window.ElementFocus, ChatRoomActivateView, and CommonKey.InputKeyDown so InputChat does not steal focus from addon inputs or Map View
     let patchInterval = setInterval(function() {
+        if (typeof window.ChatRoomActivateView === 'function' && !window.ChatRoomActivateView._isHooked) {
+            const origActivateView = window.ChatRoomActivateView;
+            window.ChatRoomActivateView = function(viewName) {
+                const res = origActivateView.apply(this, arguments);
+                if (viewName === 'Map') {
+                    window.bcFocusMemory = null;
+                    window.bcCanvasUnfocusedChat = true;
+                    const ic = document.getElementById('InputChat');
+                    if (ic && document.activeElement === ic) {
+                        try { ic.blur(); } catch (err) {}
+                    }
+                } else if (viewName === 'Character') {
+                    window.bcCanvasUnfocusedChat = false;
+                }
+                return res;
+            };
+            window.ChatRoomActivateView._isHooked = true;
+        }
+
+        if (window.CommonKey && typeof window.CommonKey.InputKeyDown === 'function' && !window.CommonKey.InputKeyDown._isHooked) {
+            const origInputKeyDown = window.CommonKey.InputKeyDown;
+            window.CommonKey.InputKeyDown = function(inputElem, ev, options) {
+                const isMapActive = (typeof window.ChatRoomMapViewIsActive === 'function' && window.ChatRoomMapViewIsActive()) ||
+                    (document.getElementById('chat-room-content') && document.getElementById('chat-room-content').getAttribute('data-view') === 'Map');
+                if (inputElem && inputElem.id === 'InputChat' && (window.bcCanvasUnfocusedChat || isMapActive)) {
+                    return false;
+                }
+                return origInputKeyDown.apply(this, arguments);
+            };
+            window.CommonKey.InputKeyDown._isHooked = true;
+        }
+
         if (typeof window.ElementFocus === 'function' && !window.ElementFocus._isHooked) {
             const origElementFocus = window.ElementFocus;
             window.ElementFocus = function(ID) {
@@ -449,12 +490,15 @@
                 const active = document.activeElement;
                 const isUserInAnotherInput = active && isInteractive(active) && active !== targetEl;
 
-                if (ID === 'InputChat' && isUserInAnotherInput) {
+                if (ID === 'InputChat' && (isUserInAnotherInput || window.bcCanvasUnfocusedChat)) {
                     return;
                 }
                 origElementFocus(ID);
             };
             window.ElementFocus._isHooked = true;
+        }
+
+        if (window.ElementFocus && window.ElementFocus._isHooked && window.ChatRoomActivateView && window.ChatRoomActivateView._isHooked && window.CommonKey && window.CommonKey.InputKeyDown && window.CommonKey.InputKeyDown._isHooked) {
             clearInterval(patchInterval);
         }
     }, 200);
@@ -663,6 +707,7 @@
         window.addEventListener('touchstart', markActiveInput, { passive: true, capture: true });
         window.addEventListener('touchmove', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
         window.addEventListener('keydown', markActiveInput, { passive: true, capture: true });
+        window.addEventListener('input', markActiveInput, { passive: true, capture: true });
         window.addEventListener('wheel', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
         window.addEventListener('pointermove', function() { window._bcLastInputTime = performance.now(); }, { passive: true, capture: true });
 
@@ -1317,159 +1362,177 @@
     document.addEventListener('DOMContentLoaded', suppressFullscreenButton);
     suppressFullscreenInterval = setInterval(suppressFullscreenButton, 1000);
 
-    // Safe VRAM & texture optimization via BC's native ImageCache
+    // Safe VRAM, Active-Room Texture Protection & Chat Virtualization
     (function setupSafeVramOptimization() {
+        window.__bcLifecycleGuardActive = true;
+        const NORMAL_PURGE_DELAY = 90 * 1000;
+        const WARDROBE_PURGE_DELAY = 45 * 1000;
+        const trackedRoomCanvases = new Map();
+        let lastActiveAssetUrls = new Set();
+
         try {
             if (localStorage.getItem('GLDraw-antialiasOff') === null) {
                 localStorage.setItem('GLDraw-antialiasOff', 'true');
             }
         } catch (e) {}
 
-        const NORMAL_PURGE_DELAY = 90 * 1000;
-        const WARDROBE_PURGE_DELAY = 45 * 1000;
-        const MAX_WEBGL_TEXTURES = 240;
-        const MAX_MASK_TEXTURES = 110;
-        const MAX_ALPHA_MASKS = 110;
-
-
-
-
-
         function hookGlCacheDelete(gl) {
-            if (!gl || gl.__bcDeleteHooked) {
+            if (!gl || gl.__bcCacheDeleteHooked) {
                 return;
             }
-            gl.__bcDeleteHooked = true;
-            const wrapCache = function(map) {
-                if (!map || map.__bcDeleteWrapped || typeof map.delete !== 'function') {
-                    return;
-                }
-                map.__bcDeleteWrapped = true;
-                const origDelete = map.delete.bind(map);
-                map.delete = function(key) {
-                    try {
-                        const entry = map.get(key);
-                        if (entry && entry.texture && typeof gl.deleteTexture === 'function') {
-                            gl.deleteTexture(entry.texture);
-                            entry.texture = null;
-                        }
-                    } catch (e) {}
+            gl.__bcCacheDeleteHooked = true;
+            if (gl.textureCache && typeof gl.textureCache.delete === 'function') {
+                const origDelete = gl.textureCache.delete.bind(gl.textureCache);
+                gl.textureCache.delete = function(key) {
+                    const entry = gl.textureCache.get(key);
+                    if (entry && entry.texture && typeof gl.deleteTexture === 'function') {
+                        try { gl.deleteTexture(entry.texture); } catch (e) {}
+                    }
                     return origDelete(key);
                 };
-                const origClear = map.clear.bind(map);
-                map.clear = function() {
-                    try {
-                        map.forEach(function(entry) {
-                            if (entry && entry.texture && typeof gl.deleteTexture === 'function') {
-                                gl.deleteTexture(entry.texture);
-                                entry.texture = null;
+                const origClear = gl.textureCache.clear.bind(gl.textureCache);
+                gl.textureCache.clear = function() {
+                    if (typeof gl.deleteTexture === 'function') {
+                        gl.textureCache.forEach(function(entry) {
+                            if (entry && entry.texture) {
+                                try { gl.deleteTexture(entry.texture); } catch (e) {}
                             }
                         });
-                    } catch (e) {}
+                    }
                     return origClear();
                 };
-            };
-            wrapCache(gl.textureCache);
-            wrapCache(gl.maskCache);
+            }
+            if (gl.maskCache && typeof gl.maskCache.delete === 'function') {
+                const origMaskDelete = gl.maskCache.delete.bind(gl.maskCache);
+                gl.maskCache.delete = function(key) {
+                    const tex = gl.maskCache.get(key);
+                    if (tex && typeof gl.deleteTexture === 'function') {
+                        try { gl.deleteTexture(tex); } catch (e) {}
+                    }
+                    return origMaskDelete(key);
+                };
+                const origMaskClear = gl.maskCache.clear.bind(gl.maskCache);
+                gl.maskCache.clear = function() {
+                    if (typeof gl.deleteTexture === 'function') {
+                        gl.maskCache.forEach(function(tex) {
+                            if (tex) {
+                                try { gl.deleteTexture(tex); } catch (e) {}
+                            }
+                        });
+                    }
+                    return origMaskClear();
+                };
+            }
         }
 
         function pruneWebGlGpuTextures(activeAssetUrls) {
             try {
+                if (window.CurrentScreen === 'Login' || window.CurrentScreen === 'Relog' || window.ScreenIsLoading) {
+                    return;
+                }
                 const gl = (typeof window.GLDrawCanvas !== 'undefined' && window.GLDrawCanvas && window.GLDrawCanvas.GL) || window.GLDrawContext;
                 if (gl) {
                     hookGlCacheDelete(gl);
                     const glImgMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
-                    if (glImgMap && typeof glImgMap.size === 'number' && typeof window.GLDrawImageCache.delete === 'function') {
-                        if (glImgMap.size > MAX_WEBGL_TEXTURES) {
-                            let excess = glImgMap.size - MAX_WEBGL_TEXTURES;
-                            const keys = Array.from(glImgMap.keys());
-                            for (let i = 0; i < keys.length && excess > 0; i++) {
-                                const k = keys[i];
-                                if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
-                                if (!activeAssetUrls || !activeAssetUrls.has(k)) {
-                                    const entry = glImgMap.get(k);
-                                    if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
-                                    if (typeof entry.isDoneLoading === 'function' && !entry.isDoneLoading()) continue;
-                                    window.GLDrawImageCache.delete(k);
-                                    excess--;
-                                }
+                    if (glImgMap && typeof glImgMap.forEach === 'function' && typeof window.GLDrawImageCache.delete === 'function') {
+                        const isBg = Boolean(window._bcIsBackground);
+                        const nowTime = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
+                        const glToDelete = [];
+                        glImgMap.forEach(function(img, key) {
+                            if (typeof key !== 'string' || !key.startsWith('Assets/') || key.indexOf('/Preview/') >= 0) return;
+                            if (!img || (typeof img.isLoading === 'function' && img.isLoading())) return;
+                            if (typeof img.isDoneLoading === 'function' && !img.isDoneLoading()) return;
+                            if (activeAssetUrls && activeAssetUrls.has(key)) return;
+                            const age = nowTime - (img.lastUsed || 0);
+                            if (age > (isBg ? 15000 : 45000)) {
+                                glToDelete.push(key);
                             }
+                        });
+                        for (let i = 0; i < glToDelete.length; i++) {
+                            window.GLDrawImageCache.delete(glToDelete[i]);
                         }
                     }
-                    const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
-                    if (drawMap && typeof drawMap.size === 'number' && drawMap.size > MAX_WEBGL_TEXTURES && typeof window.DrawImageCache.delete === 'function') {
-                        let excess = drawMap.size - MAX_WEBGL_TEXTURES;
-                        const keys = Array.from(drawMap.keys());
-                        for (let i = 0; i < keys.length && excess > 0; i++) {
-                            const k = keys[i];
-                            if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
-                            if (!activeAssetUrls || !activeAssetUrls.has(k)) {
-                                const entry = drawMap.get(k);
-                                if (!entry || (typeof entry.isLoading === 'function' && entry.isLoading())) continue;
-                                if (typeof entry.isDoneLoading === 'function' && !entry.isDoneLoading()) continue;
-                                window.DrawImageCache.delete(k);
-                                excess--;
+                    if (window.DrawImageCache && window.DrawImageCache.cache && typeof window.DrawImageCache.delete === 'function') {
+                        const dMap = window.DrawImageCache.cache;
+                        const isBg = Boolean(window._bcIsBackground);
+                        const nowTime = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
+                        const dToDelete = [];
+                        dMap.forEach(function(img, key) {
+                            if (typeof key !== 'string' || !key.startsWith('Assets/') || key.indexOf('/Preview/') >= 0) return;
+                            if (!img || (typeof img.isLoading === 'function' && img.isLoading())) return;
+                            if (typeof img.isDoneLoading === 'function' && !img.isDoneLoading()) return;
+                            if (activeAssetUrls && activeAssetUrls.has(key)) return;
+                            const age = nowTime - (img.lastUsed || 0);
+                            if (age > (isBg ? 15000 : 45000)) {
+                                dToDelete.push(key);
                             }
+                        });
+                        for (let i = 0; i < dToDelete.length; i++) {
+                            window.DrawImageCache.delete(dToDelete[i]);
                         }
                     }
-                    if (gl.textureCache && typeof gl.textureCache.forEach === 'function') {
+                    const texCache = gl.textureCache;
+                    if (texCache && typeof texCache.forEach === 'function') {
                         const toDelete = [];
-                        gl.textureCache.forEach(function(_, url) {
-                            if (activeAssetUrls && activeAssetUrls.has(url)) {
-                                return;
-                            }
-                            if (glImgMap && typeof glImgMap.has === 'function' && !glImgMap.has(url)) {
-                                toDelete.push(url);
+                        texCache.forEach(function(entry, key) {
+                            if (typeof key !== 'string') return;
+                            if (activeAssetUrls && activeAssetUrls.has(key)) return;
+                            if (key.startsWith('Online-') || (glImgMap && typeof glImgMap.has === 'function' && !glImgMap.has(key))) {
+                                toDelete.push(key);
                             }
                         });
                         for (let i = 0; i < toDelete.length; i++) {
-                            gl.textureCache.delete(toDelete[i]);
+                            texCache.delete(toDelete[i]);
                         }
-                        if (gl.textureCache.size > MAX_WEBGL_TEXTURES) {
-                            let excess = gl.textureCache.size - MAX_WEBGL_TEXTURES;
-                            const keys = Array.from(gl.textureCache.keys());
-                            for (let i = 0; i < keys.length && excess > 0; i++) {
-                                const k = keys[i];
-                                if (typeof k !== 'string' || !k.startsWith('Assets/') || k.indexOf('/Preview/') >= 0) continue;
-                                if (!activeAssetUrls || !activeAssetUrls.has(k)) {
-                                    gl.textureCache.delete(k);
-                                    excess--;
+                        if (texCache.size > 140) {
+                            const excessKeys = [];
+                            texCache.forEach(function(entry, key) {
+                                if (texCache.size - excessKeys.length <= 120) return;
+                                if (!activeAssetUrls || !activeAssetUrls.has(key)) {
+                                    excessKeys.push(key);
                                 }
+                            });
+                            for (let i = 0; i < excessKeys.length; i++) {
+                                texCache.delete(excessKeys[i]);
                             }
                         }
                     }
-                    if (gl.maskCache && typeof gl.maskCache.size === 'number' && gl.maskCache.size > MAX_MASK_TEXTURES) {
-                        let excess = gl.maskCache.size - MAX_MASK_TEXTURES;
-                        const keys = Array.from(gl.maskCache.keys());
-                        for (let i = 0; i < keys.length && excess > 0; i++) {
-                            const k = keys[i];
-                            if (!activeAssetUrls || !activeAssetUrls.has(k)) {
-                                gl.maskCache.delete(k);
-                                excess--;
-                            }
+                    const maskCache = gl.maskCache;
+                    if (maskCache && window._bcIsBackground && typeof maskCache.clear === 'function') {
+                        maskCache.clear();
+                    }
+                    if (typeof gl.flush === 'function') {
+                        try { gl.flush(); } catch (e) {}
+                    }
+                    if (maskCache && maskCache.size > 40 && typeof maskCache.keys === 'function') {
+                        const mKeys = Array.from(maskCache.keys());
+                        const removeCount = maskCache.size - 25;
+                        for (let i = 0; i < removeCount && i < mKeys.length; i++) {
+                            maskCache.delete(mKeys[i]);
                         }
                     }
-                    if (typeof gl.flush === 'function') { try { gl.flush(); } catch (e) {} }
                 }
-                const alphaMasks = window.GLDrawAlphaMasks;
-                if (alphaMasks && typeof alphaMasks.size === 'number' && alphaMasks.size > MAX_ALPHA_MASKS) {
-                    let excess = alphaMasks.size - MAX_ALPHA_MASKS;
-                    const keys = Array.from(alphaMasks.keys());
-                    for (let i = 0; i < keys.length && excess > 0; i++) {
-                        const k = keys[i];
-                        if (!activeAssetUrls || !activeAssetUrls.has(k)) {
-                            const c = alphaMasks.get(k);
-                            if (c && typeof c.width === 'number') {
-                                c.width = 0;
-                                c.height = 0;
-                            }
-                            alphaMasks.delete(k);
-                            excess--;
-                        }
+                const alphaMasks = window.DrawCacheTextureAlphaMasks || window.GLDrawAlphaMasks;
+                if (alphaMasks && typeof alphaMasks.size === 'number' && alphaMasks.size > 30) {
+                    const aKeys = Array.from(alphaMasks.keys());
+                    const removeCount = alphaMasks.size - 15;
+                    for (let i = 0; i < removeCount && i < aKeys.length; i++) {
+                        const c = alphaMasks.get(aKeys[i]);
+                        if (c) { c.width = 0; c.height = 0; }
+                        alphaMasks.delete(aKeys[i]);
                     }
                 }
             } catch (e) {}
         }
+
+        function ensureChatVirtualizationCss() {
+            if (!document.head || document.getElementById('bc-desktop-chat-virt')) return;
+            const st = document.createElement('style');
+            st.id = 'bc-desktop-chat-virt';
+            st.textContent = '#TextAreaChatLog > .ChatMessage, #TextAreaChatLog > div { content-visibility: auto; contain-intrinsic-size: auto 42px; contain: layout style paint; } .dialog-grid, .dialog-root { contain: layout style; }';
+            document.head.appendChild(st);
+        }
+        ensureChatVirtualizationCss();
 
         function applyPurgeDelay() {
             if (typeof window.ImageCachePurgeDelay !== 'undefined') {
@@ -1516,17 +1579,21 @@
                         delete window._chatQol_PetsuitRemoteAnims[memberNum];
                     }
                 }
+                if ((targetChar._bcQueued || targetChar._bcQueuedForBuild) && Array.isArray(window._bcCanvasQueue)) {
+                    const qIdx = window._bcCanvasQueue.indexOf(targetChar);
+                    if (qIdx >= 0) {
+                        window._bcCanvasQueue.splice(qIdx, 1);
+                    }
+                    targetChar._bcQueued = false;
+                    targetChar._bcQueuedForBuild = false;
+                }
+                const gl = (typeof window.GLDrawCanvas !== 'undefined' && window.GLDrawCanvas && window.GLDrawCanvas.GL) || window.GLDrawContext;
+                if (gl && gl.textureCache) {
+                    hookGlCacheDelete(gl);
+                    if (targetChar.AccountName) gl.textureCache.delete(targetChar.AccountName);
+                    if (targetChar.MemberNumber) gl.textureCache.delete('Online-' + targetChar.MemberNumber);
+                }
                 targetChar.MustDraw = false;
-                if (targetChar.Canvas) {
-                    targetChar.Canvas.width = 0;
-                    targetChar.Canvas.height = 0;
-                    targetChar.Canvas = null;
-                }
-                if (targetChar.CanvasBlink) {
-                    targetChar.CanvasBlink.width = 0;
-                    targetChar.CanvasBlink.height = 0;
-                    targetChar.CanvasBlink = null;
-                }
                 if (typeof window.AnimationPurge === 'function') {
                     try { window.AnimationPurge(targetChar, true); } catch (e) {}
                 }
@@ -1564,7 +1631,11 @@
                 window.__bcRoomLeaveHooked = true;
                 const _origRoomLeave = window.ChatRoomLeave;
                 window.ChatRoomLeave = function(clearCharacters) {
-                    return _origRoomLeave.call(this, true);
+                    try {
+                        return _origRoomLeave.apply(this, arguments);
+                    } finally {
+                        trackedRoomCanvases.clear();
+                    }
                 };
             }
             if (typeof window.ImageCache === 'function' && window.ImageCache.prototype && !window.ImageCache.prototype.__bcFastGetHooked) {
@@ -1601,19 +1672,11 @@
             if (typeof window.ServerSend === 'function' && !window.__bcSendBurstHooked) {
                 window.__bcSendBurstHooked = true;
             }
-            if (false && typeof window.CommonDrawWarmDrawnAssets === 'function' && !window.__bcWarmDrawnHooked) {
-                window.__bcWarmDrawnHooked = true;
-                const _origWarm = window.CommonDrawWarmDrawnAssets;
-                window.CommonDrawWarmDrawnAssets = function() {
-                    if (window._bcIsBackground || window._bcIsMinimized) return;
-                    const now = Date.now();
-                    if (now - (window._bcLastWarmTime || 0) < 3000) return;
-                    window._bcLastWarmTime = now;
-                    return _origWarm.apply(this, arguments);
-                };
-            }
         }
-        window._bcPruneGpuNow = function() { pruneVram(); };
+        window._bcPruneGpuNow = function() {
+            protectActiveRoomTextures();
+            pruneWebGlGpuTextures(lastActiveAssetUrls);
+        };
         attachRoomHooks();
 
         let vramPruneInterval = null;
@@ -1621,25 +1684,18 @@
         let lastScreen = null;
         let screenTimer = null;
 
-        function pruneVram() {
+        function protectActiveRoomTextures() {
             try {
-                if (window._bcIsMinimized) {
-                    return;
-                }
                 attachRoomHooks();
-                applyPurgeDelay();
+                ensureChatVirtualizationCss();
                 const chars = [];
-                if (window.Player) {
-                    chars.push(window.Player);
-                }
-                if (window.CurrentCharacter && window.CurrentCharacter !== window.Player) {
-                    chars.push(window.CurrentCharacter);
-                }
+                if (window.Player) chars.push(window.Player);
+                if (window.CurrentCharacter && window.CurrentCharacter !== window.Player) chars.push(window.CurrentCharacter);
+                if (window.InformationSheetSelection && !chars.includes(window.InformationSheetSelection)) chars.push(window.InformationSheetSelection);
+                if (window.InformationSheetCharacter && !chars.includes(window.InformationSheetCharacter)) chars.push(window.InformationSheetCharacter);
                 if (Array.isArray(window.ChatRoomCharacter)) {
                     for (let i = 0; i < window.ChatRoomCharacter.length; i++) {
-                        if (window.ChatRoomCharacter[i]) {
-                            chars.push(window.ChatRoomCharacter[i]);
-                        }
+                        if (window.ChatRoomCharacter[i]) chars.push(window.ChatRoomCharacter[i]);
                     }
                 }
                 const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
@@ -1647,54 +1703,74 @@
                 const glMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
                 if (drawMap && typeof drawMap.forEach === 'function') { drawMap.forEach((dImg, url) => { if (dImg && typeof url === 'string' && !url.startsWith('Assets/')) dImg.lastUsed = now; }); }
                 if (Array.isArray(window.DrawLastCharacters)) { for (let i = 0; i < window.DrawLastCharacters.length; i++) { const dc = window.DrawLastCharacters[i]; if (dc && !chars.includes(dc)) chars.push(dc); } }
-                const activeAssetUrls = new Set();
+                const activeUrls = new Set();
                 for (let i = 0; i < chars.length; i++) {
                     const drawn = chars[i] && chars[i].DrawnAssets;
                     if (drawn && typeof drawn.forEach === 'function') {
                         drawn.forEach(url => {
-                            activeAssetUrls.add(url);
+                            activeUrls.add(url);
                             const dImg = drawMap && typeof drawMap.get === 'function' ? drawMap.get(url) : null;
-                            if (dImg) {
-                                dImg.lastUsed = now;
-                            }
+                            if (dImg) dImg.lastUsed = now;
                             const gImg = glMap && typeof glMap.get === 'function' ? glMap.get(url) : null;
-                            if (gImg) {
-                                gImg.lastUsed = now;
-                            }
+                            if (gImg) gImg.lastUsed = now;
                         });
                     }
+                }
+                lastActiveAssetUrls = activeUrls;
+
+                if (window.CurrentScreen === 'ChatRoom') {
+                    const currentIds = new Set();
+                    for (let i = 0; i < chars.length; i++) {
+                        const c = chars[i];
+                        const id = c.MemberNumber || c.ID;
+                        if (id != null) {
+                            currentIds.add(id);
+                            if (c.Canvas || c.CanvasBlink) {
+                                trackedRoomCanvases.set(id, { char: c, canvas: c.Canvas, blink: c.CanvasBlink });
+                            }
+                        }
+                    }
+
+                    for (const [id, entry] of trackedRoomCanvases.entries()) {
+                        if (!currentIds.has(id) && entry.char !== window.Player) {
+                            cleanUpDepartedCharacter(entry.char);
+                            trackedRoomCanvases.delete(id);
+                        }
+                    }
+                } else if (trackedRoomCanvases.size > 0) {
+                    trackedRoomCanvases.clear();
                 }
 
                 // Scavenger: remove any orphaned ghost characters in window.Character who are not in the room
                 if (Array.isArray(window.Character)) {
-                    const inChatRoom = (typeof window.ServerPlayerIsInChatRoom === 'function' && window.ServerPlayerIsInChatRoom()) ||
-                                       window.CurrentScreen === 'ChatRoom' ||
-                                       (window.ChatRoomData != null && Array.isArray(window.ChatRoomCharacter) && window.ChatRoomCharacter.length > 0);
+                    const isChatRoomScreen = window.CurrentScreen === 'ChatRoom';
+                    const inChatRoom = isChatRoomScreen && ((typeof window.ServerPlayerIsInChatRoom === 'function' && window.ServerPlayerIsInChatRoom()) ||
+                                       (window.ChatRoomData != null && Array.isArray(window.ChatRoomCharacter) && window.ChatRoomCharacter.length > 0));
 
                     const activeMemberNums = new Set();
-                    if (window.Player && window.Player.MemberNumber) {
-                        activeMemberNums.add(window.Player.MemberNumber);
-                    }
+                    if (window.Player && window.Player.MemberNumber) activeMemberNums.add(window.Player.MemberNumber);
+                    if (window.CurrentCharacter && window.CurrentCharacter.MemberNumber) activeMemberNums.add(window.CurrentCharacter.MemberNumber);
+                    if (window.InformationSheetSelection && window.InformationSheetSelection.MemberNumber) activeMemberNums.add(window.InformationSheetSelection.MemberNumber);
+                    if (window.InformationSheetCharacter && window.InformationSheetCharacter.MemberNumber) activeMemberNums.add(window.InformationSheetCharacter.MemberNumber);
                     if (Array.isArray(window.ChatRoomCharacter)) {
                         for (let i = 0; i < window.ChatRoomCharacter.length; i++) {
                             const m = window.ChatRoomCharacter[i]?.MemberNumber;
-                            if (m) {
-                                activeMemberNums.add(m);
-                            }
+                            if (m) activeMemberNums.add(m);
+                        }
+                    }
+                    if (Array.isArray(window.DrawLastCharacters)) {
+                        for (let i = 0; i < window.DrawLastCharacters.length; i++) {
+                            const m = window.DrawLastCharacters[i]?.MemberNumber;
+                            if (m) activeMemberNums.add(m);
                         }
                     }
 
                     const ghosts = window.Character.filter(c => {
-                        if (!c || c === window.Player || (c.IsPlayer && c.IsPlayer())) {
-                            return false;
-                        }
-                        if (c === window.CurrentCharacter) {
-                            return false;
-                        }
+                        if (!c || c === window.Player || (c.IsPlayer && c.IsPlayer())) return false;
+                        if (c === window.CurrentCharacter || c === window.InformationSheetSelection || c === window.InformationSheetCharacter) return false;
+                        if (Array.isArray(window.DrawLastCharacters) && window.DrawLastCharacters.includes(c)) return false;
                         const isOnline = (c.AccountName && c.AccountName.startsWith('Online-')) || (typeof c.MemberNumber === 'number' && c.MemberNumber > 0);
-                        if (!isOnline) {
-                            return false;
-                        }
+                        if (!isOnline) return false;
                         if (inChatRoom) {
                             return !activeMemberNums.has(c.MemberNumber);
                         }
@@ -1708,14 +1784,24 @@
                         cleanUpDepartedCharacter(ghosts[i]);
                     }
                 }
+            } catch (e) {}
+        }
+
+        function pruneVram() {
+            try {
+                if (window._bcIsMinimized || window.CurrentScreen === 'Login' || window.CurrentScreen === 'Relog' || window.ScreenIsLoading) {
+                    return;
+                }
+                applyPurgeDelay();
+                protectActiveRoomTextures();
 
                 if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
                     window.GLDrawImageCache.purge(false);
                 }
                 if (typeof window.DrawImageCache !== 'undefined' && window.DrawImageCache && typeof window.DrawImageCache.purge === 'function') {
                     window.DrawImageCache.purge(false);
+                    pruneWebGlGpuTextures(lastActiveAssetUrls);
                 }
-                pruneWebGlGpuTextures(activeAssetUrls);
                 if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance' && typeof window.gc === 'function') {
                     try { window.gc(); } catch (e) {}
                 }
@@ -1740,13 +1826,14 @@
                             if (typeof window.CurrentScreen !== 'undefined' && window.CurrentScreen === 'Appearance') {
                                 return;
                             }
+                            protectActiveRoomTextures();
                             if (typeof window.GLDrawImageCache !== 'undefined' && window.GLDrawImageCache && typeof window.GLDrawImageCache.purge === 'function') {
                                 window.GLDrawImageCache.purge(false);
                             }
                             if (typeof window.DrawImageCache !== 'undefined' && window.DrawImageCache && typeof window.DrawImageCache.purge === 'function') {
                                 window.DrawImageCache.purge(false);
+                                pruneWebGlGpuTextures(lastActiveAssetUrls);
                             }
-                            pruneWebGlGpuTextures(null);
                             if (typeof window.gc === 'function') {
                                 try { window.gc(); } catch (e) {}
                             }
@@ -1759,7 +1846,7 @@
 
         function startVramWatchers() {
             if (!vramPruneInterval) {
-                vramPruneInterval = setInterval(pruneVram, 45 * 1000);
+                vramPruneInterval = setInterval(pruneVram, 15 * 1000);
             }
             if (!screenMonitorInterval) {
                 screenMonitorInterval = setInterval(monitorScreenTransitions, 3000);

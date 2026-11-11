@@ -2,6 +2,10 @@
 
 - **Improvement (Smart Search Focus on Touch):** Tapping the search icon in item and wardrobe menus now automatically opens the keyboard so you can search immediately, while general menu navigation and applying restraints keep the keyboard closed.
 - **Fix (Screenshot Cleaner & Custom Backgrounds):** Custom room backgrounds and character interaction menus are now properly preserved when dialogs or item menus are open.
+- **Improvement (Smart Outfit Layer Pruning & Lower RAM):** Temporary clothing layer textures and masks are now automatically released as soon as a character finishes rendering onto the room canvas, significantly reducing memory usage in crowded rooms.
+- **Fix (Offline Profile Preview Crash):** Viewing profiles of offline friends or players outside your current room no longer triggers a canvas drawing error.
+- **Fix (Typing in Chat & Frame Rate Drops):** Typing messages on the soft keyboard is now recognized as active input, keeping frame rates smooth while chatting.
+- **Feature (Persist Map View):** Added a "Persist Map View" option in Chat QoL that remembers if Map View was open in a room and automatically reopens it when rejoining or relogging.
 
 ### How to Keep the App Connected in Background:
 
