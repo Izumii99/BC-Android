@@ -143,6 +143,7 @@ object VersionDetector {
     }
 
     const val BASE_GAME_URL = "https://www.bondage-asia.com/club/R%d/"
+    const val OFFICIAL_GAME_SCRIPT_URL = "https://gitgud.io/BondageProjects/Bondage-College/-/raw/master/BondageClub/Scripts/Game.js"
 
     // Dynilath UTC calendar version formula (auto-increments every 16th of the month at UTC)
     fun getCalculatedCalendarVersion(calendar: java.util.Calendar? = null): Int {
@@ -153,9 +154,44 @@ object VersionDetector {
         return ((year - 2025) * 12 + month) + 110 + if (day >= 16) 1 else 0
     }
 
-    // Scrape active official release version number from portal, enforced to bondage-asia
-    suspend fun fetchOfficialVersionNumber(client: OkHttpClient = httpClient): Int? = withContext(Dispatchers.IO) {
-        try {
+    // Parse active stable release version from official GitGud BondageClub/Scripts/Game.js
+    // When GameVersion is in Alpha/Beta (e.g. "R134Beta3"), the live release is R133 (vNum - 1).
+    fun parseGameVersionFromScript(scriptContent: String?): Int? {
+        if (scriptContent.isNullOrBlank()) {
+            return null
+        }
+        val pattern = Pattern.compile("\\bGameVersion\\s*=\\s*[\"']R(\\d+)(?:(Alpha|Beta)\\d*)?[\"']", Pattern.CASE_INSENSITIVE)
+        val matcher = pattern.matcher(scriptContent)
+        if (!matcher.find()) {
+            return null
+        }
+        val vNum = matcher.group(1)?.toIntOrNull() ?: return null
+        val isPreRelease = !matcher.group(2).isNullOrEmpty()
+        return if (isPreRelease) vNum - 1 else vNum
+    }
+
+    private fun fetchGitGudVersionNumber(client: OkHttpClient): Int? {
+        return try {
+            val req = Request.Builder()
+                .url(OFFICIAL_GAME_SCRIPT_URL)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                .header("Cache-Control", "no-cache, no-store")
+                .build()
+
+            client.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) {
+                    return null
+                }
+                val script = res.body?.string() ?: return null
+                parseGameVersionFromScript(script)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun fetchPortalVersionNumber(client: OkHttpClient): Int? {
+        return try {
             val req = Request.Builder()
                 .url("https://bondageprojects.com/club_game/")
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
@@ -164,22 +200,47 @@ object VersionDetector {
 
             client.newCall(req).execute().use { res ->
                 if (!res.isSuccessful) {
-                    return@withContext null
+                    return null
                 }
-                val html = res.body?.string() ?: run {
-                    return@withContext null
-                }
-
+                val html = res.body?.string() ?: return null
                 val pattern = Pattern.compile("onclick=\"window\\.location='https://www\\.bondage[^']+/R(\\d+)/[^']*'\"", Pattern.CASE_INSENSITIVE)
                 val matcher = pattern.matcher(html)
                 if (matcher.find()) {
-                    return@withContext matcher.group(1)?.toIntOrNull()
+                    matcher.group(1)?.toIntOrNull()
+                } else {
+                    null
                 }
             }
         } catch (_: Exception) {
-            // Return null on failure/timeout to fall back to calendar formula
+            null
         }
-        null
+    }
+
+    // Fetch active official release version from GitGud Game.js first, falling back to official portal
+    suspend fun fetchOfficialVersionNumber(client: OkHttpClient = httpClient): Int? = withContext(Dispatchers.IO) {
+        val gitGudVer = fetchGitGudVersionNumber(client)
+        if (gitGudVer != null && gitGudVer in 132..499) {
+            return@withContext gitGudVer
+        }
+        fetchPortalVersionNumber(client)
+    }
+
+    suspend fun resolveLiveVersion(client: OkHttpClient, candidateVersion: Int, fallbackVersion: Int = 132): Int = withContext(Dispatchers.IO) {
+        var probe = candidateVersion
+        var step = 0
+        while (step < 6 && probe in 132..499) {
+            val (status, nextVer) = checkVersionStatus(client, probe)
+            if (status == VersionStatus.Active) {
+                return@withContext probe
+            }
+            if (status == VersionStatus.Outdated && nextVer != null && nextVer > probe) {
+                val (nextStatus, _) = checkVersionStatus(client, nextVer)
+                return@withContext if (nextStatus == VersionStatus.Active) nextVer else probe
+            }
+            probe--
+            step++
+        }
+        if (fallbackVersion in 132..499) fallbackVersion else 132
     }
 
     suspend fun detectLatestGameUrl(context: Context): String = withContext(Dispatchers.IO) {
@@ -192,17 +253,21 @@ object VersionDetector {
             return@withContext "https://www.bondage-asia.com/club/R$activeVersion/"
         }
 
-        // 2. Try scraping official version from portal
+        // 2. Try fetching official version from GitGud Game.js or official portal
+        var candidateVersion = activeVersion
         val officialVer = fetchOfficialVersionNumber(httpClient)
         if (officialVer != null && officialVer in 132..499) {
-            activeVersion = officialVer
+            candidateVersion = officialVer
         } else {
             // 3. Fallback to Dynilath calendar formula
             val calVer = getCalculatedCalendarVersion()
             if (calVer in 132..499) {
-                activeVersion = calVer
+                candidateVersion = calVer
             }
         }
+
+        // 4. Verify live availability on bondage-asia.com before committing
+        activeVersion = resolveLiveVersion(httpClient, candidateVersion, activeVersion)
 
         if (fileConfig == null) {
             saveVersion(context, activeVersion, false)
@@ -395,13 +460,7 @@ object VersionDetector {
         }
     }
 
-    const val FALLBACK_RELEASE_NOTES = """• UX & Clean Startup: Eliminated system battery optimization prompts on startup for seamless instant game access.
-• Continuous 24/7 Socket Keep-Alive: Hardware WifiLock and CPU WakeLock keep active room connections alive 24/7.
-• Adaptive Frame Pacing & Opaque Canvas: Smart differential frame pacing (60/30 FPS) and opaque canvas composition for extended battery life.
-• Seamless Silent Background Session: Silenced background keep-alive notification to keep status bar clean.
-• Interactive Post-Update Changelog: In-app release notes dialog automatically introduces newly released features after each update.
-• Background Auto-Relogin: Automatically reconnects and re-enters rooms without requiring manual screen unlock.
-• Ultra-Low Background Power Profile: Throttles to 0.25 FPS with canvas deactivation to eliminate battery overhead while minimized."""
+    const val FALLBACK_RELEASE_NOTES = """• Fix (Game Server Version Detection): Fixed an issue where the app could attempt to open a new monthly game release before it was officially live on the server, resulting in a 404 Not Found screen."""
 
     fun formatReleaseNotesForDisplay(raw: String?): String {
         if (raw.isNullOrBlank()) {

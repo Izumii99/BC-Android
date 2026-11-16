@@ -459,6 +459,15 @@ class MainActivity : AppCompatActivity() {
                 super.onReceivedHttpError(view, request, errorResponse)
                 // Auto-fallback if the probed URL 404s
                 if (request?.isForMainFrame == true && errorResponse?.statusCode == 404) {
+                    val reqUrl = request.url?.toString() ?: ""
+                    val match = Regex("""/R(\d+)/""", RegexOption.IGNORE_CASE).find(reqUrl)
+                    val curVer = match?.groupValues?.getOrNull(1)?.toIntOrNull()
+                    if (curVer != null && curVer > 132) {
+                        val prevUrl = "https://www.bondage-asia.com/club/R${curVer - 1}/"
+                        currentLoadedUrl = prevUrl
+                        view?.loadUrl(prevUrl)
+                        return
+                    }
                     if (currentLoadedUrl != VersionDetector.DEFAULT_FALLBACK_URL) {
                         currentLoadedUrl = VersionDetector.DEFAULT_FALLBACK_URL
                         view?.loadUrl(VersionDetector.DEFAULT_FALLBACK_URL)

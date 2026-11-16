@@ -199,6 +199,15 @@ class VersionDetectorTest {
     }
 
     @Test
+    fun parseGameVersionFromScript_handlesAlphaBetaAndLiveVersions() {
+        assertEquals(133, VersionDetector.parseGameVersionFromScript("var GameVersion = \"R134Beta3\";"))
+        assertEquals(133, VersionDetector.parseGameVersionFromScript("var GameVersion = \"R134Alpha1\";"))
+        assertEquals(133, VersionDetector.parseGameVersionFromScript("var GameVersion = \"R133\";"))
+        assertEquals(134, VersionDetector.parseGameVersionFromScript("var GameVersion = \"R134\";"))
+        assertEquals(null, VersionDetector.parseGameVersionFromScript("invalid script"))
+    }
+
+    @Test
     fun officialPortalRegex_extractsVersionNumber() {
         val sampleHtml = "<button onclick=\"window.location='https://www.bondageprojects.com/club/R133/'\">Play</button>"
         val pattern = java.util.regex.Pattern.compile("onclick=\"window\\.location='https://www\\.bondage[^']+/R(\\d+)/[^']*'\"", java.util.regex.Pattern.CASE_INSENSITIVE)
