@@ -460,7 +460,9 @@ object VersionDetector {
         }
     }
 
-    const val FALLBACK_RELEASE_NOTES = """• Fix (Game Server Version Detection): Fixed an issue where the app could attempt to open a new monthly game release before it was officially live on the server, resulting in a 404 Not Found screen."""
+    const val FALLBACK_RELEASE_NOTES = """• Fix (Map View Persistence): Map View now stays active reliably after reconnecting, relogging, or leaving and rejoining a room when you previously left it turned on.
+
+• Fix (Chat Input Focus in Map View): Tapping inside the chat area while in Map View works smoothly without fighting the map canvas, while tapping the map keeps your movement controls uninterrupted."""
 
     fun formatReleaseNotesForDisplay(raw: String?): String {
         if (raw.isNullOrBlank()) {

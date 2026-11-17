@@ -201,4 +201,25 @@ class ScriptDistributionTest {
         assertTrue("Must virtualize lightweight chat log messages", content.contains("content-visibility: auto"))
         assertTrue("Must dirty-check layout signature before DOM style writes", content.contains("lastLayoutSig"))
     }
+
+    @Test
+    fun desktopBridge_andSyncedChatQol_respectMapViewFocusAndPersistence() {
+        val bridgeFile = listOf(
+            File("app/src/main/assets/scripts/desktop_bridge.js"),
+            File("../app/src/main/assets/scripts/desktop_bridge.js")
+        ).firstOrNull { it.exists() }
+        assertTrue("desktop_bridge.js must exist", bridgeFile != null && bridgeFile.exists())
+        val bridge = bridgeFile?.readText() ?: ""
+        assertTrue("Must define isMapViewActive", bridge.contains("isMapViewActive"))
+        assertTrue("Must define isChatTapArea", bridge.contains("isChatTapArea"))
+
+        val qolFile = listOf(
+            File("app/src/main/assets/addons/chat-qol.js"),
+            File("../app/src/main/assets/addons/chat-qol.js")
+        ).firstOrNull { it.exists() }
+        assertTrue("Synced chat-qol.js must exist in assets/addons", qolFile != null && qolFile.exists())
+        val qol = qolFile?.readText() ?: ""
+        assertTrue("Must include authoritative Map View check", qol.contains("isCurrentlyInMapView"))
+        assertTrue("Must hook ChatRoomSyncRoomProperties", qol.contains("ChatRoomSyncRoomProperties"))
+    }
 }

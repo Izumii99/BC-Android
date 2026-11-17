@@ -420,6 +420,27 @@
         }
     };
 
+    function isMapViewActive() {
+        if (window.CurrentScreen !== 'ChatRoom') return false;
+        if (typeof window.ChatRoomMapViewIsActive === 'function') {
+            return Boolean(window.ChatRoomMapViewIsActive());
+        }
+        const mapBtn = document.getElementById('chat-room-menu-MapView') || document.getElementById('chat-room-menu-mapview');
+        if (mapBtn && !mapBtn.hasAttribute('hidden')) return false;
+        const charBtn = document.getElementById('chat-room-menu-CharacterView') || document.getElementById('chat-room-menu-characterview');
+        return Boolean(charBtn && !charBtn.hasAttribute('hidden'));
+    }
+
+    function isChatTapArea(el) {
+        if (!el) return false;
+        if (el.id === 'InputChat' || el.id === 'TextAreaChatLog') return true;
+        if (el.closest) {
+            if (el.closest('#chat-room-top-menu')) return false;
+            return Boolean(el.closest('#chat-room-bot, #chat-room-div, #chat-room-main'));
+        }
+        return false;
+    }
+
     function trackDirectInputTap(e) {
         const t = e && e.target;
         if (!t) {
@@ -429,10 +450,25 @@
         if (inputEl && isTextInput(inputEl)) {
             window._bcLastDirectInputTapEl = inputEl;
             window._bcLastDirectInputTapTime = Date.now();
+            window.bcUserPrefersGameChat = inputEl.id === 'InputChat';
+            window.bcCanvasUnfocusedChat = false;
         } else {
             window._bcLastDirectInputTapEl = null;
             window._bcLastDirectInputTapTime = 0;
-            if (!window._bcAndroidAutoFocusEnabled && document.activeElement && isTextInput(document.activeElement)) {
+            if (isMapViewActive()) {
+                if (isChatTapArea(t)) {
+                    if (window._bcAndroidAutoFocusEnabled) {
+                        window.bcUserPrefersGameChat = true;
+                        window.bcCanvasUnfocusedChat = false;
+                    }
+                } else {
+                    window.bcUserPrefersGameChat = false;
+                    window.bcCanvasUnfocusedChat = true;
+                }
+            } else {
+                window.bcCanvasUnfocusedChat = false;
+            }
+            if ((!window._bcAndroidAutoFocusEnabled || window.bcCanvasUnfocusedChat) && document.activeElement && isTextInput(document.activeElement)) {
                 if (!isSearchInput(document.activeElement)) {
                     try { document.activeElement.blur(); } catch (err) {}
                 }
@@ -451,6 +487,7 @@
                 const res = origActivateView.apply(this, arguments);
                 if (viewName === 'Map') {
                     window.bcFocusMemory = null;
+                    window.bcUserPrefersGameChat = false;
                     window.bcCanvasUnfocusedChat = true;
                     const ic = document.getElementById('InputChat');
                     if (ic && document.activeElement === ic) {
@@ -467,13 +504,7 @@
         if (window.CommonKey && typeof window.CommonKey.InputKeyDown === 'function' && !window.CommonKey.InputKeyDown._isHooked) {
             const origInputKeyDown = window.CommonKey.InputKeyDown;
             window.CommonKey.InputKeyDown = function(inputElem, ev, options) {
-                const mapBtn = document.getElementById('chat-room-menu-MapView') || document.getElementById('chat-room-menu-mapview');
-                const charBtn = document.getElementById('chat-room-menu-CharacterView') || document.getElementById('chat-room-menu-characterview');
-                const isMapActive = window.CurrentScreen === 'ChatRoom' && !(mapBtn && !mapBtn.hasAttribute('hidden')) && (
-                    Boolean(charBtn && !charBtn.hasAttribute('hidden')) ||
-                    (window.ChatRoomData && window.ChatRoomData.MapData && window.ChatRoomData.MapData.Type === 'Always' && typeof window.ChatRoomMapViewIsActive === 'function' && window.ChatRoomMapViewIsActive())
-                );
-                if (inputElem && inputElem.id === 'InputChat' && (window.bcCanvasUnfocusedChat || isMapActive)) {
+                if (inputElem && inputElem.id === 'InputChat' && (window.bcCanvasUnfocusedChat || (isMapViewActive() && !window.bcUserPrefersGameChat))) {
                     return false;
                 }
                 return origInputKeyDown.apply(this, arguments);
@@ -494,7 +525,7 @@
                 const active = document.activeElement;
                 const isUserInAnotherInput = active && isInteractive(active) && active !== targetEl;
 
-                if (ID === 'InputChat' && (isUserInAnotherInput || window.bcCanvasUnfocusedChat)) {
+                if (ID === 'InputChat' && (isUserInAnotherInput || window.bcCanvasUnfocusedChat || (isMapViewActive() && !window.bcUserPrefersGameChat))) {
                     return;
                 }
                 origElementFocus(ID);
@@ -525,7 +556,7 @@
             }
 
             const isUserInAnotherInput = active && isInteractive(active) && active !== this;
-            if (this.id === 'InputChat' && isUserInAnotherInput && !isLayeringInput) {
+            if (this.id === 'InputChat' && !isLayeringInput && (isUserInAnotherInput || window.bcCanvasUnfocusedChat || (isMapViewActive() && !window.bcUserPrefersGameChat))) {
                 return;
             }
         } catch (e) {}
@@ -555,6 +586,9 @@
                     return el;
                 }
             }
+        }
+        if (window.bcCanvasUnfocusedChat || (isMapViewActive() && !window.bcUserPrefersGameChat)) {
+            return null;
         }
         return document.getElementById('InputChat');
     };
