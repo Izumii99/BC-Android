@@ -467,8 +467,12 @@
         if (window.CommonKey && typeof window.CommonKey.InputKeyDown === 'function' && !window.CommonKey.InputKeyDown._isHooked) {
             const origInputKeyDown = window.CommonKey.InputKeyDown;
             window.CommonKey.InputKeyDown = function(inputElem, ev, options) {
-                const isMapActive = (typeof window.ChatRoomMapViewIsActive === 'function' && window.ChatRoomMapViewIsActive()) ||
-                    (document.getElementById('chat-room-content') && document.getElementById('chat-room-content').getAttribute('data-view') === 'Map');
+                const mapBtn = document.getElementById('chat-room-menu-MapView') || document.getElementById('chat-room-menu-mapview');
+                const charBtn = document.getElementById('chat-room-menu-CharacterView') || document.getElementById('chat-room-menu-characterview');
+                const isMapActive = window.CurrentScreen === 'ChatRoom' && !(mapBtn && !mapBtn.hasAttribute('hidden')) && (
+                    Boolean(charBtn && !charBtn.hasAttribute('hidden')) ||
+                    (window.ChatRoomData && window.ChatRoomData.MapData && window.ChatRoomData.MapData.Type === 'Always' && typeof window.ChatRoomMapViewIsActive === 'function' && window.ChatRoomMapViewIsActive())
+                );
                 if (inputElem && inputElem.id === 'InputChat' && (window.bcCanvasUnfocusedChat || isMapActive)) {
                     return false;
                 }
