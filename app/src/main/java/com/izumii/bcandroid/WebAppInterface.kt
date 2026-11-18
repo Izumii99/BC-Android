@@ -47,17 +47,16 @@ class WebAppInterface(
         }
     }
 
-    @JavascriptInterface
-    fun getClipboardText(): String {
+    private fun <T> runOnMainWithResult(defaultValue: T, block: () -> T): T {
         return try {
             if (Looper.myLooper() == Looper.getMainLooper()) {
-                readClipboardInternal()
+                block()
             } else {
-                var result = ""
+                var result = defaultValue
                 val latch = java.util.concurrent.CountDownLatch(1)
                 mainHandler.post {
                     try {
-                        result = readClipboardInternal()
+                        result = block()
                     } catch (ignored: Exception) {
                     } finally {
                         latch.countDown()
@@ -67,8 +66,41 @@ class WebAppInterface(
                 result
             }
         } catch (e: Exception) {
-            ""
+            defaultValue
         }
+    }
+
+    @JavascriptInterface
+    fun getClipboardText(): String {
+        return runOnMainWithResult("") { readClipboardInternal() }
+    }
+
+    @JavascriptInterface
+    fun hasClipboardImage(): Boolean {
+        return runOnMainWithResult(false) {
+            ClipboardImageBridge.findClipboardImageUri(context) != null
+        }
+    }
+
+    @JavascriptInterface
+    fun getClipboardImagePayload(): String {
+        val match = runOnMainWithResult<Pair<Uri, String?>?>(null) {
+            ClipboardImageBridge.findClipboardImageUri(context)
+        } ?: return ""
+
+        val result = ClipboardImageBridge.readImagePayloadFromUri(context, match.first, match.second)
+        if (result.tooLarge) {
+            mainHandler.post {
+                Toast.makeText(context, "Image too large to paste (max 12 MB)", Toast.LENGTH_SHORT).show()
+            }
+            return ""
+        }
+        return result.payloadJson ?: ""
+    }
+
+    @JavascriptInterface
+    fun consumePendingPastedImage(): String {
+        return ClipboardImageBridge.consumePendingPayload()
     }
 
     @JavascriptInterface

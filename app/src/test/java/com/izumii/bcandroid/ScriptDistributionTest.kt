@@ -222,4 +222,26 @@ class ScriptDistributionTest {
         assertTrue("Must include authoritative Map View check", qol.contains("isCurrentlyInMapView"))
         assertTrue("Must hook ChatRoomSyncRoomProperties", qol.contains("ChatRoomSyncRoomProperties"))
     }
+
+    @Test
+    fun imagePasteBridge_supportsImeAndClipboardImages() {
+        val bridgeFile = listOf(
+            File("app/src/main/assets/scripts/desktop_bridge.js"),
+            File("../app/src/main/assets/scripts/desktop_bridge.js")
+        ).firstOrNull { it.exists() }
+        assertTrue("desktop_bridge.js must exist", bridgeFile != null && bridgeFile.exists())
+        val bridge = bridgeFile?.readText() ?: ""
+        assertTrue("Must define _bcConsumePendingImagePaste", bridge.contains("_bcConsumePendingImagePaste"))
+        assertTrue("Must expose navigator.clipboard.read", bridge.contains("origClipboard.read"))
+        assertTrue("Must dispatch synthetic ClipboardEvent paste", bridge.contains("dispatchSyntheticImagePaste"))
+
+        val webViewFile = listOf(
+            File("app/src/main/java/com/izumii/bcandroid/KeepAliveWebView.kt"),
+            File("../app/src/main/java/com/izumii/bcandroid/KeepAliveWebView.kt")
+        ).firstOrNull { it.exists() }
+        assertTrue("KeepAliveWebView.kt must exist", webViewFile != null && webViewFile.exists())
+        val webView = webViewFile?.readText() ?: ""
+        assertTrue("Must override onCreateInputConnection for IME image paste", webView.contains("onCreateInputConnection"))
+        assertTrue("Must register ViewCompat OnReceiveContentListener", webView.contains("setOnReceiveContentListener"))
+    }
 }

@@ -15,7 +15,7 @@ name: 'Build and Release APK'
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Map View Persistence & Chat Input Focus Fix'
+        default: 'Clipboard Image Paste, Map View & Chat Focus'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -82,7 +82,7 @@ jobs:
           fi
           VER="${INPUT_VER:-${REF_TAG:-2.1.1}}"
 
-          TITLE="${INPUT_TITLE:-Map View Persistence & Chat Input Focus Fix}"
+          TITLE="${INPUT_TITLE:-Clipboard Image Paste, Map View & Chat Focus}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"

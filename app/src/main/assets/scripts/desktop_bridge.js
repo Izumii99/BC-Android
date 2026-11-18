@@ -21,7 +21,118 @@
         };
     }
 
-    // Clipboard bridge to Android native ClipboardManager
+    // Clipboard bridge to Android native ClipboardManager (supports text and images)
+    function payloadJsonToImageFile(rawJson) {
+        if (!rawJson || typeof rawJson !== 'string') return null;
+        try {
+            const parsed = JSON.parse(rawJson);
+            if (!parsed || !parsed.dataUrl || !parsed.mime || !String(parsed.mime).startsWith('image/')) {
+                return null;
+            }
+            const commaIdx = parsed.dataUrl.indexOf(',');
+            const b64 = commaIdx !== -1 ? parsed.dataUrl.substring(commaIdx + 1) : parsed.dataUrl;
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) {
+                bytes[i] = bin.charCodeAt(i);
+            }
+            return new File([bytes], parsed.name || 'pasted.png', { type: parsed.mime });
+        } catch (e) {
+            console.error('Failed to decode pasted image payload', e);
+            return null;
+        }
+    }
+
+    function dispatchSyntheticImagePaste(file, preferredTarget) {
+        if (!file) return false;
+        try {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            const pasteEvt = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: dt
+            });
+            if (!pasteEvt.clipboardData || !pasteEvt.clipboardData.items || pasteEvt.clipboardData.items.length === 0) {
+                try {
+                    Object.defineProperty(pasteEvt, 'clipboardData', { value: dt, configurable: true });
+                } catch (err) {}
+            }
+            try {
+                Object.defineProperty(pasteEvt, '_bcSyntheticImagePaste', { value: true });
+            } catch (err) {
+                pasteEvt._bcSyntheticImagePaste = true;
+            }
+            const activeEl = document.activeElement;
+            const fallbackTarget = document.getElementById('InputChat') || document.body || document;
+            let target = fallbackTarget;
+            if (preferredTarget && (preferredTarget.tagName === 'INPUT' || preferredTarget.tagName === 'TEXTAREA')) {
+                target = preferredTarget;
+            } else if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                target = activeEl;
+            }
+            target.dispatchEvent(pasteEvt);
+            return true;
+        } catch (e) {
+            console.error('Failed to dispatch synthetic image paste', e);
+            return false;
+        }
+    }
+
+    function getClipboardImageFile() {
+        const bridge = window.AndroidBridge;
+        if (!bridge || typeof bridge.hasClipboardImage !== 'function' || typeof bridge.getClipboardImagePayload !== 'function') {
+            return null;
+        }
+        try {
+            if (!bridge.hasClipboardImage()) {
+                return null;
+            }
+            return payloadJsonToImageFile(bridge.getClipboardImagePayload());
+        } catch (e) {
+            console.error('AndroidBridge clipboard image read failed', e);
+            return null;
+        }
+    }
+
+    function tryPasteClipboardImage(preferredTarget) {
+        const file = getClipboardImageFile();
+        return file ? dispatchSyntheticImagePaste(file, preferredTarget) : false;
+    }
+
+    window._bcConsumePendingImagePaste = function() {
+        const bridge = window.AndroidBridge;
+        if (!bridge || typeof bridge.consumePendingPastedImage !== 'function') {
+            return false;
+        }
+        const file = payloadJsonToImageFile(bridge.consumePendingPastedImage());
+        return file ? dispatchSyntheticImagePaste(file, document.activeElement) : false;
+    };
+
+    document.addEventListener('paste', function(e) {
+        if (e._bcSyntheticImagePaste) return;
+        const items = e.clipboardData && e.clipboardData.items ? Array.from(e.clipboardData.items) : [];
+        const hasNativeImage = items.some(function(item) {
+            return item.type && item.type.startsWith('image/') && Boolean(item.getAsFile && item.getAsFile());
+        });
+        if (hasNativeImage) return;
+
+        const plain = e.clipboardData && typeof e.clipboardData.getData === 'function'
+            ? (e.clipboardData.getData('text/plain') || '').trim()
+            : '';
+        if (plain && !plain.startsWith('content://')) return;
+
+        if (window.AndroidBridge && typeof window.AndroidBridge.hasClipboardImage === 'function') {
+            try {
+                if (window.AndroidBridge.hasClipboardImage()) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    tryPasteClipboardImage(e.target);
+                }
+            } catch (err) {}
+        }
+    }, true);
+
     const origClipboard = navigator.clipboard;
     const mockClipboard = {
         writeText: function(text) {
@@ -52,6 +163,28 @@
                 });
             }
             return Promise.resolve('');
+        },
+        read: function() {
+            const imgFile = getClipboardImageFile();
+            if (imgFile && typeof window.ClipboardItem === 'function') {
+                const payload = {};
+                payload[imgFile.type || 'image/png'] = imgFile;
+                return Promise.resolve([new window.ClipboardItem(payload)]);
+            }
+            if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function' && typeof window.ClipboardItem === 'function') {
+                try {
+                    const text = window.AndroidBridge.getClipboardText();
+                    if (text) {
+                        return Promise.resolve([new window.ClipboardItem({ 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
+                    }
+                } catch (e) {}
+            }
+            if (origClipboard && typeof origClipboard.read === 'function') {
+                return origClipboard.read().catch(function() {
+                    return [];
+                });
+            }
+            return Promise.resolve([]);
         }
     };
 
@@ -85,6 +218,9 @@
                 window.AndroidBridge.copyText(text);
             }
         } else if (commandId && commandId.toLowerCase() === 'paste') {
+            if (tryPasteClipboardImage(document.activeElement)) {
+                return true;
+            }
             if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
                 try {
                     const text = window.AndroidBridge.getClipboardText();
@@ -124,20 +260,26 @@
         if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V' || e.code === 'KeyV')) {
             const activeEl = document.activeElement;
             const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
-            if (!isInput && window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
-                try {
-                    const text = window.AndroidBridge.getClipboardText();
-                    if (text) {
-                        const dt = new DataTransfer();
-                        dt.setData('text/plain', text);
-                        const pasteEvt = new ClipboardEvent('paste', {
-                            bubbles: true,
-                            cancelable: true,
-                            clipboardData: dt
-                        });
-                        (activeEl || document).dispatchEvent(pasteEvt);
-                    }
-                } catch (e) {}
+            if (!isInput) {
+                if (tryPasteClipboardImage(activeEl)) {
+                    e.preventDefault();
+                    return;
+                }
+                if (window.AndroidBridge && typeof window.AndroidBridge.getClipboardText === 'function') {
+                    try {
+                        const text = window.AndroidBridge.getClipboardText();
+                        if (text) {
+                            const dt = new DataTransfer();
+                            dt.setData('text/plain', text);
+                            const pasteEvt = new ClipboardEvent('paste', {
+                                bubbles: true,
+                                cancelable: true,
+                                clipboardData: dt
+                            });
+                            (activeEl || document).dispatchEvent(pasteEvt);
+                        }
+                    } catch (err) {}
+                }
             }
         }
     }, true);

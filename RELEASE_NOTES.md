@@ -1,5 +1,6 @@
 ### Fixes & Improvements:
 
+- **Feature (Clipboard & Keyboard Image Paste):** You can now paste copied screenshots and images directly from your phone keyboard clipboard bar (such as Gboard or Samsung Keyboard), long-press Paste, or Ctrl+V into the game chat so image-uploader addons like Liko Image Uploader work seamlessly.
 - **Fix (Map View Persistence):** Map View now stays active reliably after reconnecting, relogging, or leaving and rejoining a room when you previously left it turned on.
 - **Fix (Chat Input Focus in Map View):** Tapping inside the chat area while in Map View works smoothly without fighting the map canvas, while tapping the map keeps your movement controls uninterrupted.
 
