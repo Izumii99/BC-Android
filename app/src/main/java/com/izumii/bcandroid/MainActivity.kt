@@ -671,12 +671,13 @@ class MainActivity : AppCompatActivity() {
             "A new version of BC Android (${updateInfo.latestTag}) is available. Would you like to view the release page?"
         }
 
-        val message = if (updateInfo.releaseNotes.isNotBlank()) {
-            val lines = updateInfo.releaseNotes.lines()
-                .filter { it.startsWith("-") || it.startsWith("•") || it.startsWith("*") }
-                .take(4)
-                .joinToString("\n")
-            if (lines.isNotBlank()) "$baseMsg\n\nHighlights:\n$lines" else baseMsg
+        val formattedNotes = if (updateInfo.releaseNotes.isNotBlank()) {
+            VersionDetector.formatReleaseNotesForDisplay(updateInfo.releaseNotes)
+        } else {
+            ""
+        }
+        val message = if (formattedNotes.isNotBlank()) {
+            "$baseMsg\n\nHighlights:\n$formattedNotes"
         } else {
             baseMsg
         }

@@ -226,8 +226,11 @@ class VersionDetectorTest {
         val rawMarkdown = """
             ### Fixes & Improvements:
 
-            - **Battery & Deep Doze Exemption:** Added an automatic one-time system battery optimization prompt.
-            - **Continuous 24/7 Socket Keep-Alive:** Implemented full hardware WifiLock and tuned WakeLock.
+            - **Battery & Deep Doze Exemption:** Added an automatic **one-time** system battery optimization prompt.
+            - **Continuous 24/7 Socket Keep-Alive:** Implemented full hardware `WifiLock` and tuned WakeLock.
+
+            ### How to Keep the App Connected in Background:
+            1. Open system settings.
 
             ### Downloads:
 
@@ -237,6 +240,9 @@ class VersionDetectorTest {
         val formatted = VersionDetector.formatReleaseNotesForDisplay(rawMarkdown)
         assertTrue(formatted.contains("• Battery & Deep Doze Exemption: Added an automatic one-time system battery optimization prompt."))
         assertTrue(formatted.contains("• Continuous 24/7 Socket Keep-Alive: Implemented full hardware WifiLock and tuned WakeLock."))
+        assertFalse(formatted.contains("**"))
+        assertFalse(formatted.contains("`"))
+        assertFalse(formatted.contains("### How to"))
         assertFalse(formatted.contains("### Downloads:"))
         assertFalse(formatted.contains("BC-Android-Standard-Release.apk"))
     }

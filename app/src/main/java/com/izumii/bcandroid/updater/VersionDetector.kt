@@ -363,10 +363,11 @@ object VersionDetector {
 
                 val tagName = json.optString("tag_name", "")
                 val htmlUrl = json.optString("html_url", "https://github.com/$GITHUB_REPO/releases/latest")
-                val releaseNotes = json.optString("body", "")
+                val rawBody = json.optString("body", "")
                 val (apkUrl, apkSize) = parseApkAssetUrl(json, flavor)
 
                 if (tagName.isNotEmpty() && isNewerVersion(tagName, currentVersion)) {
+                    val releaseNotes = fetchLatestReleaseNotes(httpClient, rawBody)
                     return@withContext AppReleaseInfo(true, tagName, htmlUrl, apkUrl, apkSize, releaseNotes)
                 }
             }
@@ -491,22 +492,21 @@ object VersionDetector {
             }
         }
 
+        val bulletBodyRegex = Regex("""^\*\*([^*:]+?)(?:\*\*:|:\*\*|\*?:)\s*(.*)""")
         val formattedLines = text.lines().mapNotNull { line ->
             val trimmed = line.trim()
-            when {
-                trimmed.startsWith("- **") -> {
-                    val cleaned = trimmed.removePrefix("- ").trim()
-                    val match = Regex("""\*\*([^*:]+?)(?:\*\*:|:\*\*|\*?:)\s*(.*)""").matchEntire(cleaned)
-                    if (match != null) {
-                        "• ${match.groupValues[1]}: ${match.groupValues[2].replace("`", "")}"
-                    } else {
-                        "• " + cleaned.replace("**", "").replace("`", "")
-                    }
+            if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ")) {
+                val cleaned = trimmed.substring(2).trim()
+                val match = bulletBodyRegex.matchEntire(cleaned)
+                if (match != null) {
+                    val title = match.groupValues[1].replace("**", "").replace("`", "").trim()
+                    val desc = match.groupValues[2].replace("**", "").replace("`", "").trim()
+                    "• $title: $desc"
+                } else {
+                    "• " + cleaned.replace("**", "").replace("`", "")
                 }
-                trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ") -> {
-                    "• " + trimmed.substring(2).trim()
-                }
-                else -> null
+            } else {
+                null
             }
         }
 
@@ -517,23 +517,35 @@ object VersionDetector {
         }
     }
 
-    suspend fun fetchLatestReleaseNotes(client: OkHttpClient = httpClient): String = withContext(Dispatchers.IO) {
-        try {
-            val cdnUrl = "https://cdn.jsdelivr.net/gh/$GITHUB_REPO@main/RELEASE_NOTES.md"
-            val req = Request.Builder()
-                .url(cdnUrl)
-                .header("User-Agent", "BC-Android-Client")
-                .build()
+    suspend fun fetchLatestReleaseNotes(
+        client: OkHttpClient = httpClient,
+        fallbackRawBody: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val urls = listOf(
+            "https://raw.githubusercontent.com/$GITHUB_REPO/main/RELEASE_NOTES.md",
+            "https://cdn.jsdelivr.net/gh/$GITHUB_REPO@main/RELEASE_NOTES.md"
+        )
+        for (url in urls) {
+            try {
+                val req = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "BC-Android-Client")
+                    .header("Cache-Control", "no-cache")
+                    .build()
 
-            client.newCall(req).execute().use { response ->
-                if (response.isSuccessful) {
-                    val raw = response.body?.string()
-                    if (!raw.isNullOrBlank()) {
-                        return@withContext formatReleaseNotesForDisplay(raw)
+                client.newCall(req).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val raw = response.body?.string()
+                        if (!raw.isNullOrBlank()) {
+                            return@withContext formatReleaseNotesForDisplay(raw)
+                        }
                     }
                 }
+            } catch (ignored: Exception) {
             }
-        } catch (ignored: Exception) {
+        }
+        if (!fallbackRawBody.isNullOrBlank()) {
+            return@withContext formatReleaseNotesForDisplay(fallbackRawBody)
         }
         FALLBACK_RELEASE_NOTES
     }
