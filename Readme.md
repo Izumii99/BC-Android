@@ -56,7 +56,7 @@ A minimal native Android wrapper for BC, built with **Kotlin** and **Android Web
 - **Auto-Detects Latest Game Version:** Probes server endpoints concurrently on startup to launch the newest live game release (`R132+`). Supports manual version override or locking via a local `version.txt` file (e.g. `133:lock`).
 - **In-App Updates & Auto-Clean Cache:** Detects new APK releases on launch and provides in-app download and installation. Downloaded APKs are stored in private sandbox cache and automatically cleaned up on startup, keeping your Downloads folder clean.
 - **Crash Auto-Recovery:** Automatically recovers and restarts frozen or memory-exhausted WebKit render processes with rapid crash-loop guards.
-- **Native Clipboard & Soft Keyboard Bridge:** Full support for copying appearance codes, wardrobe exports, and chat logs with 1-tap clipboard integration and keyboard auto-resizing (`adjustResize`).
+- **Native Clipboard & Keyboard Image Paste:** Full support for copying text/wardrobe codes and pasting copied screenshots or images directly from the Android keyboard clipboard bar (Gboard, Samsung Keyboard), long-press Paste, or Ctrl+V into chat—enabling image-uploader addons such as Liko Image Uploader natively.
 - **Native System File Chooser:** Full support for HTML `<input type="file">`, allowing direct import and export of appearances, wardrobe codes, custom backgrounds, and backup files through the Android system file picker (Recent, Downloads, Gallery).
 - **Context-Aware Dynamic Pinch-to-Zoom:** Enables pinch-to-zoom (up to 5x magnification) across landscape screens for small buttons and text, while locking zoom in portrait mode (BC-LCE vertical chatrooms and room search UI) to maintain stable touch alignment.
 - **Discreet / Stealth Flavor:** Includes an optional build with a minimal app name (`"BC"`) and transparent launcher icon for complete privacy.
@@ -77,21 +77,25 @@ A custom dark theme tailored for **Neko Chat Enhancer**, replacing default backg
 
 ### 2. Chat QoL & Emoticons (`chat-qol.js`)
 
-Translates text emoticons into character expressions, forces ungarbled messages, and streamlines mobile chat room interactions.
+Translates text emoticons into character expressions, forces ungarbled messages, preserves per-room customization and Map View state across reconnects, and streamlines mobile chat room interactions.
 
 <img src="Assets/chat_qol_ui.png" width="300" alt="Chat QoL Settings" />
 
-### 3. Addon Manager UI (`addon-manager.js`)
+### 3. Addon Manager UI & Bookmarklet Runner (`addon-manager.js`)
 
-An in-game GUI to manage installed addons and compatible community scripts with simple toggle switches.
+An in-game GUI to manage built-in addons and external loaders (FUSAM, Liko Plugin) with simple toggle switches. Includes a built-in **Bookmarklet & Custom Script Runner** bar with saved history cache, one-click execution from history, optional startup auto-run, and a status pop-up confirming whether each script succeeded or failed.
 
 <img src="Assets/addon_manager.png" width="350" alt="Addon Manager Preview" />
 
 ### 4. Cheat Menu (`cheat-menu.js`)
 
-Quick-access floating draggable menu providing convenient shortcuts and utilities for testing, instant escape, wardrobe overrides, and NPC manipulation.
+Quick-access floating draggable menu providing testing utilities including instant struggle win, blocked zone bypass, auto-mirror restraints, quick restraint unlock/removal, and local outfit unlocking.
 
 <img src="Assets/Cheat_menu.png" width="320" alt="Cheat Menu Preview" />
+
+### 5. In-Game Translator (`translate.js`)
+
+Floating Shadow DOM translation widget for translating chat messages in real time with quick language switching and one-tap copy.
 
 > [!NOTE]
 > **Wardrobe Pagination:**  
@@ -175,6 +179,9 @@ BC-Android/
 ├── app/
 │   ├── src/main/
 │   │   ├── java/com/izumii/bcandroid/
+│   │   │   ├── BCApplication.kt              : Global app initialization & WebView setup
+│   │   │   ├── ClipboardImageBridge.kt       : Native clipboard & IME image paste decoder
+│   │   │   ├── KeepAliveWebView.kt           : Background-safe WebView & IME commitContent hook
 │   │   │   ├── MainActivity.kt               : WebView host, immersive mode, file chooser & lifecycle
 │   │   │   ├── WebAppInterface.kt            : JavaScript bridge (clipboard, downloads, haptics)
 │   │   │   ├── memory/
@@ -192,6 +199,7 @@ BC-Android/
 │   │   ├── res/                              : App layouts, drawables, launcher icons & themes
 │   │   └── AndroidManifest.xml               : Permissions (WakeLock, WifiLock, Battery Exempt)
 │   ├── src/test/                             : Automated JUnit test suite
+│   │   ├── ClipboardImageBridgeTest.kt       : Clipboard image payload & MIME validation tests
 │   │   ├── ScriptDistributionTest.kt         : Addon hub & fallback integrity tests
 │   │   └── VersionDetectorTest.kt            : SemVer tag comparison & calendar formula tests
 │   └── build.gradle.kts                      : Android app configuration (SDK 34, flavors, SemVer)
