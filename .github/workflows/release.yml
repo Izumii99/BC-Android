@@ -15,7 +15,7 @@ name: 'Build and Release APK'
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Bookmarklet Runner, R134 Tab-Out Fix & Clipboard Image Paste'
+        default: 'Bookmarklet Runner, R134 Stability, Clipboard Image Paste & Update Notes Fix'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -43,7 +43,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle Cache
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -57,7 +57,8 @@ jobs:
 
       - name: Build Release APKs
         run: |
-          ./gradlew assembleStandardRelease assembleDiscreetRelease --stacktrace
+          ./gradlew assembleStandardRelease assembleDiscreetRelease --no-daemon --stacktrace || \
+          ./gradlew assembleStandardRelease assembleDiscreetRelease --no-daemon --refresh-dependencies --stacktrace
 
       - name: Prepare APK Artifacts
         shell: bash
@@ -82,7 +83,7 @@ jobs:
           fi
           VER="${INPUT_VER:-${REF_TAG:-2.2.0}}"
 
-          TITLE="${INPUT_TITLE:-Bookmarklet Runner, R134 Tab-Out Fix & Clipboard Image Paste}"
+          TITLE="${INPUT_TITLE:-Bookmarklet Runner, R134 Stability, Clipboard Image Paste & Update Notes Fix}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"
