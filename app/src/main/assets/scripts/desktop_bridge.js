@@ -1631,7 +1631,7 @@
                         const nowTime = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                         const glToDelete = [];
                         glImgMap.forEach(function(img, key) {
-                            if (typeof key !== 'string' || !key.startsWith('Assets/') || key.indexOf('/Preview/') >= 0) return;
+                            if (typeof key !== 'string' || !key.startsWith('Assets/')) return;
                             if (!img || (typeof img.isLoading === 'function' && img.isLoading())) return;
                             if (typeof img.isDoneLoading === 'function' && !img.isDoneLoading()) return;
                             if (activeAssetUrls && activeAssetUrls.has(key)) return;
@@ -1649,7 +1649,7 @@
                         const nowTime = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                         const dToDelete = [];
                         dMap.forEach(function(img, key) {
-                            if (typeof key !== 'string' || !key.startsWith('Assets/') || key.indexOf('/Preview/') >= 0) return;
+                            if (typeof key !== 'string' || !key.startsWith('Assets/')) return;
                             if (!img || (typeof img.isLoading === 'function' && img.isLoading())) return;
                             if (typeof img.isDoneLoading === 'function' && !img.isDoneLoading()) return;
                             if (activeAssetUrls && activeAssetUrls.has(key)) return;
@@ -1703,7 +1703,7 @@
                         }
                     }
                 }
-                const alphaMasks = window.DrawCacheTextureAlphaMasks || window.GLDrawAlphaMasks;
+                const alphaMasks = window.DrawCacheTextureAlphaMasks || (typeof DrawCacheTextureAlphaMasks !== 'undefined' ? DrawCacheTextureAlphaMasks : null) || window.GLDrawAlphaMasks;
                 if (alphaMasks && typeof alphaMasks.size === 'number' && alphaMasks.size > 30) {
                     const aKeys = Array.from(alphaMasks.keys());
                     const removeCount = alphaMasks.size - 15;
@@ -1829,18 +1829,45 @@
                     }
                 };
             }
+            if (typeof window.InformationSheetSecondScreen === 'undefined') {
+                window.InformationSheetSecondScreen = false;
+            }
             if (typeof window.GameHandleError === 'function' && !window.__bcGameErrorHooked) {
                 window.__bcGameErrorHooked = true;
+                const _origHandleError = window.GameHandleError;
+                let _lastErrorTime = 0;
+                let _errorBurstCount = 0;
                 window.GameHandleError = function() {
-                    if (!window._bcIsMinimized && typeof window.GameRun === 'function' && window.GameAnimationFrameId == null) {
-                        window.GameAnimationFrameId = window.requestAnimationFrame(window.GameRun);
+                    const now = performance.now();
+                    if (now - _lastErrorTime < 1000) {
+                        _errorBurstCount++;
+                    } else {
+                        _errorBurstCount = 1;
                     }
+                    _lastErrorTime = now;
+                    _origHandleError.apply(this, arguments);
+                    const delay = _errorBurstCount > 3 ? 2000 : (_errorBurstCount > 1 ? 500 : 50);
+                    setTimeout(function() {
+                        if (!window._bcIsMinimized && typeof window.GameRun === 'function' && window.GameAnimationFrameId == null) {
+                            window.GameAnimationFrameId = window.requestAnimationFrame(window.GameRun);
+                        }
+                        if (window.GameWorker == null && typeof Worker === 'function' && typeof window.GameFallbackTimer === 'function') {
+                            try {
+                                window.GameWorker = new Worker('Scripts/GameWorker.js');
+                                window.GameWorker.onmessage = window.GameFallbackTimer;
+                            } catch (e) {}
+                        }
+                    }, delay);
                 };
             }
-            if (typeof window.ImageCache === 'function' && window.ImageCache.prototype && !window.ImageCache.prototype.__bcFastGetHooked) {
-                window.ImageCache.prototype.__bcFastGetHooked = true;
-                const _origGet = window.ImageCache.prototype.get;
-                window.ImageCache.prototype.get = function(url) {
+            const _icProto = (typeof window.ImageCache === 'function' && window.ImageCache.prototype) ||
+                (typeof window.ImageCacheClass === 'function' && window.ImageCacheClass.prototype) ||
+                (typeof ImageCache === 'function' && ImageCache.prototype) ||
+                (window.DrawImageCache && Object.getPrototypeOf(window.DrawImageCache));
+            if (_icProto && !_icProto.__bcFastGetHooked) {
+                _icProto.__bcFastGetHooked = true;
+                const _origGet = _icProto.get;
+                _icProto.get = function(url) {
                     const image = this.cache && typeof this.cache.get === 'function' ? this.cache.get(url) : null;
                     if (image) {
                         const isReady = typeof image.isLoaded === 'function'
@@ -1853,7 +1880,17 @@
                             return image;
                         }
                         if (image.state === 'failed') {
-                            image.state = 'uncached';
+                            const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
+                            if ((image._bcRetryCount || 0) < 2 && now - (image._bcLastRetry || 0) > 15000) {
+                                image._bcRetryCount = (image._bcRetryCount || 0) + 1;
+                                image._bcLastRetry = now;
+                                image.state = 'uncached';
+                            } else {
+                                if (typeof window.CommonTime === 'function') {
+                                    image.lastUsed = window.CommonTime();
+                                }
+                                return image;
+                            }
                         }
                     }
                     return _origGet.apply(this, arguments);
@@ -1908,8 +1945,8 @@
                 const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                 const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
                 const glMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
-                if (drawMap && typeof drawMap.forEach === 'function') { drawMap.forEach((dImg, url) => { if (dImg && typeof url === 'string' && (!url.startsWith('Assets/') || url.indexOf('/Preview/') >= 0)) dImg.lastUsed = now; }); }
-                if (glMap && typeof glMap.forEach === 'function') { glMap.forEach((gImg, url) => { if (gImg && typeof url === 'string' && (!url.startsWith('Assets/') || url.indexOf('/Preview/') >= 0)) gImg.lastUsed = now; }); }
+                if (drawMap && typeof drawMap.forEach === 'function') { drawMap.forEach((dImg, url) => { if (dImg && typeof url === 'string' && !url.startsWith('Assets/')) dImg.lastUsed = now; }); }
+                if (glMap && typeof glMap.forEach === 'function') { glMap.forEach((gImg, url) => { if (gImg && typeof url === 'string' && !url.startsWith('Assets/')) gImg.lastUsed = now; }); }
                 if (!window._bcIsMinimized && typeof window.GameRun === 'function' && window.GameAnimationFrameId == null) {
                     window.GameAnimationFrameId = window.requestAnimationFrame(window.GameRun);
                 }

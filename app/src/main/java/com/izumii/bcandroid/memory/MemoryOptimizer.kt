@@ -32,7 +32,7 @@ object MemoryOptimizer {
         "if(isBurst?(now-_lastBgDrawTime<66):(now-_lastBgDrawTime<1000))return;" +
         "_lastBgDrawTime=now;" +
         "}else{" +
-        "const idle=(now-(window._bcLastInputTime||0))>2500&&!window.CurrentCharacter&&!(typeof window.StruggleProgress==='number'&&window.StruggleProgress>=0);" +
+        "const idle=(now-(window._bcLastInputTime||0))>2500&&!window.CurrentCharacter&&!((typeof window.StruggleMinigameIsRunning==='function'&&window.StruggleMinigameIsRunning())||(typeof StruggleProgress==='number'&&StruggleProgress>=0)||(typeof window.StruggleProgress==='number'&&window.StruggleProgress>=0));" +
         "if(now-(window._bcLastFgDrawTime||0)<(idle?66:32))return;" +
         "window._bcLastFgDrawTime=now;" +
         "}" +
@@ -131,6 +131,7 @@ object MemoryOptimizer {
         "if(typeof window.GameRun==='function'&&!seen.has(window.GameRun)){window.GameAnimationFrameId=raf.call(window,window.GameRun);}" +
         "}" +
         "if(typeof window.GameRun==='function'&&window.GameAnimationFrameId==null){window.GameAnimationFrameId=window.requestAnimationFrame(window.GameRun);}" +
+        "if(window.GameWorker==null&&typeof Worker==='function'&&typeof window.GameFallbackTimer==='function'){try{window.GameWorker=new Worker('Scripts/GameWorker.js');window.GameWorker.onmessage=window.GameFallbackTimer;}catch(e){}}" +
         // --- Compositor repaint kick (spoof visibility workaround) ---
         "const mc=document.getElementById('MainCanvas');if(mc){mc.style.opacity='0.999';requestAnimationFrame(function(){mc.style.opacity='';});}" +
         // --- WebGL context recovery (300ms) ---

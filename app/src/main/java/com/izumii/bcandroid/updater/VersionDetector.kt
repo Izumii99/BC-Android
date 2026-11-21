@@ -467,9 +467,9 @@ object VersionDetector {
 
 • Fix (R134 Tab-Out & Restraint Menu Display): Fixed an issue in R134 where returning to the app after tabbing out could cause the character dialog or top-right restraint menu icons (such as activities and search) to turn blank black.
 
-• Fix (Map View Persistence): Map View now stays active reliably after reconnecting, relogging, or leaving and rejoining a room when you previously left it turned on.
+• Fix (R134 Profile Screen Addon Crash Protection): Fixed an issue in R134 where opening a player's profile or information sheet could trigger an unhandled error in third-party addons and freeze the game screen.
 
-• Fix (Chat Input Focus in Map View): Tapping inside the chat area while in Map View works smoothly without fighting the map canvas, while tapping the map keeps your movement controls uninterrupted."""
+• Fix (Update Notification & Release Notes): Fixed update notifications and changelog previews so they always display clean, up-to-date release notes without raw markdown formatting."""
 
     fun formatReleaseNotesForDisplay(raw: String?): String {
         if (raw.isNullOrBlank()) {
