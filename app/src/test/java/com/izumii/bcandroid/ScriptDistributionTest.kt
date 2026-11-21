@@ -243,5 +243,15 @@ class ScriptDistributionTest {
         val webView = webViewFile?.readText() ?: ""
         assertTrue("Must override onCreateInputConnection for IME image paste", webView.contains("onCreateInputConnection"))
         assertTrue("Must register ViewCompat OnReceiveContentListener", webView.contains("setOnReceiveContentListener"))
+
+        val addonMgrFile = listOf(
+            File("app/src/main/assets/addons/addon-manager.js"),
+            File("../app/src/main/assets/addons/addon-manager.js")
+        ).firstOrNull { it.exists() }
+        assertTrue("Synced addon-manager.js must exist in assets/addons", addonMgrFile != null && addonMgrFile.exists())
+        val addonMgr = addonMgrFile?.readText() ?: ""
+        assertTrue("Must persist bookmarklet history cache", addonMgr.contains("BCDesktop_Addons_Bookmarklets"))
+        assertTrue("Must show bookmarklet status pop-up", addonMgr.contains("showBookmarkletStatusPopup"))
+        assertTrue("Must recover R134 GameRun render loop", bridge.contains("window.GameRun"))
     }
 }

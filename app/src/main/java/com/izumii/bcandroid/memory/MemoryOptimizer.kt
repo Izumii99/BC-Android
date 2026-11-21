@@ -128,7 +128,9 @@ object MemoryOptimizer {
         "const seen=new Set();" +
         "if(q)q.forEach(function(e){clearTimeout(e.t);if(!seen.has(e.cb)){seen.add(e.cb);raf.call(window,e.cb);}});" +
         "if(typeof window.MainRun==='function'&&!seen.has(window.MainRun)){raf.call(window,window.MainRun);}" +
+        "if(typeof window.GameRun==='function'&&!seen.has(window.GameRun)){window.GameAnimationFrameId=raf.call(window,window.GameRun);}" +
         "}" +
+        "if(typeof window.GameRun==='function'&&window.GameAnimationFrameId==null){window.GameAnimationFrameId=window.requestAnimationFrame(window.GameRun);}" +
         // --- Compositor repaint kick (spoof visibility workaround) ---
         "const mc=document.getElementById('MainCanvas');if(mc){mc.style.opacity='0.999';requestAnimationFrame(function(){mc.style.opacity='';});}" +
         // --- WebGL context recovery (300ms) ---
@@ -153,8 +155,9 @@ object MemoryOptimizer {
         "if(window.Player&&!chars.includes(window.Player))chars.push(window.Player);if(window.CurrentCharacter&&!chars.includes(window.CurrentCharacter))chars.push(window.CurrentCharacter);if(Array.isArray(window.DrawLastCharacters)){for(let j=0;j<window.DrawLastCharacters.length;j++){if(window.DrawLastCharacters[j]&&!chars.includes(window.DrawLastCharacters[j]))chars.push(window.DrawLastCharacters[j]);}}" +
         "for(let i=0;i<chars.length;i++){" +
         "const c=chars[i];" +
-        "if(c&&c._bcPendingCanvasBuild){" +
+        "if(c&&(c._bcPendingCanvasBuild||c===window.CurrentCharacter)){" +
         "delete c._bcPendingCanvasBuild;" +
+        "c.MustDraw=true;" +
         "if(typeof window.CharacterLoadCanvas==='function'){" +
         "try{window.CharacterLoadCanvas(c);}catch(e){}" +
         "}else if(typeof window.CharacterAppearanceBuildCanvas==='function'){" +

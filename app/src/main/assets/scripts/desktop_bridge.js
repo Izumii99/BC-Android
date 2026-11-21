@@ -865,12 +865,25 @@
                     }
                     const q = window._bcRafQ;
                     window._bcRafQ = null;
+                    const seen = new Set();
                     if (q) {
-                        q.forEach(function(e) { clearTimeout(e.t); });
+                        q.forEach(function(e) {
+                            clearTimeout(e.t);
+                            if (!seen.has(e.cb)) {
+                                seen.add(e.cb);
+                                raf.call(window, e.cb);
+                            }
+                        });
                     }
-                    if (typeof window.MainRun === 'function') {
+                    if (typeof window.MainRun === 'function' && !seen.has(window.MainRun)) {
                         raf.call(window, window.MainRun);
                     }
+                    if (typeof window.GameRun === 'function' && !seen.has(window.GameRun)) {
+                        window.GameAnimationFrameId = raf.call(window, window.GameRun);
+                    }
+                }
+                if (typeof window.GameRun === 'function' && window.GameAnimationFrameId == null) {
+                    window.GameAnimationFrameId = window.requestAnimationFrame(window.GameRun);
                 }
                 const mc = document.getElementById('MainCanvas');
                 if (mc) {
@@ -1614,8 +1627,7 @@
                 if (gl) {
                     hookGlCacheDelete(gl);
                     const glImgMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
-                    if (glImgMap && typeof glImgMap.forEach === 'function' && typeof window.GLDrawImageCache.delete === 'function') {
-                        const isBg = Boolean(window._bcIsBackground);
+                    if (!window._bcIsBackground && glImgMap && typeof glImgMap.forEach === 'function' && typeof window.GLDrawImageCache.delete === 'function') {
                         const nowTime = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                         const glToDelete = [];
                         glImgMap.forEach(function(img, key) {
@@ -1624,7 +1636,7 @@
                             if (typeof img.isDoneLoading === 'function' && !img.isDoneLoading()) return;
                             if (activeAssetUrls && activeAssetUrls.has(key)) return;
                             const age = nowTime - (img.lastUsed || 0);
-                            if (age > (isBg ? 15000 : 45000)) {
+                            if (age > 120000) {
                                 glToDelete.push(key);
                             }
                         });
@@ -1632,9 +1644,8 @@
                             window.GLDrawImageCache.delete(glToDelete[i]);
                         }
                     }
-                    if (window.DrawImageCache && window.DrawImageCache.cache && typeof window.DrawImageCache.delete === 'function') {
+                    if (!window._bcIsBackground && window.DrawImageCache && window.DrawImageCache.cache && typeof window.DrawImageCache.delete === 'function') {
                         const dMap = window.DrawImageCache.cache;
-                        const isBg = Boolean(window._bcIsBackground);
                         const nowTime = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                         const dToDelete = [];
                         dMap.forEach(function(img, key) {
@@ -1643,7 +1654,7 @@
                             if (typeof img.isDoneLoading === 'function' && !img.isDoneLoading()) return;
                             if (activeAssetUrls && activeAssetUrls.has(key)) return;
                             const age = nowTime - (img.lastUsed || 0);
-                            if (age > (isBg ? 15000 : 45000)) {
+                            if (age > 120000) {
                                 dToDelete.push(key);
                             }
                         });
@@ -1709,7 +1720,7 @@
             if (!document.head || document.getElementById('bc-desktop-chat-virt')) return;
             const st = document.createElement('style');
             st.id = 'bc-desktop-chat-virt';
-            st.textContent = '#TextAreaChatLog > .ChatMessage, #TextAreaChatLog > div { content-visibility: auto; contain-intrinsic-size: auto 42px; contain: layout style paint; } .dialog-grid, .dialog-root { contain: layout style; }';
+            st.textContent = '#TextAreaChatLog > .ChatMessage, #TextAreaChatLog > div { content-visibility: auto; contain-intrinsic-size: auto 42px; contain: layout style paint; }';
             document.head.appendChild(st);
         }
         ensureChatVirtualizationCss();
@@ -1818,16 +1829,32 @@
                     }
                 };
             }
+            if (typeof window.GameHandleError === 'function' && !window.__bcGameErrorHooked) {
+                window.__bcGameErrorHooked = true;
+                window.GameHandleError = function() {
+                    if (!window._bcIsMinimized && typeof window.GameRun === 'function' && window.GameAnimationFrameId == null) {
+                        window.GameAnimationFrameId = window.requestAnimationFrame(window.GameRun);
+                    }
+                };
+            }
             if (typeof window.ImageCache === 'function' && window.ImageCache.prototype && !window.ImageCache.prototype.__bcFastGetHooked) {
                 window.ImageCache.prototype.__bcFastGetHooked = true;
                 const _origGet = window.ImageCache.prototype.get;
                 window.ImageCache.prototype.get = function(url) {
                     const image = this.cache && typeof this.cache.get === 'function' ? this.cache.get(url) : null;
-                    if (image && ((typeof image.isDoneLoading === 'function' && image.isDoneLoading()) || (typeof image.isLoading === 'function' && image.isLoading()))) {
-                        if (typeof window.CommonTime === 'function') {
-                            image.lastUsed = window.CommonTime();
+                    if (image) {
+                        const isReady = typeof image.isLoaded === 'function'
+                            ? (image.isLoaded() && image.data && image.data.width > 0)
+                            : (typeof image.isDoneLoading === 'function' && image.isDoneLoading() && (!image.state || image.state === 'loaded'));
+                        if (isReady || (typeof image.isLoading === 'function' && image.isLoading())) {
+                            if (typeof window.CommonTime === 'function') {
+                                image.lastUsed = window.CommonTime();
+                            }
+                            return image;
                         }
-                        return image;
+                        if (image.state === 'failed') {
+                            image.state = 'uncached';
+                        }
                     }
                     return _origGet.apply(this, arguments);
                 };
@@ -1881,7 +1908,11 @@
                 const now = typeof window.CommonTime === 'function' ? window.CommonTime() : Date.now();
                 const drawMap = window.DrawImageCache && window.DrawImageCache.cache;
                 const glMap = window.GLDrawImageCache && window.GLDrawImageCache.cache;
-                if (drawMap && typeof drawMap.forEach === 'function') { drawMap.forEach((dImg, url) => { if (dImg && typeof url === 'string' && !url.startsWith('Assets/')) dImg.lastUsed = now; }); }
+                if (drawMap && typeof drawMap.forEach === 'function') { drawMap.forEach((dImg, url) => { if (dImg && typeof url === 'string' && (!url.startsWith('Assets/') || url.indexOf('/Preview/') >= 0)) dImg.lastUsed = now; }); }
+                if (glMap && typeof glMap.forEach === 'function') { glMap.forEach((gImg, url) => { if (gImg && typeof url === 'string' && (!url.startsWith('Assets/') || url.indexOf('/Preview/') >= 0)) gImg.lastUsed = now; }); }
+                if (!window._bcIsMinimized && typeof window.GameRun === 'function' && window.GameAnimationFrameId == null) {
+                    window.GameAnimationFrameId = window.requestAnimationFrame(window.GameRun);
+                }
                 if (Array.isArray(window.DrawLastCharacters)) { for (let i = 0; i < window.DrawLastCharacters.length; i++) { const dc = window.DrawLastCharacters[i]; if (dc && !chars.includes(dc)) chars.push(dc); } }
                 const activeUrls = new Set();
                 for (let i = 0; i < chars.length; i++) {

@@ -8,14 +8,14 @@ name: 'Build and Release APK'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version / tag (e.g., 2.1.1)'
+        description: 'Release version / tag (e.g., 2.2.0)'
         required: false
-        default: '2.1.1'
+        default: '2.2.0'
         type: string
       title:
         description: 'Release Title Highlight (Title Case)'
         required: false
-        default: 'Clipboard Image Paste, Map View & Chat Focus'
+        default: 'Bookmarklet Runner, R134 Tab-Out Fix & Clipboard Image Paste'
         type: string
       notes:
         description: 'Custom Release Notes (leave empty to use standard template)'
@@ -80,9 +80,9 @@ jobs:
           else
             REF_TAG=""
           fi
-          VER="${INPUT_VER:-${REF_TAG:-2.1.1}}"
+          VER="${INPUT_VER:-${REF_TAG:-2.2.0}}"
 
-          TITLE="${INPUT_TITLE:-Clipboard Image Paste, Map View & Chat Focus}"
+          TITLE="${INPUT_TITLE:-Bookmarklet Runner, R134 Tab-Out Fix & Clipboard Image Paste}"
           CUSTOM_NOTES="${INPUT_NOTES:-}"
 
           git config user.name "github-actions[bot]"
